@@ -44,16 +44,34 @@ function resolvePeriodicity(raw: number | null | undefined): number {
 
 /**
  * Evidência de que o ASO admissional já ocorreu no Alterdata.
- * lastAso na data da admissão ou depois.
+ *
+ * Casos:
+ * 1) Ultimo_aso ≥ admissão (evidência direta)
+ * 2) Ultimo_aso anterior à admissão atual (recontratação / espelho defasado)
+ *    MAS já existe Proximo_aso depois da admissão → o Alterdata já avançou o ciclo
  */
 export function hasAdmissionAsoEvidence(
   admissionDate: string | null | undefined,
   lastAsoDate: string | null | undefined,
+  alterdataNextDate?: string | null,
 ): boolean {
   const admission = parseDay(admissionDate);
+  if (!admission) return false;
+
   const last = parseDay(lastAsoDate);
-  if (!admission || !last) return false;
-  return last.getTime() >= admission.getTime();
+  if (last && last.getTime() >= admission.getTime()) return true;
+
+  const next = parseDay(alterdataNextDate);
+  if (
+    next &&
+    next.getTime() > admission.getTime() &&
+    last &&
+    last.getTime() < admission.getTime()
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -69,6 +87,7 @@ export function resolveTrustedPeriodicNext(
   const admissionAsoEvidence = hasAdmissionAsoEvidence(
     input.admissionDate,
     input.lastAsoDate,
+    input.alterdataNextDate,
   );
 
   const fromLast = last ? addRealMonths(last, periodicityMonths) : null;
@@ -90,7 +109,9 @@ export function resolveTrustedPeriodicNext(
 
   // 2) Ainda no primeiro ciclo após admissão: não agendar periódico antecipado
   if (admission && fromAdmission && next && next.getTime() < fromAdmission.getTime()) {
-    if (fromLast && last && last.getTime() >= admission.getTime()) {
+    const lastAfterAdmission = Boolean(last && last.getTime() >= admission.getTime());
+
+    if (lastAfterAdmission && fromLast) {
       return {
         nextPeriodicDate: toIso(fromLast),
         trust: "RECOMPUTED_FROM_LAST",
@@ -100,6 +121,24 @@ export function resolveTrustedPeriodicNext(
         periodicityMonths,
       };
     }
+
+    // Ultimo_aso pré-admissão (recontratação) + Proximo_aso já após a admissão:
+    // confiar no espelho — o ciclo pós-admissão já está no Alterdata.
+    if (
+      next.getTime() > admission.getTime() &&
+      last &&
+      last.getTime() < admission.getTime()
+    ) {
+      return {
+        nextPeriodicDate: toIso(next),
+        trust: "ALTERDATA",
+        reason:
+          "Proximo_aso após admissão com Ultimo_aso anterior à admissão (recontratação/espelho); ciclo do Alterdata.",
+        admissionAsoEvidence: true,
+        periodicityMonths,
+      };
+    }
+
     return {
       nextPeriodicDate: toIso(fromAdmission),
       trust: "RECOMPUTED_FROM_ADMISSION",

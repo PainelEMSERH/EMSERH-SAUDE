@@ -57,4 +57,24 @@ describe("hasAdmissionAsoEvidence", () => {
     expect(hasAdmissionAsoEvidence("2026-01-07", "2025-12-01")).toBe(false);
     expect(hasAdmissionAsoEvidence("2026-01-07", null)).toBe(false);
   });
+
+  it("Viktoria: Ultimo_aso pré-admissão + Proximo_aso após admissão = admissional evidenciado", () => {
+    expect(
+      hasAdmissionAsoEvidence("2026-01-16", "2025-12-04", "2026-12-04"),
+    ).toBe(true);
+  });
+});
+
+describe("resolveTrustedPeriodicNext — recontratação", () => {
+  it("Viktoria: confia no Proximo_aso 04/12/2026 apesar do Ultimo_aso pré-admissão", () => {
+    const r = resolveTrustedPeriodicNext({
+      admissionDate: "2026-01-16",
+      lastAsoDate: "2025-12-04",
+      alterdataNextDate: "2026-12-04",
+      periodicityMonths: 12,
+    });
+    expect(r.admissionAsoEvidence).toBe(true);
+    expect(r.trust).toBe("ALTERDATA");
+    expect(r.nextPeriodicDate).toBe("2026-12-04");
+  });
 });

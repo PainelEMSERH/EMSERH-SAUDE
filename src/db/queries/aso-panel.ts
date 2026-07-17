@@ -1057,6 +1057,20 @@ export async function generateAsoPlanningForYear(
 
     const adm = yearMonthFromDate(emp.admissionDate);
     if (adm && adm.year === year) {
+      const lastIso = snap?.lastAsoDate
+        ? String(snap.lastAsoDate).slice(0, 10)
+        : null;
+      const admIso = emp.admissionDate
+        ? String(emp.admissionDate).slice(0, 10)
+        : null;
+      const lastAfterAdmission =
+        Boolean(lastIso && admIso && lastIso >= admIso);
+      const performedFromAlterdata = trusted.admissionAsoEvidence
+        ? lastAfterAdmission
+          ? lastIso
+          : admIso
+        : null;
+
       await upsertPlan({
         employeeId: emp.id,
         registration: emp.registration,
@@ -1072,7 +1086,7 @@ export async function generateAsoPlanningForYear(
         functionalStatus: emp.functionalStatus,
         origin: "ADMISSION",
         markRealizedFromAlterdata: trusted.admissionAsoEvidence,
-        alterdataPerformedDate: snap?.lastAsoDate ?? null,
+        alterdataPerformedDate: performedFromAlterdata,
       });
     }
 
