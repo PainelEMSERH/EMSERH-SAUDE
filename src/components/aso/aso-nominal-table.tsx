@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { Eye } from "lucide-react";
 import { AsoJustifyDialog } from "@/components/aso/aso-justify-dialog";
 import { AsoReprogramDialog } from "@/components/aso/aso-reprogram-dialog";
 import { StatusBadge } from "@/components/feedback/status-badge";
@@ -295,16 +294,14 @@ export function AsoNominalTable({
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
         <table className="w-full table-fixed border-collapse text-[12px]">
           <colgroup>
-            <col className="w-[18%]" />
-            <col className="w-[7%]" />
-            <col className="w-[16%]" />
-            <col className="w-[8%]" />
-            <col className="w-[8%]" />
+            <col className="w-[22%]" />
             <col className="w-[9%]" />
-            <col className="w-[9%]" />
+            <col className="w-[20%]" />
+            <col className="w-[10%]" />
+            <col className="w-[10%]" />
+            <col className="w-[11%]" />
             <col className="w-[10%]" />
             <col className="w-[8%]" />
-            <col className="w-[7%]" />
           </colgroup>
           <thead className="sticky top-0 z-20 bg-slate-50 shadow-[0_1px_0_0_rgb(226_232_240)]">
             <tr>
@@ -317,8 +314,6 @@ export function AsoNominalTable({
                 "Sit. funcional",
                 "Execução",
                 "Alterdata",
-                "Pendência",
-                "Ações",
               ].map((h) => (
                 <th
                   key={h}
@@ -340,15 +335,6 @@ export function AsoNominalTable({
                   performedDate: r.performedDate,
                 }),
               );
-              const canRegister =
-                canCreate &&
-                canRegisterRealization({
-                  eligibility: r.eligibility,
-                  executionStatus: r.executionStatus,
-                  expectedDate: r.expectedDate,
-                  asoRecordId: r.asoRecordId,
-                  performedDate: r.performedDate,
-                });
               return (
                 <tr
                   key={r.id}
@@ -401,48 +387,12 @@ export function AsoNominalTable({
                       />
                     </span>
                   </td>
-                  <td className="px-2 py-1.5 text-center text-slate-600">
-                    <span className="block truncate" title={pendencyLabel(r, effective)}>
-                      {pendencyLabel(r, effective)}
-                    </span>
-                  </td>
-                  <td className="px-2 py-1.5 text-center" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex flex-wrap justify-center gap-1">
-                      <button
-                        type="button"
-                        className={cn(
-                          buttonVariants({ variant: "ghost", size: "sm" }),
-                          "h-6 px-1.5 text-[10px]",
-                        )}
-                        onClick={() => setSelected(r)}
-                        title="Ver detalhes"
-                      >
-                        <Eye className="size-3" />
-                      </button>
-                      {canRegister ? (
-                        <button
-                          type="button"
-                          className={cn(
-                            buttonVariants({ variant: "outline", size: "sm" }),
-                            "h-6 px-1.5 text-[10px]",
-                          )}
-                          onClick={() => {
-                            setSelected(r);
-                            setRegisterOpen(true);
-                            setError(null);
-                          }}
-                        >
-                          Registrar
-                        </button>
-                      ) : null}
-                    </div>
-                  </td>
                 </tr>
               );
             })}
             {!rows.length ? (
               <tr>
-                <td colSpan={10} className="px-3 py-8 text-center text-slate-500">
+                <td colSpan={8} className="px-3 py-8 text-center text-slate-500">
                   Nenhum colaborador nesta competência com os filtros atuais.
                 </td>
               </tr>
