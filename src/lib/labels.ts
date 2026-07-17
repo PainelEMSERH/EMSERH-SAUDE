@@ -16,7 +16,7 @@ const LABELS: Record<string, string> = {
   NAO_INFORMADO: "Não informado",
   NAO_APLICAVEL: "Não aplicável",
 
-  // ASO
+  // ASO tipos
   ADMISSIONAL: "Admissional",
   PERIODICO: "Periódico",
   RETORNO_TRABALHO: "Retorno ao trabalho",
@@ -26,18 +26,52 @@ const LABELS: Record<string, string> = {
   A_VENCER: "A vencer",
   EM_DIA: "Em dia",
 
+  // Execução ASO
+  PREVISTO: "Previsto",
+  AGENDADO: "Agendado",
+  REALIZADO: "Realizado",
+  NAO_REALIZADO: "Não realizado",
+  REPROGRAMADO: "Reprogramado",
+  JUSTIFICADO: "Justificado",
+  DISPENSADO: "Dispensado com justificativa",
+
+  // Conciliação Alterdata
+  AGUARDANDO_SINCRONIZACAO: "Aguardando sincronização",
+  CONFIRMADO: "Confirmado",
+  PENDENTE_ATUALIZACAO: "Pendente de atualização",
+  DIVERGENCIA_DATA: "Divergência de data",
+  ATUALIZADO_SEM_REGISTRO: "Atualizado sem registro interno",
+  SEM_HISTORICO: "Sem histórico suficiente para confirmar",
+
+  // Elegibilidade
+  ELEGIVEL: "Elegível",
+  NAO_ELEGIVEL: "Não elegível",
+
+  // Competência
+  ABERTA: "Aberta",
+  EM_CONFERENCIA: "Em conferência",
+  FECHADA: "Fechada",
+
+  // Origens
+  ALTERDATA_NEXT_ASO: "Próximo ASO Alterdata",
+  ADMISSION: "Admissão",
+  DISMISSAL: "Desligamento",
+  RETURN: "Retorno ao trabalho",
+  MANUAL_RISK_CHANGE: "Mudança de risco (manual)",
+  IMPORT: "Importação",
+  MIGRATION: "Migração",
+  MANUAL: "Manual",
+  SYNC: "Sincronização",
+
   // Afastamento / status genéricos
   ENCERRADO: "Encerrado",
   PENDENTE: "Pendente",
-  CONFIRMADO: "Confirmado",
   CANCELADO: "Cancelado",
   PRESENTE: "Presente",
   AUSENTE: "Ausente",
   IMPORTADO: "Importado",
   EM_ACOMPANHAMENTO: "Em acompanhamento",
   CONCLUIDO: "Concluído",
-  REALIZADO: "Realizado",
-  AGENDADO: "Agendado",
 };
 
 export function humanizeLabel(

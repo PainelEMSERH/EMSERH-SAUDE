@@ -1,131 +1,130 @@
-import { PageHeader } from "@/components/feedback/setup-banner";
-import { StatusBadge, deadlineTone } from "@/components/feedback/status-badge";
-import { QuickCreateForm } from "@/components/forms/quick-create-form";
-import { DataTable } from "@/components/tables/data-table";
+import { AsoCharts } from "@/components/aso/aso-charts";
+import { AsoFilters } from "@/components/aso/aso-filters";
+import { AsoMatrix } from "@/components/aso/aso-matrix";
+import { AsoNominalTable } from "@/components/aso/aso-nominal-table";
+import { AsoPanelHeader } from "@/components/aso/aso-panel-header";
+import { AsoPrioritiesPanel } from "@/components/aso/aso-priorities";
+import { AsoSummaryCards } from "@/components/aso/aso-summary-cards";
 import { Pagination } from "@/components/tables/pagination";
-import { SearchFilters } from "@/components/tables/search-filters";
-import { createAsoAction } from "@/actions/occupational";
-import { listAsos } from "@/db/queries/occupational";
+import { getAsoPanelData, type AsoPanelParams } from "@/db/queries/aso-panel";
 import { requirePermission, userCan } from "@/lib/auth/guard";
-import { formatDateBR } from "@/lib/dates";
 
 export default async function AsosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; type?: string; page?: string }>;
+  searchParams: Promise<AsoPanelParams>;
 }) {
   const user = await requirePermission("asos", "view");
   const params = await searchParams;
-  const data = await listAsos(user, params);
+  const data = await getAsoPanelData(user, params);
+
   const canCreate = userCan(user, "asos", "create");
+  const canUpdate = userCan(user, "asos", "update");
+  const canSync = userCan(user, "imports", "sync_global") || canUpdate;
+  const canExport = userCan(user, "reports", "export") || userCan(user, "asos", "export");
+
+  const hideRegion = user.scopeLevel === "UNIT";
+  const lockRegion = user.scopeLevel === "REGION";
+  const lockUnit = user.scopeLevel === "UNIT";
+
+  const current: Record<string, string | number | undefined> = {
+    year: data.year,
+    month: data.month,
+    regionId: data.regionId,
+    unitId: data.unitId,
+    type: data.asoType,
+    mode: data.mode,
+    q: params.q,
+    execution: params.execution,
+    alterdata: params.alterdata,
+    functional: params.functional,
+  };
+
+  const exportParams = new URLSearchParams();
+  for (const [k, v] of Object.entries(current)) {
+    if (v !== undefined && String(v).trim() && String(v) !== "ALL") {
+      exportParams.set(k, String(v));
+    }
+  }
+  const exportHref = `/api/asos/export?${exportParams.toString()}`;
+
+  const activeMatrixKey =
+    data.unitId ?? data.regionId ?? (user.scopeLevel === "EMSERH" ? "EMSERH" : undefined);
 
   return (
     <div>
-      <PageHeader
-        title="ASOs"
-        description="Exames ocupacionais com vencimento calculado por meses reais."
+      <AsoPanelHeader
+        lastSync={data.lastSync}
+        canSync={canSync}
+        canCreate={canCreate}
+        canManagePlanning={canUpdate}
+        year={data.year}
+        exportHref={exportHref}
+        canExport={canExport}
       />
-      {canCreate ? (
-        <QuickCreateForm
-          action={createAsoAction}
-          onSuccessPath="/asos"
-          submitLabel="Registrar ASO"
-          fields={[
-            { name: "registration", label: "Matrícula", required: true },
-            {
-              name: "asoType",
-              label: "Tipo",
-              type: "select",
-              required: true,
-              options: [
-                { value: "PERIODICO", label: "Periódico" },
-                { value: "ADMISSIONAL", label: "Admissional" },
-                { value: "DEMISSIONAL", label: "Demissional" },
-                { value: "RETORNO_TRABALHO", label: "Retorno ao trabalho" },
-                { value: "MUDANCA_RISCO", label: "Mudança de risco" },
-              ],
-            },
-            { name: "performedDate", label: "Data realizada", type: "date" },
-            { name: "expectedDate", label: "Data prevista", type: "date" },
-            {
-              name: "periodicityMonths",
-              label: "Periodicidade (meses)",
-              type: "number",
-              defaultValue: "12",
-            },
-            {
-              name: "result",
-              label: "Resultado",
-              type: "select",
-              options: [
-                { value: "APTO", label: "Apto" },
-                { value: "INAPTO", label: "Inapto" },
-                { value: "APTO_COM_RESTRICAO", label: "Apto com restrição" },
-              ],
-            },
-            { name: "adminNotes", label: "Observação administrativa", type: "textarea" },
-          ]}
-        />
-      ) : null}
-      <SearchFilters
-        action="/asos"
-        q={params.q}
-        status={params.status}
-        statusOptions={[
-          { value: "EM_DIA", label: "Em dia" },
-          { value: "A_VENCER", label: "A vencer" },
-          { value: "VENCIDO", label: "Vencido" },
-        ]}
-        type={params.type}
-        typeName="type"
-        typeLabel="Tipo ASO"
-        typeOptions={[
-          { value: "PERIODICO", label: "Periódico" },
-          { value: "ADMISSIONAL", label: "Admissional" },
-          { value: "DEMISSIONAL", label: "Demissional" },
-          { value: "RETORNO_TRABALHO", label: "Retorno" },
-        ]}
+
+      <AsoFilters
+        years={data.years}
+        regions={data.regions}
+        units={data.units}
+        params={{
+          year: data.year,
+          month: data.month,
+          regionId: data.regionId,
+          unitId: data.unitId,
+          asoType: data.asoType,
+          mode: data.mode === "accumulated" ? "accumulated" : "monthly",
+          q: params.q,
+        }}
+        hideRegion={hideRegion}
+        lockRegion={lockRegion}
+        lockUnit={lockUnit}
       />
-      <DataTable
-        rows={data.rows}
-        emptyTitle="Nenhum ASO"
-        emptyDescription="Registre ou importe ASOs para acompanhar vencimentos."
-        columns={[
-          {
-            key: "emp",
-            header: "Colaborador",
-            cell: (r) => (
-              <div>
-                <p className="font-medium">{r.fullName}</p>
-                <p className="text-xs text-slate-500">{r.registration}</p>
-              </div>
-            ),
-          },
-          { key: "type", header: "Tipo", cell: (r) => r.asoType },
-          {
-            key: "next",
-            header: "Próximo ASO",
-            cell: (r) => formatDateBR(r.nextAsoDate),
-          },
-          {
-            key: "deadline",
-            header: "Prazo",
-            cell: (r) => (
-              <StatusBadge
-                label={r.deadlineStatus ?? "—"}
-                tone={deadlineTone(r.deadlineStatus)}
-              />
-            ),
-          },
-          { key: "result", header: "Resultado", cell: (r) => r.result ?? "—" },
-          { key: "unit", header: "Unidade", cell: (r) => r.unitName ?? "—" },
-        ]}
+
+      <AsoSummaryCards metrics={data.metrics} closureStatus={data.closure?.status} />
+
+      <AsoPrioritiesPanel
+        priorities={data.priorities}
+        current={current}
+        activePriority={params.priority}
       />
+
+      <div className="mb-3 grid gap-3 lg:grid-cols-5">
+        <div className="lg:col-span-2">
+          <AsoMatrix
+            rows={data.matrixRows}
+            activeMonth={data.month}
+            activeKey={activeMatrixKey}
+            current={current}
+          />
+        </div>
+        <div className="lg:col-span-3">
+          <AsoCharts series={data.chartSeries} distribution={data.distribution} />
+        </div>
+      </div>
+
+      <AsoNominalTable rows={data.nominal.rows} />
+
       <Pagination
-        page={data.page}
-        totalPages={data.totalPages}
+        page={data.nominal.page}
+        totalPages={data.nominal.totalPages}
+        total={data.nominal.total}
+        pageSize={data.nominal.pageSize}
+        itemLabel="itens"
         basePath="/asos"
-        searchParams={{ q: params.q, status: params.status, type: params.type }}
+        searchParams={{
+          year: String(data.year),
+          month: String(data.month),
+          regionId: data.regionId,
+          unitId: data.unitId,
+          type: data.asoType,
+          mode: data.mode,
+          q: params.q,
+          execution: params.execution,
+          alterdata: params.alterdata,
+          functional: params.functional,
+          priority: params.priority,
+        }}
       />
     </div>
   );

@@ -42,6 +42,7 @@ export async function createAsoAction(
       result: z.string().optional(),
       periodicityMonths: z.coerce.number().int().positive().optional(),
       adminNotes: z.string().optional(),
+      planId: z.string().uuid().optional(),
     });
     const data = schema.parse({
       registration: formData.get("registration"),
@@ -51,17 +52,32 @@ export async function createAsoAction(
       result: formData.get("result") || undefined,
       periodicityMonths: formData.get("periodicityMonths") || undefined,
       adminNotes: formData.get("adminNotes") || undefined,
+      planId: formData.get("planId") || undefined,
     });
 
     const employeeId = await resolveEmployee(user, data.registration);
     const periodicity = data.periodicityMonths ?? 12;
-    const baseDate = data.performedDate
-      ? new Date(data.performedDate)
-      : data.expectedDate
-        ? new Date(data.expectedDate)
-        : new Date();
-    const nextAsoDate = addRealMonths(baseDate, periodicity);
-    const deadlineStatus = computeDeadlineStatus(nextAsoDate);
+    const performed = data.performedDate?.trim() || null;
+    const expected = data.expectedDate?.trim() || null;
+
+    // Separação planejamento × realização:
+    // - só prevista: não avança last/next como se tivesse sido realizado
+    // - realizada: lastAsoDate + próximo ciclo a partir da data realizada
+    let lastAsoDate: string | null = null;
+    let nextAsoDate: string | null = null;
+    let deadlineStatus: string | null = null;
+
+    if (performed) {
+      const base = new Date(`${performed}T12:00:00`);
+      if (Number.isNaN(base.getTime())) {
+        return { error: "Data realizada inválida." };
+      }
+      lastAsoDate = performed;
+      nextAsoDate = addRealMonths(base, periodicity).toISOString().slice(0, 10);
+      deadlineStatus = computeDeadlineStatus(new Date(`${nextAsoDate}T12:00:00`));
+    } else if (expected) {
+      deadlineStatus = computeDeadlineStatus(new Date(`${expected}T12:00:00`));
+    }
 
     const db = getDb();
     const [created] = await db
@@ -69,14 +85,16 @@ export async function createAsoAction(
       .values({
         employeeId,
         asoType: data.asoType,
-        performedDate: data.performedDate || null,
-        expectedDate: data.expectedDate || null,
+        performedDate: performed,
+        expectedDate: expected,
         result: data.result || null,
         periodicityMonths: periodicity,
-        lastAsoDate: data.performedDate || null,
-        nextAsoDate: nextAsoDate.toISOString().slice(0, 10),
+        lastAsoDate,
+        nextAsoDate,
         deadlineStatus,
         adminNotes: data.adminNotes || null,
+        planId: data.planId || null,
+        origin: "MANUAL",
         createdBy: user.id,
         updatedBy: user.id,
       })
@@ -87,6 +105,10 @@ export async function createAsoAction(
       action: "CREATE",
       entityType: "aso_record",
       entityId: created.id,
+      metadata: {
+        hasPerformedDate: Boolean(performed),
+        hasExpectedDate: Boolean(expected),
+      },
     });
     revalidatePath("/asos");
     revalidatePath("/dashboard");

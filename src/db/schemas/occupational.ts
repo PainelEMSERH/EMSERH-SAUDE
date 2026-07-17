@@ -10,7 +10,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { employees, physicians, units } from "./core";
+import { employees, physicians, regions, units } from "./core";
 import { auditActors, idColumn, softDelete, timestamps } from "./common";
 
 export const occupationalSchema = pgSchema("occupational");
@@ -40,6 +40,11 @@ export const asoRecords = occupationalSchema.table(
     adminNotes: text("admin_notes"),
     clinicalNotes: text("clinical_notes"),
     unitId: uuid("unit_id").references(() => units.id),
+    regionId: uuid("region_id").references(() => regions.id),
+    /** Vínculo com item do planejamento mensal. */
+    planId: uuid("plan_id"),
+    /** MANUAL | IMPORT | SYNC */
+    origin: text("origin").default("MANUAL"),
     sourceSheet: text("source_sheet"),
     sourceRow: integer("source_row"),
     ...timestamps,
@@ -52,6 +57,9 @@ export const asoRecords = occupationalSchema.table(
     index("aso_deadline_idx").on(t.deadlineStatus),
     index("aso_type_idx").on(t.asoType),
     index("aso_unit_idx").on(t.unitId),
+    index("aso_region_idx").on(t.regionId),
+    index("aso_plan_idx").on(t.planId),
+    index("aso_performed_idx").on(t.performedDate),
   ],
 );
 
@@ -96,6 +104,181 @@ export const asoStatusHistory = occupationalSchema.table(
     ...timestamps,
     ...auditActors,
   },
+);
+
+/**
+ * Planejamento mensal nominal de ASOs.
+ * Preserva lotação/situação no momento do planejamento.
+ */
+export const asoMonthlyPlans = occupationalSchema.table(
+  "aso_monthly_plans",
+  {
+    id: idColumn,
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id),
+    registration: text("registration").notNull(),
+    employeeName: text("employee_name").notNull(),
+    asoType: text("aso_type").notNull(),
+    year: integer("year").notNull(),
+    month: integer("month").notNull(),
+    expectedDate: date("expected_date"),
+    regionId: uuid("region_id").references(() => regions.id),
+    unitId: uuid("unit_id").references(() => units.id),
+    regionNameSnapshot: text("region_name_snapshot"),
+    unitNameSnapshot: text("unit_name_snapshot"),
+    functionalStatusSnapshot: text("functional_status_snapshot"),
+    /** ALTERDATA_NEXT_ASO | ADMISSION | DISMISSAL | RETURN | MANUAL_RISK_CHANGE | IMPORT | MIGRATION */
+    predictionOrigin: text("prediction_origin").notNull(),
+    /** ELEGIVEL | JUSTIFICADO | NAO_ELEGIVEL */
+    eligibility: text("eligibility").notNull().default("ELEGIVEL"),
+    justificationReason: text("justification_reason"),
+    justificationNotes: text("justification_notes"),
+    justifiedAt: timestamp("justified_at", { withTimezone: true }),
+    justifiedBy: uuid("justified_by"),
+    /** PREVISTO | AGENDADO | REALIZADO | NAO_REALIZADO | VENCIDO | REPROGRAMADO | JUSTIFICADO | DISPENSADO */
+    executionStatus: text("execution_status").notNull().default("PREVISTO"),
+    /**
+     * NAO_APLICAVEL | AGUARDANDO_SINCRONIZACAO | CONFIRMADO | PENDENTE_ATUALIZACAO |
+     * DIVERGENCIA_DATA | ATUALIZADO_SEM_REGISTRO | SEM_HISTORICO
+     */
+    alterdataStatus: text("alterdata_status").notNull().default("NAO_APLICAVEL"),
+    asoRecordId: uuid("aso_record_id").references(() => asoRecords.id),
+    reprogrammedToDate: date("reprogrammed_to_date"),
+    reprogrammedReason: text("reprogrammed_reason"),
+    /** Congelado quando competência está FECHADA. */
+    frozen: boolean("frozen").notNull().default(false),
+    ...timestamps,
+    ...softDelete,
+    ...auditActors,
+  },
+  (t) => [
+    uniqueIndex("aso_plans_employee_type_ym_uidx").on(
+      t.employeeId,
+      t.asoType,
+      t.year,
+      t.month,
+    ),
+    index("aso_plans_year_month_idx").on(t.year, t.month),
+    index("aso_plans_type_idx").on(t.asoType),
+    index("aso_plans_region_idx").on(t.regionId),
+    index("aso_plans_unit_idx").on(t.unitId),
+    index("aso_plans_execution_idx").on(t.executionStatus),
+    index("aso_plans_alterdata_idx").on(t.alterdataStatus),
+    index("aso_plans_eligibility_idx").on(t.eligibility),
+  ],
+);
+
+/** Histórico append-only das datas de ASO observadas no espelho Alterdata. */
+export const asoAlterdataSnapshots = occupationalSchema.table(
+  "aso_alterdata_snapshots",
+  {
+    id: idColumn,
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id),
+    registration: text("registration").notNull(),
+    nextAsoDate: date("next_aso_date"),
+    lastAsoDate: date("last_aso_date"),
+    statusAso: text("status_aso"),
+    periodicityMonths: integer("periodicity_months"),
+    regionId: uuid("region_id").references(() => regions.id),
+    unitId: uuid("unit_id").references(() => units.id),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).notNull(),
+    batchId: uuid("batch_id"),
+    sourceHash: text("source_hash"),
+    sourceRef: text("source_ref"),
+    ...timestamps,
+  },
+  (t) => [
+    index("aso_snap_employee_idx").on(t.employeeId),
+    index("aso_snap_synced_idx").on(t.syncedAt),
+    index("aso_snap_reg_idx").on(t.registration),
+    index("aso_snap_batch_idx").on(t.batchId),
+    index("aso_snap_next_idx").on(t.nextAsoDate),
+  ],
+);
+
+/** Metas percentuais por ano/competência/tipo/escopo. */
+export const asoTargets = occupationalSchema.table(
+  "aso_targets",
+  {
+    id: idColumn,
+    year: integer("year").notNull(),
+    month: integer("month").notNull(),
+    asoType: text("aso_type").notNull().default("ALL"),
+    /** EMSERH | REGION | UNIT */
+    scopeType: text("scope_type").notNull(),
+    regionId: uuid("region_id").references(() => regions.id),
+    unitId: uuid("unit_id").references(() => units.id),
+    targetPercent: doublePrecision("target_percent").notNull(),
+    notes: text("notes"),
+    ...timestamps,
+    ...softDelete,
+    ...auditActors,
+  },
+  (t) => [
+    uniqueIndex("aso_targets_scope_uidx").on(
+      t.year,
+      t.month,
+      t.asoType,
+      t.scopeType,
+      t.regionId,
+      t.unitId,
+    ),
+    index("aso_targets_year_idx").on(t.year),
+  ],
+);
+
+export const asoTargetHistory = occupationalSchema.table(
+  "aso_target_history",
+  {
+    id: idColumn,
+    targetId: uuid("target_id")
+      .notNull()
+      .references(() => asoTargets.id),
+    previousPercent: doublePrecision("previous_percent"),
+    newPercent: doublePrecision("new_percent").notNull(),
+    reason: text("reason"),
+    ...timestamps,
+    ...auditActors,
+  },
+  (t) => [index("aso_target_hist_idx").on(t.targetId)],
+);
+
+/** Fechamento de competência (ano/mês/tipo/escopo). */
+export const asoCompetenceClosures = occupationalSchema.table(
+  "aso_competence_closures",
+  {
+    id: idColumn,
+    year: integer("year").notNull(),
+    month: integer("month").notNull(),
+    asoType: text("aso_type").notNull().default("ALL"),
+    scopeType: text("scope_type").notNull().default("EMSERH"),
+    regionId: uuid("region_id").references(() => regions.id),
+    unitId: uuid("unit_id").references(() => units.id),
+    /** ABERTA | EM_CONFERENCIA | FECHADA */
+    status: text("status").notNull().default("ABERTA"),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    closedBy: uuid("closed_by"),
+    reopenReason: text("reopen_reason"),
+    reopenedAt: timestamp("reopened_at", { withTimezone: true }),
+    reopenedBy: uuid("reopened_by"),
+    notes: text("notes"),
+    ...timestamps,
+    ...auditActors,
+  },
+  (t) => [
+    uniqueIndex("aso_closure_scope_uidx").on(
+      t.year,
+      t.month,
+      t.asoType,
+      t.scopeType,
+      t.regionId,
+      t.unitId,
+    ),
+    index("aso_closure_status_idx").on(t.status),
+  ],
 );
 
 export const appointments = occupationalSchema.table(

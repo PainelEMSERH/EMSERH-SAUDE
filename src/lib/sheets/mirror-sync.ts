@@ -4,9 +4,10 @@
  * Sheet ID: somente via ALTERDATA_MIRROR_SHEET_ID (nunca hardcode em produção).
  */
 import { createHash } from "node:crypto";
-import { and, eq, isNull, like } from "drizzle-orm";
+import { and, desc, eq, isNull, like } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
+  asoAlterdataSnapshots,
   employees,
   importBatches,
   importErrors,
@@ -15,6 +16,7 @@ import {
   units,
 } from "@/db/schemas";
 import { writeAuditLog } from "@/lib/audit";
+import { parsePeriodicityMonths } from "@/lib/aso/planning";
 import {
   mapAlterdataFunctionalStatus,
   mapAlterdataSex,
@@ -260,10 +262,67 @@ export async function syncAlterdataMirror(options?: {
   let skipped = 0;
   let errors = 0;
   const seenCpfHashes = new Set<string>();
+  const syncedAt = new Date();
 
   const regionCache = new Map<string, string>();
   const unitCache = new Map<string, string>();
   const roleCache = new Map<string, string>();
+
+  async function maybeInsertAsoSnapshot(input: {
+    db: ReturnType<typeof getDb>;
+    employeeId: string;
+    registration: string;
+    row: Record<string, string>;
+    regionId: string | null;
+    unitId: string | null;
+    batchId: string;
+    fileHash: string;
+    syncedAt: Date;
+  }) {
+    const nextAsoDate = toDate(
+      cell(input.row, "Proximo_aso", "Data Proximo ASO", "Proximo ASO"),
+    );
+    const lastAsoDate = toDate(
+      cell(input.row, "Data_Atestado", "Data_Atestado_(2026)", "Data Atestado"),
+    );
+    const statusAso = cell(input.row, "Status_ASO") || null;
+    const periodicityMonths = parsePeriodicityMonths(
+      cell(input.row, "Periodicidade"),
+    );
+
+    const [latest] = await input.db
+      .select({
+        nextAsoDate: asoAlterdataSnapshots.nextAsoDate,
+        statusAso: asoAlterdataSnapshots.statusAso,
+      })
+      .from(asoAlterdataSnapshots)
+      .where(eq(asoAlterdataSnapshots.employeeId, input.employeeId))
+      .orderBy(desc(asoAlterdataSnapshots.syncedAt))
+      .limit(1);
+
+    if (
+      latest &&
+      latest.nextAsoDate === nextAsoDate &&
+      (latest.statusAso || null) === statusAso
+    ) {
+      return;
+    }
+
+    await input.db.insert(asoAlterdataSnapshots).values({
+      employeeId: input.employeeId,
+      registration: input.registration,
+      nextAsoDate,
+      lastAsoDate,
+      statusAso,
+      periodicityMonths,
+      regionId: input.regionId,
+      unitId: input.unitId,
+      syncedAt: input.syncedAt,
+      batchId: input.batchId,
+      sourceHash: input.fileHash,
+      sourceRef: "ALTERDATA_MIRROR:Proximo_aso",
+    });
+  }
 
   async function ensureRegion(name: string) {
     const code = normalizeRegionName(name || "NAO_INFORMADA");
@@ -475,6 +534,17 @@ export async function syncAlterdataMirror(options?: {
           })
           .where(eq(employees.id, existing.id));
         updated += 1;
+        await maybeInsertAsoSnapshot({
+          db,
+          employeeId: existing.id,
+          registration,
+          row,
+          regionId: regionId || existing.regionId,
+          unitId: unitId ?? existing.unitId,
+          batchId: batch.id,
+          fileHash,
+          syncedAt,
+        });
       } else {
         const payload = {
           registration,
@@ -497,17 +567,37 @@ export async function syncAlterdataMirror(options?: {
           updatedBy: options?.user?.id ?? null,
           createdBy: options?.user?.id ?? null,
         };
+        let employeeId: string;
         try {
-          await db.insert(employees).values(payload);
+          const [created] = await db
+            .insert(employees)
+            .values(payload)
+            .returning({ id: employees.id });
+          employeeId = created.id;
           imported += 1;
         } catch {
-          await db.insert(employees).values({
-            ...payload,
-            cpfHash: null,
-            cpfEncrypted: null,
-          });
+          const [created] = await db
+            .insert(employees)
+            .values({
+              ...payload,
+              cpfHash: null,
+              cpfEncrypted: null,
+            })
+            .returning({ id: employees.id });
+          employeeId = created.id;
           imported += 1;
         }
+        await maybeInsertAsoSnapshot({
+          db,
+          employeeId,
+          registration,
+          row,
+          regionId,
+          unitId,
+          batchId: batch.id,
+          fileHash,
+          syncedAt,
+        });
       }
     } catch (err) {
       errors += 1;
