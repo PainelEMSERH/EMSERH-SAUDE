@@ -33,13 +33,17 @@ type Selection = {
   unitId: string | null;
 };
 
+/** Tons da matriz: no escuro, sem fundo claro/azul — texto + soft sutil. */
 const TONE_CLASSES: Record<AsoMatrixCell["tone"], string> = {
-  ok: "bg-primary-soft text-primary hover:bg-primary-soft",
-  near: "bg-amber-50 text-amber-800 hover:bg-amber-100",
-  below: "bg-red-50 text-red-800 hover:bg-red-100",
-  empty: "bg-muted text-muted-foreground hover:bg-muted",
-  future: "bg-sky-50/60 text-sky-700 hover:bg-sky-100",
-  neutral: "bg-muted text-foreground/80 hover:bg-muted",
+  ok: "bg-primary-soft/70 text-primary hover:bg-primary-soft dark:bg-transparent dark:hover:bg-primary-soft",
+  near: "bg-amber-50 text-[color:var(--warning)] hover:bg-amber-100 dark:bg-transparent dark:bg-amber-500/10 dark:hover:bg-amber-500/15",
+  below:
+    "bg-red-50 text-[color:var(--danger)] hover:bg-red-100 dark:bg-transparent dark:bg-red-500/10 dark:hover:bg-red-500/15",
+  empty: "bg-muted/50 text-muted-foreground hover:bg-muted dark:bg-transparent dark:hover:bg-card-hover",
+  future:
+    "bg-muted/60 text-muted-foreground hover:bg-muted dark:bg-card-hover dark:text-muted-foreground dark:hover:bg-muted",
+  neutral:
+    "bg-muted/40 text-foreground/80 hover:bg-muted dark:bg-transparent dark:hover:bg-card-hover",
 };
 
 function cellLabel(cell: AsoMatrixCell): string {
@@ -175,7 +179,7 @@ export function AsoMatrix({
               className={cn(
                 "rounded-md px-2.5 py-1 text-[12px] font-semibold transition-colors",
                 appliedMatches
-                  ? "border border-primary-border bg-primary-soft text-primary"
+                  ? "border border-primary bg-transparent text-primary"
                   : "bg-primary text-primary-foreground hover:bg-primary-hover",
               )}
             >
@@ -265,14 +269,20 @@ export function AsoMatrix({
               return (
                 <tr
                   key={row.key}
-                  className={cn(row.cadastralAlert ? "bg-amber-50/30" : "")}
+                  className={cn(
+                    row.cadastralAlert
+                      ? "bg-amber-50/30 dark:bg-amber-500/5"
+                      : "",
+                  )}
                 >
                   <td
                     className={cn(
-                      "sticky left-0 z-10 max-w-[148px] truncate bg-card",
+                      "sticky left-0 z-10 max-w-[148px] truncate bg-card dark:bg-background",
                       "app-table-emphasis text-foreground/80",
-                      rowSelected ? "bg-primary-soft/80" : "",
-                      row.cadastralAlert ? "text-amber-900" : "",
+                      rowSelected ? "bg-primary-soft/80 dark:bg-primary-soft" : "",
+                      row.cadastralAlert
+                        ? "text-[color:var(--warning)]"
+                        : "",
                     )}
                     title={
                       row.cadastralAlert
@@ -307,7 +317,7 @@ export function AsoMatrix({
                             "flex h-[40px] w-full flex-col items-center justify-center rounded !px-0.5 leading-none transition-colors",
                             TONE_CLASSES[cell.tone],
                             isSelected
-                              ? "bg-primary-soft ring-2 ring-primary ring-offset-1"
+                              ? "bg-primary-soft ring-2 ring-primary ring-offset-1 ring-offset-background"
                               : isApplied
                                 ? "ring-1 ring-primary"
                                 : "",

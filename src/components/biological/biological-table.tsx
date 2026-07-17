@@ -180,7 +180,7 @@ function ConcludeForm({
   return (
     <form
       action={action}
-      className="space-y-2 rounded-lg border border-amber-200 bg-amber-50/60 p-3"
+      className="space-y-2 rounded-lg border border-amber-200 bg-amber-50/60 dark:border-[color:var(--warning)] dark:bg-amber-500/10 p-3"
     >
       <input type="hidden" name="accidentId" value={accidentId} />
       <p className="text-[12px] font-medium text-amber-950">Concluir acompanhamento</p>

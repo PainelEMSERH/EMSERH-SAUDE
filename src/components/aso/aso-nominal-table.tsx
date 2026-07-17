@@ -799,7 +799,7 @@ export function AsoNominalTable({
                 />
               </label>
               {error ? (
-                <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+                <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700 dark:border-[color:var(--danger)] dark:bg-transparent dark:text-[color:var(--danger)]">
                   {error}
                 </p>
               ) : null}

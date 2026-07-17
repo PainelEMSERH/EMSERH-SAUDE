@@ -93,7 +93,7 @@ export function AsoReprogramDialog({
             <Textarea id="notes" name="notes" placeholder="Detalhes adicionais" />
           </div>
           {state.error ? (
-            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] text-red-700">
+            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] text-red-700 dark:border-[color:var(--danger)] dark:bg-transparent dark:text-[color:var(--danger)]">
               {state.error}
             </p>
           ) : null}

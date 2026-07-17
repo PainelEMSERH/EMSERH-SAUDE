@@ -1,15 +1,31 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-/** Tons semânticos via tokens — suaves, com significado preservado. */
+/**
+ * Claro: fundo suave + borda.
+ * Escuro: outline (como carteira vacinal) — sem bloco claro estourando no preto.
+ */
 const TONES: Record<string, string> = {
-  ok: "border-[color:var(--primary-border)] bg-[color:var(--primary-soft)] text-[color:var(--success)]",
-  warn: "border-amber-200/80 bg-amber-50 text-[color:var(--warning)] dark:border-amber-500/30 dark:bg-amber-500/10",
-  danger:
-    "border-red-200/80 bg-red-50 text-[color:var(--danger)] dark:border-red-500/30 dark:bg-red-500/10",
-  muted:
+  ok: cn(
+    "border-[color:var(--primary-border)] bg-[color:var(--primary-soft)] text-[color:var(--success)]",
+    "dark:border-[color:var(--primary)] dark:bg-transparent dark:text-[color:var(--primary)]",
+  ),
+  warn: cn(
+    "border-amber-200/80 bg-amber-50 text-[color:var(--warning)]",
+    "dark:border-[color:var(--warning)] dark:bg-transparent dark:text-[color:var(--warning)]",
+  ),
+  danger: cn(
+    "border-red-200/80 bg-red-50 text-[color:var(--danger)]",
+    "dark:border-[color:var(--danger)] dark:bg-transparent dark:text-[color:var(--danger)]",
+  ),
+  muted: cn(
     "border-border bg-muted text-muted-foreground",
-  info: "border-blue-200/80 bg-blue-50 text-[color:var(--info)] dark:border-blue-500/30 dark:bg-blue-500/10",
+    "dark:border-border dark:bg-transparent dark:text-muted-foreground",
+  ),
+  info: cn(
+    "border-blue-200/80 bg-blue-50 text-[color:var(--info)]",
+    "dark:border-[color:var(--info)] dark:bg-transparent dark:text-[color:var(--info)]",
+  ),
 };
 
 export function StatusBadge({

@@ -101,7 +101,7 @@ export function AsoPanelHeader({
             <span
               className={
                 isRunning
-                  ? "inline-flex max-w-md flex-col gap-0.5 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-medium text-sky-900"
+                  ? "inline-flex max-w-md flex-col gap-0.5 rounded-md border border-primary-border bg-primary-soft px-2.5 py-1 text-[11px] font-medium text-primary dark:bg-transparent dark:border-primary"
                   : "inline-flex items-center gap-1.5 rounded-md border border-border bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
               }
               title={lastSync.updatedAt ? formatDateTimeBR(lastSync.updatedAt) : undefined}
@@ -114,7 +114,7 @@ export function AsoPanelHeader({
                       ? "Possivelmente interrompida"
                       : "Sincronização em andamento"}
                   </span>
-                  <span className="font-normal text-sky-800">
+                  <span className="font-normal text-primary/80">
                     Início: {lastSync.createdAt ? formatDateTimeBR(lastSync.createdAt) : "—"}
                     {elapsedLabel(lastSync.createdAt)
                       ? ` · decorridos ${elapsedLabel(lastSync.createdAt)}`
@@ -131,7 +131,7 @@ export function AsoPanelHeader({
               )}
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800">
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-[color:var(--warning)] dark:border-[color:var(--warning)] dark:bg-transparent">
               Nenhuma sincronização registrada
             </span>
           )}
@@ -214,7 +214,7 @@ export function AsoPanelHeader({
       </div>
 
       {error ? (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] text-red-700">
+        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] text-red-700 dark:border-[color:var(--danger)] dark:bg-transparent dark:text-[color:var(--danger)]">
           {error}
         </p>
       ) : null}

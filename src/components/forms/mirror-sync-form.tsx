@@ -28,7 +28,7 @@ export function MirrorSyncForm() {
         {pending ? "Sincronizando espelho..." : "Sincronizar espelho Alterdata"}
       </Button>
       {error ? (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:border dark:border-[color:var(--danger)] dark:bg-transparent dark:text-[color:var(--danger)]">
           {error}
         </p>
       ) : null}

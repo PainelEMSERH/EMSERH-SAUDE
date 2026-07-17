@@ -116,7 +116,7 @@ export function BiologicalRegisterDialog() {
             </div>
           </div>
           {state.error ? (
-            <p className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-[12px] text-red-800">
+            <p className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-[12px] text-red-800 dark:border-[color:var(--danger)] dark:bg-transparent dark:text-[color:var(--danger)]">
               {state.error}
             </p>
           ) : null}

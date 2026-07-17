@@ -110,7 +110,7 @@ function CloseLeaveForm({
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <form action={action} className="space-y-2 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+    <form action={action} className="space-y-2 rounded-lg border border-amber-200 bg-amber-50/60 dark:border-[color:var(--warning)] dark:bg-amber-500/10 p-3">
       <input type="hidden" name="leaveId" value={leaveId} />
       <p className="text-[12px] font-medium text-amber-950">Encerrar afastamento</p>
       <div className="grid grid-cols-2 gap-2">
