@@ -18,6 +18,7 @@ import {
 import { writeAuditLog } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth/guard";
 import { addRealMonths, calcImc, calcLeaveDays, computeDeadlineStatus } from "@/lib/dates";
+import { leaveRequiresReturnAso } from "@/lib/leaves/constants";
 import { requireEmployeeInUserScope } from "@/lib/scope";
 import type { SessionUser } from "@/types";
 
@@ -253,9 +254,7 @@ export async function createLeaveAction(
         reason: data.reason || null,
         reasonSimplified: data.reasonSimplified || null,
         status: data.status,
-        requiresReturnAso: ["INSS", "ACIDENTE", "AFASTAMENTO"].some((t) =>
-          data.leaveType.toUpperCase().includes(t),
-        ),
+        requiresReturnAso: leaveRequiresReturnAso(data.leaveType),
         createdBy: user.id,
         updatedBy: user.id,
       })
@@ -273,6 +272,76 @@ export async function createLeaveAction(
   } catch (e) {
     return {
       error: e instanceof Error ? e.message : "Falha ao salvar afastamento.",
+    };
+  }
+}
+
+export async function closeLeaveAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const user = await requirePermission("leaves", "update");
+    const schema = z.object({
+      leaveId: z.string().uuid(),
+      actualReturnDate: z.string().optional(),
+      endDate: z.string().optional(),
+    });
+    const data = schema.parse({
+      leaveId: formData.get("leaveId"),
+      actualReturnDate: formData.get("actualReturnDate") || undefined,
+      endDate: formData.get("endDate") || undefined,
+    });
+
+    const db = getDb();
+    const [existing] = await db
+      .select({
+        id: leaveRecords.id,
+        employeeId: leaveRecords.employeeId,
+        startDate: leaveRecords.startDate,
+        status: leaveRecords.status,
+      })
+      .from(leaveRecords)
+      .where(eq(leaveRecords.id, data.leaveId))
+      .limit(1);
+
+    if (!existing) return { error: "Afastamento não encontrado." };
+    await requireEmployeeInUserScope(user, { employeeId: existing.employeeId });
+
+    const endDate =
+      data.endDate ||
+      data.actualReturnDate ||
+      new Date().toISOString().slice(0, 10);
+    const daysCount = calcLeaveDays(
+      new Date(String(existing.startDate).slice(0, 10)),
+      new Date(endDate),
+    );
+
+    await db
+      .update(leaveRecords)
+      .set({
+        status: "ENCERRADO",
+        endDate,
+        daysCount,
+        actualReturnDate: data.actualReturnDate || endDate,
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      })
+      .where(eq(leaveRecords.id, data.leaveId));
+
+    await writeAuditLog({
+      user,
+      action: "UPDATE",
+      entityType: "leave_record",
+      entityId: data.leaveId,
+      metadata: { closed: true },
+    });
+    revalidatePath("/afastamentos");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (e) {
+    return {
+      error: e instanceof Error ? e.message : "Falha ao encerrar afastamento.",
     };
   }
 }

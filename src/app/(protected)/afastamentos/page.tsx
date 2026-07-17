@@ -1,135 +1,73 @@
-import { PageHeader } from "@/components/feedback/setup-banner";
-import { StatusBadge } from "@/components/feedback/status-badge";
-import { QuickCreateForm } from "@/components/forms/quick-create-form";
-import { DataTable } from "@/components/tables/data-table";
+import { LeavesFilters } from "@/components/leaves/leaves-filters";
+import { LeavesPanelHeader } from "@/components/leaves/leaves-panel-header";
+import { LeavesSummaryCards } from "@/components/leaves/leaves-summary-cards";
+import { LeavesTable } from "@/components/leaves/leaves-table";
 import { Pagination } from "@/components/tables/pagination";
-import { SearchFilters } from "@/components/tables/search-filters";
-import { createLeaveAction } from "@/actions/occupational";
-import { listLeaves } from "@/db/queries/occupational";
+import {
+  listLeaves,
+  type LeavesListParams,
+} from "@/db/queries/occupational";
 import { requirePermission, userCan } from "@/lib/auth/guard";
-import { formatDateBR } from "@/lib/dates";
 
 export default async function AfastamentosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; page?: string }>;
+  searchParams: Promise<LeavesListParams>;
 }) {
   const user = await requirePermission("leaves", "view");
   const params = await searchParams;
   const canViewClinical = userCan(user, "leaves", "view_clinical");
+  const canCreate = userCan(user, "leaves", "create");
+  const canUpdate = userCan(user, "leaves", "update");
+
   const data = await listLeaves(user, params, {
     includeClinical: canViewClinical,
   });
-  const canCreate = userCan(user, "leaves", "create");
+
+  const current: Record<string, string | number | undefined> = {
+    q: params.q,
+    status: params.status,
+    leaveType: params.leaveType,
+    returnPending: params.returnPending,
+  };
 
   return (
     <div>
-      <PageHeader
-        title="Afastamentos"
-        description="Atestados, INSS, licenças e histórico preservado."
+      <LeavesPanelHeader canCreate={canCreate} />
+
+      <LeavesFilters
+        current={{
+          q: params.q,
+          status: params.status,
+          leaveType: params.leaveType,
+          returnPending: params.returnPending,
+        }}
       />
-      {canCreate ? (
-        <QuickCreateForm
-          action={createLeaveAction}
-          onSuccessPath="/afastamentos"
-          submitLabel="Registrar afastamento"
-          fields={[
-            { name: "registration", label: "Matrícula", required: true },
-            {
-              name: "leaveType",
-              label: "Tipo",
-              type: "select",
-              required: true,
-              options: [
-                { value: "ATESTADO", label: "Atestado" },
-                { value: "INSS", label: "INSS" },
-                { value: "LICENCA_MATERNIDADE", label: "Licença-maternidade" },
-                { value: "LICENCA_PATERNIDADE", label: "Licença-paternidade" },
-                { value: "ACIDENTE", label: "Acidente" },
-                { value: "OUTRO", label: "Outro" },
-              ],
-            },
-            { name: "startDate", label: "Início", type: "date", required: true },
-            { name: "endDate", label: "Fim", type: "date" },
-            { name: "cidCode", label: "CID" },
-            { name: "reasonSimplified", label: "Motivo simplificado" },
-            { name: "reason", label: "Motivo", type: "textarea" },
-            {
-              name: "status",
-              label: "Status",
-              type: "select",
-              defaultValue: "ATIVO",
-              options: [
-                { value: "ATIVO", label: "Ativo" },
-                { value: "ENCERRADO", label: "Encerrado" },
-              ],
-            },
-          ]}
-        />
-      ) : null}
-      <SearchFilters
-        action="/afastamentos"
-        q={params.q}
-        status={params.status}
-        statusOptions={[
-          { value: "ATIVO", label: "Ativo" },
-          { value: "ENCERRADO", label: "Encerrado" },
-        ]}
-      />
-      <DataTable
+
+      <LeavesSummaryCards metrics={data.metrics} current={current} />
+
+      <LeavesTable
         rows={data.rows}
-        emptyTitle="Sem afastamentos"
-        emptyDescription="Nenhum afastamento no escopo atual."
-        columns={[
-          {
-            key: "emp",
-            header: "Colaborador",
-            cell: (r) => (
-              <div>
-                <p className="font-medium">{r.fullName}</p>
-                <p className="text-xs text-slate-500">{r.registration}</p>
-              </div>
-            ),
-          },
-          { key: "type", header: "Tipo", cell: (r) => r.leaveType },
-          {
-            key: "period",
-            header: "Período",
-            cell: (r) =>
-              `${formatDateBR(r.startDate)} → ${formatDateBR(r.endDate)}`,
-          },
-          {
-            key: "days",
-            header: "Dias",
-            cell: (r) => r.daysCount ?? "—",
-          },
-          ...(canViewClinical
-            ? [
-                {
-                  key: "cid",
-                  header: "CID",
-                  cell: (r: (typeof data.rows)[number]) => r.cidCode ?? "—",
-                },
-              ]
-            : []),
-          {
-            key: "status",
-            header: "Status",
-            cell: (r) => (
-              <StatusBadge
-                label={r.status}
-                tone={r.status === "ATIVO" ? "warn" : "ok"}
-              />
-            ),
-          },
-        ]}
+        canViewClinical={canViewClinical}
+        canUpdate={canUpdate}
       />
-      <Pagination
-        page={data.page}
-        totalPages={data.totalPages}
-        basePath="/afastamentos"
-        searchParams={{ q: params.q, status: params.status }}
-      />
+
+      <div className="mt-3">
+        <Pagination
+          page={data.page}
+          totalPages={data.totalPages}
+          total={data.total}
+          pageSize={data.pageSize}
+          itemLabel="afastamentos"
+          basePath="/afastamentos"
+          searchParams={{
+            q: params.q,
+            status: params.status,
+            leaveType: params.leaveType,
+            returnPending: params.returnPending,
+          }}
+        />
+      </div>
     </div>
   );
 }

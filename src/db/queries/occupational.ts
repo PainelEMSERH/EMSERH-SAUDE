@@ -18,6 +18,7 @@ import {
   leaveRecords,
   physicians,
   pregnancyCases,
+  regions,
   units,
   vaccines,
 } from "@/db/schemas";
@@ -164,9 +165,50 @@ export async function listAppointments(
   };
 }
 
+export type LeavesListParams = {
+  q?: string;
+  status?: string;
+  leaveType?: string;
+  returnPending?: string;
+  page?: string;
+};
+
+export type LeaveListRow = {
+  id: string;
+  employeeId: string;
+  registration: string;
+  fullName: string;
+  unitName: string | null;
+  regionName: string | null;
+  leaveType: string;
+  startDate: string;
+  endDate: string | null;
+  daysCount: number | null;
+  status: string;
+  cidCode: string | null;
+  reasonSimplified: string | null;
+  reason: string | null;
+  expectedReturnDate: string | null;
+  actualReturnDate: string | null;
+  requiresReturnAso: boolean;
+  notes: string | null;
+};
+
+export type LeavesMetrics = {
+  total: number;
+  ativos: number;
+  encerrados: number;
+  retornoPendente: number;
+  atestados: number;
+  inss: number;
+  licencas: number;
+  acidentes: number;
+  diasAtivos: number;
+};
+
 export async function listLeaves(
   user: SessionUser,
-  params: { q?: string; status?: string; page?: string },
+  params: LeavesListParams,
   options?: { includeClinical?: boolean },
 ) {
   const page = parsePage(params.page);
@@ -174,12 +216,13 @@ export async function listLeaves(
   const db = getDb();
   const scope = empJoinScope(user);
   const includeClinical = options?.includeClinical === true;
-  const where = and(
+
+  const baseWhere = and(
     isNull(leaveRecords.deletedAt),
     isNull(employees.deletedAt),
     scope,
-    params.status && params.status !== "ALL"
-      ? eq(leaveRecords.status, params.status)
+    params.leaveType && params.leaveType !== "ALL"
+      ? eq(leaveRecords.leaveType, params.leaveType)
       : undefined,
     params.q
       ? or(
@@ -189,17 +232,68 @@ export async function listLeaves(
       : undefined,
   );
 
+  const listWhere = and(
+    baseWhere,
+    params.status && params.status !== "ALL"
+      ? eq(leaveRecords.status, params.status)
+      : undefined,
+    params.returnPending === "1"
+      ? and(
+          eq(leaveRecords.requiresReturnAso, true),
+          isNull(leaveRecords.actualReturnDate),
+          eq(leaveRecords.status, "ATIVO"),
+        )
+      : undefined,
+  );
+
   const [totalRow] = await db
     .select({ value: count() })
     .from(leaveRecords)
     .innerJoin(employees, eq(leaveRecords.employeeId, employees.id))
-    .where(where);
+    .where(listWhere);
+
+  const [metricsRow] = await db
+    .select({
+      total: count(),
+      ativos: sql<number>`count(*) filter (where ${leaveRecords.status} = 'ATIVO')`.mapWith(
+        Number,
+      ),
+      encerrados: sql<number>`count(*) filter (where ${leaveRecords.status} = 'ENCERRADO')`.mapWith(
+        Number,
+      ),
+      retornoPendente: sql<number>`count(*) filter (
+        where ${leaveRecords.requiresReturnAso} = true
+          and ${leaveRecords.actualReturnDate} is null
+          and ${leaveRecords.status} = 'ATIVO'
+      )`.mapWith(Number),
+      atestados: sql<number>`count(*) filter (where ${leaveRecords.leaveType} = 'ATESTADO')`.mapWith(
+        Number,
+      ),
+      inss: sql<number>`count(*) filter (where ${leaveRecords.leaveType} = 'INSS')`.mapWith(
+        Number,
+      ),
+      licencas: sql<number>`count(*) filter (
+        where ${leaveRecords.leaveType} in ('LICENCA_MATERNIDADE', 'LICENCA_PATERNIDADE')
+      )`.mapWith(Number),
+      acidentes: sql<number>`count(*) filter (where ${leaveRecords.leaveType} = 'ACIDENTE')`.mapWith(
+        Number,
+      ),
+      diasAtivos: sql<number>`coalesce(sum(${leaveRecords.daysCount}) filter (where ${leaveRecords.status} = 'ATIVO'), 0)`.mapWith(
+        Number,
+      ),
+    })
+    .from(leaveRecords)
+    .innerJoin(employees, eq(leaveRecords.employeeId, employees.id))
+    .where(baseWhere);
 
   const rows = await db
     .select({
       id: leaveRecords.id,
+      employeeId: leaveRecords.employeeId,
       registration: employees.registration,
       fullName: employees.fullName,
+      unitName: units.name,
+      regionName: regions.name,
       leaveType: leaveRecords.leaveType,
       startDate: leaveRecords.startDate,
       endDate: leaveRecords.endDate,
@@ -207,20 +301,48 @@ export async function listLeaves(
       status: leaveRecords.status,
       cidCode: includeClinical ? leaveRecords.cidCode : sql<string | null>`null`,
       reasonSimplified: leaveRecords.reasonSimplified,
+      reason: leaveRecords.reason,
+      expectedReturnDate: leaveRecords.expectedReturnDate,
+      actualReturnDate: leaveRecords.actualReturnDate,
+      requiresReturnAso: leaveRecords.requiresReturnAso,
+      notes: leaveRecords.notes,
     })
     .from(leaveRecords)
     .innerJoin(employees, eq(leaveRecords.employeeId, employees.id))
-    .where(where)
+    .leftJoin(units, eq(employees.unitId, units.id))
+    .leftJoin(regions, eq(employees.regionId, regions.id))
+    .where(listWhere)
     .orderBy(desc(leaveRecords.startDate))
     .limit(pageSize)
     .offset((page - 1) * pageSize);
 
   const total = totalRow?.value ?? 0;
+  const metrics: LeavesMetrics = {
+    total: metricsRow?.total ?? 0,
+    ativos: metricsRow?.ativos ?? 0,
+    encerrados: metricsRow?.encerrados ?? 0,
+    retornoPendente: metricsRow?.retornoPendente ?? 0,
+    atestados: metricsRow?.atestados ?? 0,
+    inss: metricsRow?.inss ?? 0,
+    licencas: metricsRow?.licencas ?? 0,
+    acidentes: metricsRow?.acidentes ?? 0,
+    diasAtivos: metricsRow?.diasAtivos ?? 0,
+  };
+
   return {
     rows: rows.map((r) => ({
       ...r,
       cidCode: includeClinical ? r.cidCode : null,
-    })),
+      startDate: r.startDate ? String(r.startDate).slice(0, 10) : "",
+      endDate: r.endDate ? String(r.endDate).slice(0, 10) : null,
+      expectedReturnDate: r.expectedReturnDate
+        ? String(r.expectedReturnDate).slice(0, 10)
+        : null,
+      actualReturnDate: r.actualReturnDate
+        ? String(r.actualReturnDate).slice(0, 10)
+        : null,
+    })) satisfies LeaveListRow[],
+    metrics,
     total,
     page,
     pageSize,

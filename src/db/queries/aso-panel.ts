@@ -286,6 +286,56 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
     .leftJoin(asoRecords, eq(asoMonthlyPlans.asoRecordId, asoRecords.id))
     .where(and(...whereParts));
 
+  // Datas do espelho: muitos planos ficam REALIZADO/CONFIRMADO sem aso_record.
+  // Sem isso, "Data realizada" / "Próximo ASO" saem vazios no detalhe.
+  const registrations = [...new Set(planRows.map((p) => p.registration))];
+  const snapByReg = new Map<
+    string,
+    { lastAsoDate: string | null; nextAsoDate: string | null }
+  >();
+  if (registrations.length) {
+    const snapRows = await db
+      .select({
+        registration: asoAlterdataSnapshots.registration,
+        lastAsoDate: asoAlterdataSnapshots.lastAsoDate,
+        nextAsoDate: asoAlterdataSnapshots.nextAsoDate,
+        syncedAt: asoAlterdataSnapshots.syncedAt,
+      })
+      .from(asoAlterdataSnapshots)
+      .where(inArray(asoAlterdataSnapshots.registration, registrations))
+      .orderBy(desc(asoAlterdataSnapshots.syncedAt));
+    for (const s of snapRows) {
+      if (snapByReg.has(s.registration)) continue;
+      snapByReg.set(s.registration, {
+        lastAsoDate: s.lastAsoDate ? String(s.lastAsoDate).slice(0, 10) : null,
+        nextAsoDate: s.nextAsoDate ? String(s.nextAsoDate).slice(0, 10) : null,
+      });
+    }
+  }
+
+  const enrichedPlanRows = planRows.map((p) => {
+    const snap = snapByReg.get(p.registration);
+    const realized =
+      p.executionStatus === "REALIZADO" ||
+      Boolean(p.asoRecordId) ||
+      p.alterdataStatus === "CONFIRMADO";
+    const performedDate =
+      (p.performedDate ? String(p.performedDate).slice(0, 10) : null) ??
+      (realized ? (snap?.lastAsoDate ?? null) : null);
+    const nextAsoDate =
+      (p.nextAsoDate ? String(p.nextAsoDate).slice(0, 10) : null) ??
+      snap?.nextAsoDate ??
+      null;
+    return {
+      ...p,
+      performedDate,
+      nextAsoDate,
+      expectedDate: p.expectedDate
+        ? String(p.expectedDate).slice(0, 10)
+        : null,
+    };
+  });
+
   // Meta
   const [target] = await db
     .select()
@@ -304,7 +354,7 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
     .limit(1);
 
   const metrics = computeCompetenceMetrics(
-    planRows.map((p) => ({
+    enrichedPlanRows.map((p) => ({
       eligibility: p.eligibility,
       executionStatus: p.executionStatus,
       alterdataStatus: p.alterdataStatus,
@@ -482,7 +532,7 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
   }
 
   // Relação nominal filtrada (competência atual)
-  let nominal = planRows;
+  let nominal = enrichedPlanRows;
   if (params.q?.trim()) {
     const q = params.q.trim().toLowerCase();
     nominal = nominal.filter(
@@ -552,7 +602,7 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
   const byRegion = new Map<string, { realizados: number; elegiveis: number }>();
   if (!regionId) {
     for (const reg of regionRows) {
-      const subset = planRows.filter((p) => p.regionId === reg.id);
+      const subset = enrichedPlanRows.filter((p) => p.regionId === reg.id);
       const m = computeCompetenceMetrics(
         subset.map((s) => ({
           eligibility: s.eligibility,

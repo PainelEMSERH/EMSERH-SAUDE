@@ -84,6 +84,11 @@ const LABELS: Record<string, string> = {
 
   // Afastamento / status genéricos
   ENCERRADO: "Encerrado",
+  ATESTADO: "Atestado",
+  INSS: "INSS",
+  LICENCA_MATERNIDADE: "Licença-maternidade",
+  LICENCA_PATERNIDADE: "Licença-paternidade",
+  ACIDENTE: "Acidente",
   PENDENTE: "Pendente",
   CANCELADO: "Cancelado",
   PRESENTE: "Presente",

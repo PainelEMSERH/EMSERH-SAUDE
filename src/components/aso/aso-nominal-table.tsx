@@ -114,7 +114,7 @@ function pendencyLabel(r: AsoNominalRow, effective: string): string {
     return "Pendente Alterdata";
   }
   if (r.alterdataStatus === "DIVERGENCIA_DATA") return "Divergência";
-  return "—";
+  return "Nenhuma";
 }
 
 function displayValue(value: string | null | undefined): string {
@@ -593,7 +593,14 @@ export function AsoNominalTable({
                   />
                   <DetailRow
                     label="Resultado"
-                    value={displayValue(humanizeLabel(selected.result))}
+                    value={
+                      selected.result
+                        ? humanizeLabel(selected.result)
+                        : selected.executionStatus === "REALIZADO" ||
+                            selected.alterdataStatus === "CONFIRMADO"
+                          ? "Não informado no Alterdata"
+                          : "—"
+                    }
                   />
                 </DetailSection>
 
