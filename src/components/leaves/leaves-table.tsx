@@ -22,6 +22,7 @@ import {
   humanizeLabel,
   initialsFromName,
 } from "@/lib/labels";
+import { leaveRequiresReturnAso, leaveTypeLabel } from "@/lib/leaves/constants";
 import { cn } from "@/lib/utils";
 
 function toneForLeaveStatus(status: string): "ok" | "warn" | "muted" {
@@ -29,19 +30,12 @@ function toneForLeaveStatus(status: string): "ok" | "warn" | "muted" {
 }
 
 function toneForLeaveType(type: string): "info" | "warn" | "danger" | "muted" | "ok" {
-  switch (type) {
-    case "ATESTADO":
-      return "info";
-    case "INSS":
-      return "warn";
-    case "ACIDENTE":
-      return "danger";
-    case "LICENCA_MATERNIDADE":
-    case "LICENCA_PATERNIDADE":
-      return "ok";
-    default:
-      return "muted";
-  }
+  if (type.startsWith("01") || type.includes("Afast")) return "warn";
+  if (type.startsWith("10") || type.includes("Atestado")) return "info";
+  if (type.startsWith("03") || type.startsWith("11") || type.includes("Matern"))
+    return "ok";
+  if (type.includes("ACIDENTE")) return "danger";
+  return "muted";
 }
 
 function DetailSection({
@@ -171,7 +165,9 @@ export function LeavesTable({
 
   const returnHint = useMemo(() => {
     if (!selected) return "—";
-    if (!selected.requiresReturnAso) return "Não exigido";
+    const needs =
+      selected.requiresReturnAso || leaveRequiresReturnAso(selected.leaveType);
+    if (!needs) return "Não exigido";
     if (selected.actualReturnDate) return "Retorno registrado";
     return "Pendente";
   }, [selected]);
@@ -199,8 +195,10 @@ export function LeavesTable({
             </thead>
             <tbody>
               {rows.map((r) => {
+                const needsReturn =
+                  r.requiresReturnAso || leaveRequiresReturnAso(r.leaveType);
                 const pendingReturn =
-                  r.requiresReturnAso && !r.actualReturnDate && r.status === "ATIVO";
+                  needsReturn && !r.actualReturnDate && r.status === "ATIVO";
                 return (
                   <tr
                     key={r.id}
@@ -226,7 +224,7 @@ export function LeavesTable({
                     </td>
                     <td className="px-3 py-2.5">
                       <StatusBadge
-                        label={humanizeLabel(r.leaveType)}
+                        label={leaveTypeLabel(r.leaveType)}
                         tone={toneForLeaveType(r.leaveType)}
                       />
                     </td>
@@ -250,7 +248,7 @@ export function LeavesTable({
                     <td className="px-3 py-2.5">
                       {pendingReturn ? (
                         <StatusBadge label="ASO pendente" tone="danger" />
-                      ) : r.requiresReturnAso ? (
+                      ) : needsReturn ? (
                         <span className="text-[12px] text-slate-500">Ok</span>
                       ) : (
                         <span className="text-[12px] text-slate-400">—</span>
@@ -293,7 +291,7 @@ export function LeavesTable({
                     <SheetDescription className="mt-1 text-[12px] text-slate-500">
                       Mat. {formatRegistrationDisplay(selected.registration)}
                       <span className="mx-1.5 text-slate-300">·</span>
-                      {humanizeLabel(selected.leaveType)}
+                      {leaveTypeLabel(selected.leaveType)}
                     </SheetDescription>
                     <div className="mt-2.5 flex flex-wrap gap-1.5">
                       <StatusBadge
@@ -301,10 +299,10 @@ export function LeavesTable({
                         tone={toneForLeaveStatus(selected.status)}
                       />
                       <StatusBadge
-                        label={humanizeLabel(selected.leaveType)}
+                        label={leaveTypeLabel(selected.leaveType)}
                         tone={toneForLeaveType(selected.leaveType)}
                       />
-                      {selected.requiresReturnAso &&
+                      {leaveRequiresReturnAso(selected.leaveType) &&
                       !selected.actualReturnDate &&
                       selected.status === "ATIVO" ? (
                         <StatusBadge label="Retorno ASO pendente" tone="danger" />

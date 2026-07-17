@@ -68,7 +68,7 @@ export function LeavesRegisterDialog() {
                 id="leaveType"
                 name="leaveType"
                 required
-                defaultValue="ATESTADO"
+                defaultValue="01 - Afast. por motivo de doen"
                 className="h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-[13px] outline-none focus-visible:border-teal-600"
               >
                 {LEAVE_TYPES.map((t) => (

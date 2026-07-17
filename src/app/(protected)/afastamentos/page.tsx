@@ -8,6 +8,7 @@ import {
   type LeavesListParams,
 } from "@/db/queries/occupational";
 import { requirePermission, userCan } from "@/lib/auth/guard";
+import { LEAVE_TABS } from "@/lib/leaves/constants";
 
 export default async function AfastamentosPage({
   searchParams,
@@ -27,9 +28,13 @@ export default async function AfastamentosPage({
   const current: Record<string, string | number | undefined> = {
     q: params.q,
     status: params.status,
+    group: data.group,
     leaveType: params.leaveType,
     returnPending: params.returnPending,
   };
+
+  const groupLabel =
+    LEAVE_TABS.find((t) => t.value === data.group)?.label ?? "Afastamentos";
 
   return (
     <div>
@@ -39,12 +44,19 @@ export default async function AfastamentosPage({
         current={{
           q: params.q,
           status: params.status,
+          group: data.group,
           leaveType: params.leaveType,
           returnPending: params.returnPending,
         }}
+        group={data.group}
+        tabCounts={data.tabCounts}
       />
 
-      <LeavesSummaryCards metrics={data.metrics} current={current} />
+      <LeavesSummaryCards
+        metrics={data.metrics}
+        current={current}
+        groupLabel={groupLabel}
+      />
 
       <LeavesTable
         rows={data.rows}
@@ -63,6 +75,7 @@ export default async function AfastamentosPage({
           searchParams={{
             q: params.q,
             status: params.status,
+            group: data.group,
             leaveType: params.leaveType,
             returnPending: params.returnPending,
           }}
