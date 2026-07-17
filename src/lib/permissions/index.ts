@@ -20,6 +20,7 @@ const ALL: PermissionAction[] = [
   "manage",
   "view_clinical",
   "view_sensitive_identifiers",
+  "sync_global",
 ];
 
 const CLINICAL_OPS: PermissionAction[] = [
@@ -63,7 +64,7 @@ export const ROLE_PERMISSIONS: PermissionMatrix = {
     attendances: ["view", "create", "update", "export"],
     indicators: ["view", "update", "export", "manage"],
     reports: ["view", "export"],
-    imports: ["view", "create", "manage"],
+    imports: ["view", "create", "manage", "sync_global"],
     admin: ["view", "update"],
     audit: ["view"],
     files: ["view", "create"],
@@ -80,7 +81,7 @@ export const ROLE_PERMISSIONS: PermissionMatrix = {
     attendances: ["view", "create", "update", "export"],
     indicators: READ_EXPORT,
     reports: READ_EXPORT,
-    imports: ["view", "create"],
+    imports: ["view"],
     files: ["view", "create"],
   },
   OPERADOR_UNIDADE: {

@@ -12,7 +12,7 @@ export type MirrorSyncState = {
 
 export async function syncAlterdataMirrorAction(): Promise<MirrorSyncState> {
   try {
-    const user = await requirePermission("imports", "create");
+    const user = await requirePermission("imports", "sync_global");
     const result = await syncAlterdataMirror({ user });
     if (!result.ok) {
       return { error: result.error ?? "Falha na sincronização." };

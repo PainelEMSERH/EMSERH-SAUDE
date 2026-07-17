@@ -16,7 +16,8 @@ export type PermissionAction =
   | "export"
   | "manage"
   | "view_clinical"
-  | "view_sensitive_identifiers";
+  | "view_sensitive_identifiers"
+  | "sync_global";
 
 export type ResourceModule =
   | "dashboard"

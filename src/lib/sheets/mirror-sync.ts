@@ -1,9 +1,10 @@
 /**
  * Sync somente-leitura do espelho Google Sheets (IMPORTRANGE).
  * NUNCA escreve na planilha — apenas HTTP GET (CSV/gviz).
+ * Sheet ID: somente via ALTERDATA_MIRROR_SHEET_ID (nunca hardcode em produção).
  */
 import { createHash } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, like } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   employees,
@@ -19,9 +20,6 @@ import { getEnv } from "@/lib/env";
 import { normalizeRegionName, normalizeText } from "@/lib/validation";
 import type { SessionUser } from "@/types";
 
-export const MIRROR_SHEET_ID_DEFAULT =
-  "1_SLT_VzmOMik30bBdq0EMK0f3aph104LNa3lwnn6LKg";
-
 export type MirrorSyncResult = {
   ok: boolean;
   error?: string;
@@ -34,9 +32,13 @@ export type MirrorSyncResult = {
 };
 
 function mirrorSheetId() {
-  return (
-    process.env.ALTERDATA_MIRROR_SHEET_ID?.trim() || MIRROR_SHEET_ID_DEFAULT
-  );
+  const id = process.env.ALTERDATA_MIRROR_SHEET_ID?.trim();
+  if (!id) {
+    throw new Error(
+      "ALTERDATA_MIRROR_SHEET_ID não configurada. Defina a variável na Vercel/ambiente.",
+    );
+  }
+  return id;
 }
 
 function mirrorGid() {
@@ -164,6 +166,33 @@ function toDate(value: string): string | null {
 export async function syncAlterdataMirror(options?: {
   user?: SessionUser | null;
 }): Promise<MirrorSyncResult> {
+  const db = getDb();
+
+  const [running] = await db
+    .select({ id: importBatches.id })
+    .from(importBatches)
+    .where(
+      and(
+        eq(importBatches.status, "RUNNING"),
+        like(importBatches.sourceName, "mirror:%"),
+      ),
+    )
+    .limit(1);
+
+  if (running) {
+    return {
+      ok: false,
+      error:
+        "Já existe uma sincronização do espelho em andamento. Aguarde o término.",
+      totalRows: 0,
+      imported: 0,
+      updated: 0,
+      skipped: 0,
+      errors: 0,
+      batchId: running.id,
+    };
+  }
+
   const csv = await fetchMirrorCsv();
   const rows = parseCsv(csv);
   if (!rows.length) {
@@ -178,7 +207,6 @@ export async function syncAlterdataMirror(options?: {
     };
   }
 
-  const db = getDb();
   const fileHash = createHash("sha256").update(csv).digest("hex");
   const [batch] = await db
     .insert(importBatches)
@@ -186,6 +214,7 @@ export async function syncAlterdataMirror(options?: {
       sourceName: `mirror:${mirrorSheetId()}`,
       status: "RUNNING",
       totalRows: rows.length,
+      reportSummary: `sourceHash=${fileHash};userAgent=server;ip=n/a`,
       createdBy: options?.user?.id,
       updatedBy: options?.user?.id,
     })
@@ -195,6 +224,7 @@ export async function syncAlterdataMirror(options?: {
   let updated = 0;
   let skipped = 0;
   let errors = 0;
+  const seenCpfHashes = new Set<string>();
 
   const regionCache = new Map<string, string>();
   const unitCache = new Map<string, string>();
@@ -315,6 +345,26 @@ export async function syncAlterdataMirror(options?: {
         }
       }
 
+      // Matrícula é a chave. CPF duplicado no Alterdata não pode bloquear o cadastro.
+      if (cpfHash) {
+        if (seenCpfHashes.has(cpfHash)) {
+          cpfHash = null;
+        } else {
+          const [cpfOwner] = await db
+            .select({ id: employees.id, registration: employees.registration })
+            .from(employees)
+            .where(
+              and(eq(employees.cpfHash, cpfHash), isNull(employees.deletedAt)),
+            )
+            .limit(1);
+          if (cpfOwner && cpfOwner.registration !== registration) {
+            cpfHash = null;
+          } else {
+            seenCpfHashes.add(cpfHash);
+          }
+        }
+      }
+
       const payload = {
         registration,
         fullName,
@@ -348,17 +398,48 @@ export async function syncAlterdataMirror(options?: {
         .limit(1);
 
       if (existing) {
+        const updatePayload = { ...payload };
+        // Evita unique violation de CPF em update
+        if (
+          updatePayload.cpfHash &&
+          existing.cpfHash &&
+          updatePayload.cpfHash !== existing.cpfHash
+        ) {
+          const [other] = await db
+            .select({ id: employees.id })
+            .from(employees)
+            .where(
+              and(
+                eq(employees.cpfHash, updatePayload.cpfHash),
+                isNull(employees.deletedAt),
+              ),
+            )
+            .limit(1);
+          if (other && other.id !== existing.id) {
+            updatePayload.cpfHash = null;
+          }
+        }
         await db
           .update(employees)
-          .set(payload)
+          .set(updatePayload)
           .where(eq(employees.id, existing.id));
         updated += 1;
       } else {
-        await db.insert(employees).values({
-          ...payload,
-          createdBy: options?.user?.id ?? null,
-        });
-        imported += 1;
+        try {
+          await db.insert(employees).values({
+            ...payload,
+            createdBy: options?.user?.id ?? null,
+          });
+          imported += 1;
+        } catch {
+          // Último recurso: grava sem hash de CPF (matrícula prevalece)
+          await db.insert(employees).values({
+            ...payload,
+            cpfHash: null,
+            createdBy: options?.user?.id ?? null,
+          });
+          imported += 1;
+        }
       }
     } catch (err) {
       errors += 1;
