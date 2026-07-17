@@ -14,11 +14,15 @@ export type PlanMetricRow = {
   expectedDate?: string | null;
   asoRecordId?: string | null;
   performedDate?: string | null;
+  justificationReason?: string | null;
+  functionalStatusSnapshot?: string | null;
 };
 
 export type CompetenceMetrics = {
   previstosBrutos: number;
   justificados: number;
+  afastados: number;
+  ferias: number;
   previstosElegiveis: number;
   realizados: number;
   confirmadosAlterdata: number;
@@ -42,6 +46,8 @@ export function computeCompetenceMetrics(
 ): CompetenceMetrics {
   const previstosBrutos = rows.length;
   let justificados = 0;
+  let afastados = 0;
+  let ferias = 0;
   let previstosElegiveis = 0;
   let realizados = 0;
   let confirmadosAlterdata = 0;
@@ -56,6 +62,12 @@ export function computeCompetenceMetrics(
     const elig = String(r.eligibility || "").toUpperCase();
     const exec = String(r.executionStatus || "").toUpperCase();
     const alt = String(r.alterdataStatus || "").toUpperCase();
+    const reason = String(r.justificationReason || "").toUpperCase();
+    const functional = String(r.functionalStatusSnapshot || "").toUpperCase();
+    const leaveTag = reason || functional;
+    if (leaveTag === "AFASTADO") afastados += 1;
+    if (leaveTag === "FERIAS") ferias += 1;
+
     const effective = effectiveExecutionStatus(
       {
         eligibility: elig,
@@ -128,6 +140,8 @@ export function computeCompetenceMetrics(
   return {
     previstosBrutos,
     justificados,
+    afastados,
+    ferias,
     previstosElegiveis,
     realizados,
     confirmadosAlterdata,

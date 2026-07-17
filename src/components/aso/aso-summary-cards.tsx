@@ -116,25 +116,38 @@ export function AsoSummaryCards({
           tone={pctTone}
           emphasis
         />
-        <Card
-          label="Faltam p/ meta"
-          value={
-            !metaDefined
-              ? "Meta não definida"
-              : metrics.faltamParaMeta == null
-                ? "—"
-                : String(metrics.faltamParaMeta)
-          }
-          hint={
-            !metaDefined
-              ? "Defina uma meta para acompanhar o déficit"
-              : metrics.excedente > 0
-                ? `Excedente: ${metrics.excedente}`
-                : undefined
-          }
-          tone={!metaDefined ? "warn" : "default"}
-          emphasis
-        />
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white ring-1 ring-teal-200">
+          <div className="grid h-full grid-cols-2 divide-x divide-slate-200">
+            <Link
+              href={buildAsoUrl("/asos", current, {
+                functional: "AFASTADO",
+                page: undefined,
+              })}
+              className="p-3 transition-colors hover:bg-amber-50/50"
+            >
+              <p className="text-[11px] font-medium tracking-wide text-slate-500 uppercase">
+                Afastados
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-amber-800">
+                {metrics.afastados}
+              </p>
+            </Link>
+            <Link
+              href={buildAsoUrl("/asos", current, {
+                functional: "FERIAS",
+                page: undefined,
+              })}
+              className="p-3 transition-colors hover:bg-sky-50/50"
+            >
+              <p className="text-[11px] font-medium tracking-wide text-slate-500 uppercase">
+                Férias
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-sky-800">
+                {metrics.ferias}
+              </p>
+            </Link>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">

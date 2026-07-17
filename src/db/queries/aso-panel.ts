@@ -310,6 +310,8 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
       expectedDate: p.expectedDate,
       asoRecordId: p.asoRecordId,
       performedDate: p.performedDate,
+      justificationReason: p.justificationReason,
+      functionalStatusSnapshot: p.functionalStatusSnapshot,
     })),
     target?.targetPercent ?? null,
   );

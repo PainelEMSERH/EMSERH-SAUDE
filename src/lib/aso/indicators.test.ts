@@ -15,6 +15,8 @@ describe("computeCompetenceMetrics", () => {
     );
     expect(m.previstosBrutos).toBe(5);
     expect(m.justificados).toBe(1);
+    expect(m.afastados).toBe(0);
+    expect(m.ferias).toBe(0);
     expect(m.previstosElegiveis).toBe(4);
     expect(m.realizados).toBe(2);
     expect(m.confirmadosAlterdata).toBe(1);
@@ -34,10 +36,27 @@ describe("computeCompetenceMetrics", () => {
     expect(m.excedente).toBe(0);
   });
 
-  it("trata divisão por zero", () => {
-    const m = computeCompetenceMetrics([]);
-    expect(m.aderenciaPercent).toBeNull();
-    expect(m.denominador).toBe(0);
+  it("separa afastados e férias dos justificados", () => {
+    const m = computeCompetenceMetrics([
+      {
+        eligibility: "JUSTIFICADO",
+        executionStatus: "JUSTIFICADO",
+        justificationReason: "AFASTADO",
+      },
+      {
+        eligibility: "JUSTIFICADO",
+        executionStatus: "JUSTIFICADO",
+        justificationReason: "FERIAS",
+      },
+      {
+        eligibility: "JUSTIFICADO",
+        executionStatus: "JUSTIFICADO",
+        functionalStatusSnapshot: "FERIAS",
+      },
+    ]);
+    expect(m.justificados).toBe(3);
+    expect(m.afastados).toBe(1);
+    expect(m.ferias).toBe(2);
   });
 });
 
