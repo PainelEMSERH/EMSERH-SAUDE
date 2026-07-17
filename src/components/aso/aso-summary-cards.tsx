@@ -31,20 +31,20 @@ function Kpi({
   href?: string;
 }) {
   const toneClasses = {
-    default: "text-slate-900",
+    default: "text-foreground",
     danger: "text-red-700",
     warn: "text-amber-700",
-    ok: "text-teal-800",
+    ok: "text-primary",
   } as const;
 
   const body = (
     <div
       className={cn(
         "flex h-full min-w-0 flex-col justify-center px-2.5 py-2.5 sm:px-3",
-        href ? "transition-colors hover:bg-teal-50/40" : "",
+        href ? "transition-colors hover:bg-primary-soft" : "",
       )}
     >
-      <p className="text-[10px] font-semibold tracking-[0.05em] text-slate-500 uppercase">
+      <p className="text-[10px] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
         {label}
       </p>
       <p
@@ -56,7 +56,7 @@ function Kpi({
         {value}
       </p>
       {hint ? (
-        <p className="mt-1 truncate text-[10px] leading-tight text-slate-500" title={hint}>
+        <p className="mt-1 truncate text-[10px] leading-tight text-muted-foreground" title={hint}>
           {hint}
         </p>
       ) : (
@@ -83,21 +83,21 @@ function StripItem({
     tone === "warn"
       ? "text-amber-700"
       : tone === "ok"
-        ? "text-teal-800"
+        ? "text-primary"
         : tone === "muted"
-          ? "text-slate-400"
-          : "text-slate-800";
+          ? "text-muted-foreground"
+          : "text-foreground";
 
   const content = (
     <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
-      <span className="text-slate-500">{label}</span>
+      <span className="text-muted-foreground">{label}</span>
       <span className={cn("font-semibold tabular-nums", valueClass)}>{value}</span>
     </span>
   );
 
   if (href) {
     return (
-      <Link href={href} className="rounded px-0.5 hover:bg-white/80 hover:text-teal-900">
+      <Link href={href} className="rounded px-0.5 hover:bg-card/80 hover:text-primary">
         {content}
       </Link>
     );
@@ -142,15 +142,15 @@ export function AsoSummaryCards({
   return (
     <div className="mb-3 space-y-2">
       {asoType === "ALL" ? (
-        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12px] text-slate-600">
-          <strong className="font-semibold text-slate-800">Consolidado operacional</strong>
+        <div className="rounded-md border border-border bg-muted px-3 py-1.5 text-[12px] text-muted-foreground">
+          <strong className="font-semibold text-foreground">Consolidado operacional</strong>
           {" · "}
           cada tipo de ASO possui denominador próprio.
         </div>
       ) : null}
 
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-        <div className="grid grid-cols-2 divide-x divide-y divide-slate-100 sm:grid-cols-3 lg:grid-cols-6 lg:divide-y-0">
+      <section className="overflow-hidden rounded-lg border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <div className="grid grid-cols-2 divide-x divide-y divide-border-subtle sm:grid-cols-3 lg:grid-cols-6 lg:divide-y-0">
           <Kpi
             label="Planejado"
             value={String(metrics.previstosBrutos)}
@@ -194,8 +194,8 @@ export function AsoSummaryCards({
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 px-3 py-1.5 text-[11px]">
-          <span className="font-semibold text-slate-600">Impactos da competência</span>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border-subtle px-3 py-1.5 text-[11px]">
+          <span className="font-semibold text-muted-foreground">Impactos da competência</span>
           <StripItem
             label="Afastados"
             value={metrics.afastados}
@@ -205,7 +205,7 @@ export function AsoSummaryCards({
               page: undefined,
             })}
           />
-          <span className="text-slate-300" aria-hidden>
+          <span className="text-muted-foreground" aria-hidden>
             ·
           </span>
           <StripItem
@@ -217,7 +217,7 @@ export function AsoSummaryCards({
               page: undefined,
             })}
           />
-          <span className="text-slate-300" aria-hidden>
+          <span className="text-muted-foreground" aria-hidden>
             ·
           </span>
           <StripItem
@@ -229,7 +229,7 @@ export function AsoSummaryCards({
               page: undefined,
             })}
           />
-          <span className="text-slate-300" aria-hidden>
+          <span className="text-muted-foreground" aria-hidden>
             ·
           </span>
           <StripItem
@@ -241,7 +241,7 @@ export function AsoSummaryCards({
           {closureStatus ? (
             <>
               <span className="ml-auto hidden sm:inline" />
-              <span className="inline-flex items-center gap-1.5 text-slate-500">
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
                 Competência
                 <StatusBadge
                   label={humanizeLabel(closureStatus)}

@@ -37,7 +37,7 @@ export function LeavesRegisterDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button size="sm" className="h-8 bg-teal-800 text-[13px] hover:bg-teal-900">
+          <Button size="sm" className="h-8 bg-primary text-[13px] hover:bg-primary-hover">
             Registrar afastamento
           </Button>
         }
@@ -69,7 +69,7 @@ export function LeavesRegisterDialog() {
                 name="leaveType"
                 required
                 defaultValue="01 - Afast. por motivo de doen"
-                className="h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-[13px] outline-none focus-visible:border-teal-600"
+                className="h-9 w-full rounded-md border border-border bg-card px-2.5 text-[13px] outline-none focus-visible:border-primary"
               >
                 {LEAVE_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>
@@ -84,7 +84,7 @@ export function LeavesRegisterDialog() {
                 id="status"
                 name="status"
                 defaultValue="ATIVO"
-                className="h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-[13px] outline-none focus-visible:border-teal-600"
+                className="h-9 w-full rounded-md border border-border bg-card px-2.5 text-[13px] outline-none focus-visible:border-primary"
               >
                 {LEAVE_STATUSES.map((s) => (
                   <option key={s.value} value={s.value}>
@@ -138,7 +138,7 @@ export function LeavesRegisterDialog() {
               type="submit"
               size="sm"
               disabled={pending}
-              className="bg-teal-800 hover:bg-teal-900"
+              className="bg-primary hover:bg-primary-hover"
             >
               {pending ? "Salvando…" : "Salvar"}
             </Button>

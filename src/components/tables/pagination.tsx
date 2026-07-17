@@ -36,7 +36,7 @@ export function Pagination({
 
   return (
     <div className="mt-3 flex items-center justify-between gap-3">
-      <p className="text-[12px] text-slate-500">
+      <p className="text-[12px] text-muted-foreground">
         {total != null
           ? `Mostrando ${from}–${to} de ${total} ${itemLabel}`
           : `Página ${page} de ${totalPages}`}

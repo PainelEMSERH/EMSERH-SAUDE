@@ -69,20 +69,20 @@ export default async function ColaboradoresPage({
     <div>
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-teal-100 bg-teal-50 text-teal-800">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-primary-border bg-primary-soft text-primary">
             <Users className="size-4" aria-hidden />
           </div>
           <div>
-            <h2 className="text-lg font-semibold tracking-tight text-slate-900">
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">
               Colaboradores
             </h2>
-            <p className="text-[12px] text-slate-500">
+            <p className="text-[12px] text-muted-foreground">
               Base sincronizada pelo Alterdata · consulta por regional e unidade.
             </p>
           </div>
         </div>
-        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-          <Database className="size-3.5 text-teal-700" aria-hidden />
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+          <Database className="size-3.5 text-primary" aria-hidden />
           Dados do Alterdata
         </span>
       </div>
@@ -113,8 +113,6 @@ export default async function ColaboradoresPage({
       />
 
       <DataTable
-        stickyHeader
-        stickyHeaderMode="page"
         tableLayout="fixed"
         rows={data.rows}
         emptyTitle="Nenhum colaborador encontrado"
@@ -127,7 +125,7 @@ export default async function ColaboradoresPage({
             cell: (r) => (
               <Link
                 href={`/colaboradores/${r.id}`}
-                className="font-semibold text-teal-800 hover:underline"
+                className="font-semibold text-primary hover:underline"
                 title={`Abrir prontuário de ${r.fullName}`}
               >
                 {formatRegistrationDisplay(r.registration)}
@@ -140,7 +138,7 @@ export default async function ColaboradoresPage({
             className: "w-[26%] text-left",
             cell: (r) => (
               <p
-                className="truncate font-medium text-slate-900"
+                className="truncate font-medium text-foreground"
                 title={r.fullName}
               >
                 {r.fullName}
@@ -153,7 +151,7 @@ export default async function ColaboradoresPage({
             className: "w-[20%] text-left",
             cell: (r) => (
               <span
-                className="block truncate text-slate-600"
+                className="block truncate text-muted-foreground"
                 title={r.unitName ?? undefined}
               >
                 {formatUnitDisplayName(r.unitName)}
@@ -166,7 +164,7 @@ export default async function ColaboradoresPage({
             className: "w-[18%] text-left",
             cell: (r) => (
               <span
-                className="block truncate text-slate-600"
+                className="block truncate text-muted-foreground"
                 title={r.jobRoleName ?? undefined}
               >
                 {r.jobRoleName ?? "—"}
@@ -179,7 +177,7 @@ export default async function ColaboradoresPage({
             className: "w-[8%] text-center",
             cell: (r) => (
               <span
-                className="block truncate text-center text-slate-600"
+                className="block truncate text-center text-muted-foreground"
                 title={r.regionName ?? undefined}
               >
                 {humanizeLabel(r.regionName)}
@@ -204,7 +202,7 @@ export default async function ColaboradoresPage({
             header: "Admissão",
             className: "w-[7%] text-center whitespace-nowrap",
             cell: (r) => (
-              <span className="tabular-nums text-slate-600">
+              <span className="tabular-nums text-muted-foreground">
                 {formatDateBR(r.admissionDate)}
               </span>
             ),
@@ -218,7 +216,7 @@ export default async function ColaboradoresPage({
                 href={`/colaboradores/${r.id}`}
                 className={cn(
                   buttonVariants({ variant: "outline", size: "sm" }),
-                  "h-7 gap-1 px-1.5 text-[11px] text-teal-800",
+                  "h-7 gap-1 px-1.5 text-[11px] text-primary",
                 )}
                 title="Ver prontuário"
               >

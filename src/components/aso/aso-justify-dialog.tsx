@@ -71,7 +71,7 @@ export function AsoJustifyDialog({
               required
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="h-8 w-full rounded-lg border border-slate-200 px-2 text-sm"
+              className="h-8 w-full rounded-lg border border-border px-2 text-sm"
             >
               <option value="">—</option>
               {JUSTIFY_REASONS.map((r) => (
@@ -91,7 +91,7 @@ export function AsoJustifyDialog({
             />
           </div>
           {selected ? (
-            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
+            <div className="rounded-md border border-border bg-muted px-3 py-2 text-[12px] text-muted-foreground">
               {selected.excludesDenominator ? (
                 <>
                   Este motivo <strong>pode retirar</strong> o colaborador do denominador
@@ -127,7 +127,7 @@ export function AsoJustifyDialog({
             <Button
               type="submit"
               disabled={pending}
-              className="bg-teal-700 hover:bg-teal-800"
+              className="bg-primary hover:bg-primary-hover"
             >
               {pending ? "Salvando..." : "Confirmar justificativa"}
             </Button>

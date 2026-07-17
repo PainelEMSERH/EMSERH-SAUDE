@@ -22,13 +22,13 @@ function MetricCard({
       : tone === "warn"
         ? "text-amber-700"
         : tone === "ok"
-          ? "text-teal-700"
-          : "text-slate-900";
+          ? "text-primary"
+          : "text-foreground";
 
   return (
-    <Card className="border-slate-200 shadow-none">
+    <Card className="border-border shadow-none">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-slate-500">
+        <CardTitle className="text-sm font-medium text-muted-foreground">
           {label}
         </CardTitle>
       </CardHeader>

@@ -27,7 +27,7 @@ const NEW_JOB_ROLE = "__NEW__";
 type Opt = { id: string; name: string };
 
 const fieldClass =
-  "h-8 w-full rounded-md border border-slate-200 bg-white px-2.5 text-[13px] outline-none transition-colors focus-visible:border-teal-600 focus-visible:ring-2 focus-visible:ring-teal-600/20";
+  "h-8 w-full rounded-md border border-border bg-card px-2.5 text-[13px] outline-none transition-colors focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20";
 
 export function EmployeeForm({
   regions,
@@ -136,7 +136,7 @@ export function EmployeeForm({
               autoComplete="off"
             />
             {mode === "edit" ? (
-              <p className="mt-1.5 text-xs text-slate-500">
+              <p className="mt-1.5 text-xs text-muted-foreground">
                 O CPF cadastrado permanece protegido. Deixe em branco para
                 manter o atual.
               </p>
@@ -269,7 +269,7 @@ export function EmployeeForm({
           </Field>
           <Field label="Cidade" htmlFor="city">
             <div className="relative">
-              <MapPin className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+              <MapPin className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 id="city"
                 name="city"
@@ -299,7 +299,7 @@ export function EmployeeForm({
           type="submit"
           disabled={pending}
           size="sm"
-          className="h-8 min-w-[160px] gap-1.5 bg-teal-700 text-[13px] hover:bg-teal-800"
+          className="h-8 min-w-[160px] gap-1.5 bg-primary text-[13px] hover:bg-primary-hover"
         >
           {pending ? <Loader2 className="size-4 animate-spin" /> : null}
           {pending
@@ -325,14 +325,14 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4">
-      <div className="mb-3 flex items-start gap-2.5 border-b border-slate-100 pb-3">
-        <div className="flex size-7 shrink-0 items-center justify-center rounded-md border border-teal-100 bg-teal-50 text-teal-800">
+    <section className="rounded-lg border border-border bg-card p-4">
+      <div className="mb-3 flex items-start gap-2.5 border-b border-border-subtle pb-3">
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-md border border-primary-border bg-primary-soft text-primary">
           {icon}
         </div>
         <div>
-          <h3 className="text-[13px] font-semibold text-slate-900">{title}</h3>
-          <p className="mt-0.5 text-[11px] text-slate-500">{description}</p>
+          <h3 className="text-[13px] font-semibold text-foreground">{title}</h3>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">{description}</p>
         </div>
       </div>
       {children}
@@ -353,7 +353,7 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={htmlFor} className="text-sm text-slate-700">
+      <Label htmlFor={htmlFor} className="text-sm text-foreground/80">
         {label}
         {required ? <span className="text-red-600"> *</span> : null}
       </Label>

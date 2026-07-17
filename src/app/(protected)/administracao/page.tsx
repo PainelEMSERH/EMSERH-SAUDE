@@ -47,7 +47,7 @@ export default async function AdministracaoPage() {
       />
 
       <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <h3 className="mb-3 font-semibold">Nova regional</h3>
           <form action={upsertRegionAction} className="space-y-3">
             <div className="space-y-1">
@@ -58,7 +58,7 @@ export default async function AdministracaoPage() {
               <Label htmlFor="name">Nome</Label>
               <Input id="name" name="name" placeholder="Norte" required />
             </div>
-            <Button type="submit" className="bg-teal-700 hover:bg-teal-800">
+            <Button type="submit" className="bg-primary hover:bg-primary-hover">
               Salvar regional
             </Button>
           </form>
@@ -66,13 +66,13 @@ export default async function AdministracaoPage() {
             {regions.map((r) => (
               <li key={r.id} className="flex justify-between border-b py-1">
                 <span>{r.name}</span>
-                <span className="text-slate-500">{r.code}</span>
+                <span className="text-muted-foreground">{r.code}</span>
               </li>
             ))}
           </ul>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <h3 className="mb-3 font-semibold">Nova unidade</h3>
           <form action={upsertUnitAction} className="space-y-3">
             <div className="space-y-1">
@@ -81,7 +81,7 @@ export default async function AdministracaoPage() {
                 id="regionId"
                 name="regionId"
                 required
-                className="h-8 w-full rounded-lg border border-slate-200 px-2 text-sm"
+                className="h-8 w-full rounded-lg border border-border px-2 text-sm"
               >
                 <option value="">—</option>
                 {regions.map((r) => (
@@ -99,16 +99,16 @@ export default async function AdministracaoPage() {
               <Label htmlFor="city">Cidade</Label>
               <Input id="city" name="city" />
             </div>
-            <Button type="submit" className="bg-teal-700 hover:bg-teal-800">
+            <Button type="submit" className="bg-primary hover:bg-primary-hover">
               Salvar unidade
             </Button>
           </form>
         </div>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
+      <section className="rounded-xl border border-border bg-card p-4">
         <h3 className="mb-1 font-semibold">Unidades por regional</h3>
-        <p className="mb-4 text-sm text-slate-500">
+        <p className="mb-4 text-sm text-muted-foreground">
           {units.length} unidades ativas · Regionais oficiais: Norte, Sul, Leste
           e Centro (Oeste = Sul).
         </p>
@@ -118,13 +118,13 @@ export default async function AdministracaoPage() {
             return (
               <div
                 key={key}
-                className="rounded-lg border border-slate-100 bg-slate-50/80 p-3"
+                className="rounded-lg border border-border-subtle bg-muted/80 p-3"
               >
                 <div className="mb-2 flex items-baseline justify-between">
-                  <h4 className="text-sm font-semibold text-teal-900">
+                  <h4 className="text-sm font-semibold text-primary">
                     {group.label}
                   </h4>
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-muted-foreground">
                     {group.items.length} un.
                   </span>
                 </div>
@@ -132,11 +132,11 @@ export default async function AdministracaoPage() {
                   {group.items.map((u) => (
                     <li
                       key={u.id}
-                      className="border-b border-slate-200/80 py-1 text-slate-800"
+                      className="border-b border-border/80 py-1 text-foreground"
                     >
                       {formatUnitDisplayName(u.name)}
                       {u.city ? (
-                        <span className="text-slate-500"> · {u.city}</span>
+                        <span className="text-muted-foreground"> · {u.city}</span>
                       ) : null}
                     </li>
                   ))}

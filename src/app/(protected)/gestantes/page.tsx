@@ -82,7 +82,7 @@ export default async function GestantesPage({
             cell: (r) => (
               <div>
                 <p className="font-medium">{r.fullName}</p>
-                <p className="text-xs text-slate-500">{r.registration}</p>
+                <p className="text-xs text-muted-foreground">{r.registration}</p>
               </div>
             ),
           },

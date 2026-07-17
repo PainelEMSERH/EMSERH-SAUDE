@@ -39,14 +39,14 @@ export default async function RelatoriosPage() {
         {REPORTS.map((r) => (
           <div
             key={r.key}
-            className="rounded-xl border border-slate-200 bg-white p-4"
+            className="rounded-xl border border-border bg-card p-4"
           >
-            <h3 className="font-semibold text-slate-900">{r.title}</h3>
-            <p className="mt-1 text-sm text-slate-500">{r.description}</p>
+            <h3 className="font-semibold text-foreground">{r.title}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{r.description}</p>
             <a
               href={`/api/reports/${r.key}`}
               className={cn(
-                buttonVariants({ className: "mt-4 bg-teal-700 hover:bg-teal-800" }),
+                buttonVariants({ className: "mt-4 bg-primary hover:bg-primary-hover" }),
               )}
             >
               Baixar CSV

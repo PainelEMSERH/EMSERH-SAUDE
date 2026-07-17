@@ -157,7 +157,7 @@ export default async function ColaboradorDetailPage({
     <div className="space-y-3">
       <Link
         href="/colaboradores"
-        className="inline-flex items-center gap-1 text-[12px] font-medium text-teal-800 hover:underline"
+        className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
       >
         <ArrowLeft className="size-3.5" />
         Voltar para colaboradores
@@ -169,15 +169,15 @@ export default async function ColaboradorDetailPage({
         </div>
       ) : null}
 
-      <div className="rounded-lg border border-slate-200 bg-white p-3">
+      <div className="rounded-lg border border-border bg-card p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-teal-100 bg-teal-50 text-sm font-semibold text-teal-900">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-primary-border bg-primary-soft text-sm font-semibold text-primary">
               {initialsFromName(emp.fullName)}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="truncate text-base font-semibold text-slate-900">
+                <h2 className="truncate text-base font-semibold text-foreground">
                   {emp.fullName}
                 </h2>
                 <StatusBadge
@@ -185,14 +185,14 @@ export default async function ColaboradorDetailPage({
                   tone={toneForFunctionalStatus(emp.functionalStatus)}
                 />
               </div>
-              <p className="mt-0.5 text-[13px] text-slate-500">
+              <p className="mt-0.5 text-[13px] text-muted-foreground">
                 Matrícula{" "}
-                <span className="font-semibold text-teal-800">
+                <span className="font-semibold text-primary">
                   {formatRegistrationDisplay(emp.registration)}
                 </span>
-                <span className="mx-1.5 text-slate-300">·</span>
+                <span className="mx-1.5 text-muted-foreground">·</span>
                 {formatUnitDisplayName(data.unitName)}
-                <span className="mx-1.5 text-slate-300">·</span>
+                <span className="mx-1.5 text-muted-foreground">·</span>
                 {humanizeLabel(data.regionName)}
               </p>
               <dl className="mt-2 grid grid-cols-2 gap-x-5 gap-y-1.5 text-[12px] lg:grid-cols-4">
@@ -208,8 +208,8 @@ export default async function ColaboradorDetailPage({
               </dl>
             </div>
           </div>
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-600">
-            <Database className="size-3.5 text-teal-700" aria-hidden />
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
+            <Database className="size-3.5 text-primary" aria-hidden />
             Dados sincronizados pelo Alterdata
           </span>
         </div>
@@ -229,7 +229,7 @@ export default async function ColaboradorDetailPage({
       ) : null}
 
       <Tabs defaultValue="cadastrais" className="gap-3">
-        <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-slate-100 p-1">
+        <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-muted p-1">
           <TabTrigger value="cadastrais">Dados cadastrais</TabTrigger>
           {canAsos ? (
             <TabTrigger value="asos" count={asos.length}>
@@ -322,8 +322,8 @@ export default async function ColaboradorDetailPage({
                 <Meta label="Telefone" value={formatPhoneBR(emp.phone)} />
               </FieldGroup>
 
-              <div className="rounded-md border border-slate-100 bg-slate-50/70 px-3 py-2">
-                <h4 className="mb-1.5 text-[10px] font-semibold tracking-wide text-teal-800 uppercase">
+              <div className="rounded-md border border-border-subtle bg-muted/70 px-3 py-2">
+                <h4 className="mb-1.5 text-[10px] font-semibold tracking-wide text-primary uppercase">
                   Origem dos dados
                 </h4>
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 md:grid-cols-4">
@@ -359,7 +359,7 @@ export default async function ColaboradorDetailPage({
               {asos.map((a) => (
                 <RecordRow
                   key={a.id}
-                  icon={<ClipboardList className="size-4 text-teal-700" />}
+                  icon={<ClipboardList className="size-4 text-primary" />}
                   title={humanizeLabel(a.asoType)}
                   meta={
                     <span className="tabular-nums">
@@ -447,7 +447,7 @@ export default async function ColaboradorDetailPage({
               {vaccines.map((v) => (
                 <RecordRow
                   key={v.id}
-                  icon={<Syringe className="size-4 text-teal-700" />}
+                  icon={<Syringe className="size-4 text-primary" />}
                   title={`Dose ${v.doseNumber}`}
                   meta={
                     <span className="tabular-nums">
@@ -483,7 +483,7 @@ export default async function ColaboradorDetailPage({
               {pregnancies.map((p) => (
                 <RecordRow
                   key={p.id}
-                  icon={<Baby className="size-4 text-teal-700" />}
+                  icon={<Baby className="size-4 text-primary" />}
                   title={humanizeLabel(p.status)}
                   meta={
                     <span className="tabular-nums">
@@ -561,11 +561,11 @@ function TabTrigger({
   return (
     <TabsTrigger
       value={value}
-      className="h-9 gap-2 px-3 text-[13px] data-active:bg-white data-active:text-teal-900 data-active:shadow-sm"
+      className="h-9 gap-2 px-3 text-[13px] data-active:bg-card data-active:text-primary data-active:shadow-sm"
     >
       {children}
       {count != null ? (
-        <span className="rounded-md bg-slate-200/80 px-1.5 py-0.5 text-[11px] font-semibold text-slate-700">
+        <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground/80">
           {count}
         </span>
       ) : null}
@@ -586,14 +586,14 @@ function Meta({
 }) {
   return (
     <div className={cn("min-w-0", className)}>
-      <dt className="text-[10px] font-medium tracking-wide text-slate-500 uppercase">
+      <dt className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
         {label}
       </dt>
       <dd
         className={
           clamp === 2
-            ? "line-clamp-2 text-[13px] font-medium break-words text-slate-900"
-            : "truncate text-[13px] font-medium text-slate-900"
+            ? "line-clamp-2 text-[13px] font-medium break-words text-foreground"
+            : "truncate text-[13px] font-medium text-foreground"
         }
         title={value}
       >
@@ -612,7 +612,7 @@ function FieldGroup({
 }) {
   return (
     <div>
-      <h4 className="mb-1.5 text-[10px] font-semibold tracking-wide text-teal-800 uppercase">
+      <h4 className="mb-1.5 text-[10px] font-semibold tracking-wide text-primary uppercase">
         {title}
       </h4>
       <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 md:grid-cols-3 lg:grid-cols-6">
@@ -634,14 +634,14 @@ function ModuleCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
-      <div className="mb-3 flex items-start gap-2.5 border-b border-slate-100 pb-2.5">
-        <div className="flex size-8 items-center justify-center rounded-md border border-teal-100 bg-teal-50 text-teal-800">
+    <div className="rounded-lg border border-border bg-card p-3">
+      <div className="mb-3 flex items-start gap-2.5 border-b border-border-subtle pb-2.5">
+        <div className="flex size-8 items-center justify-center rounded-md border border-primary-border bg-primary-soft text-primary">
           {icon}
         </div>
         <div>
-          <h3 className="text-[13px] font-semibold text-slate-900">{title}</h3>
-          <p className="text-[11px] text-slate-500">{description}</p>
+          <h3 className="text-[13px] font-semibold text-foreground">{title}</h3>
+          <p className="text-[11px] text-muted-foreground">{description}</p>
         </div>
       </div>
       <div className="space-y-2">{children}</div>
@@ -661,14 +661,14 @@ function RecordRow({
   badge: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-slate-100 bg-slate-50/60 px-3 py-2">
+    <div className="flex items-center justify-between gap-3 rounded-md border border-border-subtle bg-muted/60 px-3 py-2">
       <div className="flex min-w-0 items-start gap-3">
         <div className="mt-0.5">{icon}</div>
         <div className="min-w-0">
-          <p className="truncate text-[13px] font-medium text-slate-900">
+          <p className="truncate text-[13px] font-medium text-foreground">
             {title}
           </p>
-          <p className="mt-0.5 text-[11px] text-slate-500">{meta}</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">{meta}</p>
         </div>
       </div>
       <div className="shrink-0">{badge}</div>
@@ -686,11 +686,11 @@ function EmptyModule({
   description: string;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-md border border-dashed border-slate-200 bg-slate-50/50 px-4 py-5">
-      <div className="text-slate-400">{icon}</div>
+    <div className="flex items-start gap-3 rounded-md border border-dashed border-border bg-muted/50 px-4 py-5">
+      <div className="text-muted-foreground">{icon}</div>
       <div>
-        <p className="text-[13px] font-medium text-slate-800">{title}</p>
-        <p className="mt-0.5 text-[11px] text-slate-500">{description}</p>
+        <p className="text-[13px] font-medium text-foreground">{title}</p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">{description}</p>
       </div>
     </div>
   );

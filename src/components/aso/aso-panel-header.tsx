@@ -83,14 +83,14 @@ export function AsoPanelHeader({
     <div className="mb-3 space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-teal-100 bg-teal-50 text-teal-800">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-primary-border bg-primary-soft text-primary">
             <ClipboardCheck className="size-4" aria-hidden />
           </div>
           <div>
-            <h2 className="text-lg font-semibold tracking-tight text-slate-900">
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">
               Gestão de ASOs
             </h2>
-            <p className="text-[12px] text-slate-500">
+            <p className="text-[12px] text-muted-foreground">
               Planejamento, execução e conciliação com o espelho Alterdata por competência.
             </p>
           </div>
@@ -102,7 +102,7 @@ export function AsoPanelHeader({
               className={
                 isRunning
                   ? "inline-flex max-w-md flex-col gap-0.5 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-medium text-sky-900"
-                  : "inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600"
+                  : "inline-flex items-center gap-1.5 rounded-md border border-border bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
               }
               title={lastSync.updatedAt ? formatDateTimeBR(lastSync.updatedAt) : undefined}
             >
@@ -204,7 +204,7 @@ export function AsoPanelHeader({
           {canExport ? (
             <Link
               href={exportHref}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-[13px] font-medium text-slate-700 hover:bg-slate-50"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-[13px] font-medium text-foreground/80 hover:bg-muted"
             >
               <Download className="size-3.5" />
               Exportar
@@ -219,7 +219,7 @@ export function AsoPanelHeader({
         </p>
       ) : null}
       {message ? (
-        <p className="rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-[12.5px] text-teal-800">
+        <p className="rounded-md border border-primary-border bg-primary-soft px-3 py-2 text-[12.5px] text-primary">
           {message}
         </p>
       ) : null}

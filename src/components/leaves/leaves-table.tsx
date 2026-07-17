@@ -46,13 +46,13 @@ function DetailSection({
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200/90 bg-white">
-      <div className="border-b border-slate-100 bg-slate-50/80 px-3.5 py-2">
-        <h4 className="text-[11px] font-semibold tracking-[0.04em] text-slate-600 uppercase">
+    <section className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="border-b border-border-subtle bg-muted/80 px-3.5 py-2">
+        <h4 className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
           {title}
         </h4>
       </div>
-      <dl className="divide-y divide-slate-100">{children}</dl>
+      <dl className="divide-y divide-border-subtle">{children}</dl>
     </section>
   );
 }
@@ -74,11 +74,11 @@ function DetailRow({
 
   return (
     <div className="flex items-start justify-between gap-4 px-3.5 py-2.5">
-      <dt className="shrink-0 pt-0.5 text-[12px] text-slate-500">{label}</dt>
+      <dt className="shrink-0 pt-0.5 text-[12px] text-muted-foreground">{label}</dt>
       <dd
         className={cn(
           "min-w-0 text-right text-[13px] leading-snug",
-          empty ? "font-normal text-slate-400" : "font-medium text-slate-900",
+          empty ? "font-normal text-muted-foreground" : "font-medium text-foreground",
           mono && !empty ? "tabular-nums tracking-tight" : "",
         )}
       >
@@ -120,7 +120,7 @@ function CloseLeaveForm({
             type="date"
             name="endDate"
             defaultValue={defaultEnd ?? today}
-            className="mt-1 h-8 w-full rounded-md border border-amber-200 bg-white px-2 text-[13px]"
+            className="mt-1 h-8 w-full rounded-md border border-amber-200 bg-card px-2 text-[13px]"
           />
         </label>
         <label className="text-[11px] text-amber-900/80">
@@ -129,7 +129,7 @@ function CloseLeaveForm({
             type="date"
             name="actualReturnDate"
             defaultValue={today}
-            className="mt-1 h-8 w-full rounded-md border border-amber-200 bg-white px-2 text-[13px]"
+            className="mt-1 h-8 w-full rounded-md border border-amber-200 bg-card px-2 text-[13px]"
           />
         </label>
       </div>
@@ -171,8 +171,8 @@ export function LeavesTable({
   return (
     <>
       <div className="mb-1 flex items-center justify-between">
-        <h3 className="text-[13px] font-semibold text-slate-800">Relação nominal</h3>
-        <p className="text-[11px] text-slate-500">Clique na linha para ver detalhes</p>
+        <h3 className="text-[13px] font-semibold text-foreground">Relação nominal</h3>
+        <p className="text-[11px] text-muted-foreground">Clique na linha para ver detalhes</p>
       </div>
       <div className="rounded-lg border border-border bg-card">
         <table className="app-data-table">
@@ -186,7 +186,7 @@ export function LeavesTable({
             <col className="w-[9%]" />
             <col className="w-[3%]" />
           </colgroup>
-          <thead className="sticky top-0 z-[1]">
+          <thead>
             <tr>
               <th className="text-left">Colaborador</th>
               <th className="text-center">Tipo</th>
@@ -206,7 +206,7 @@ export function LeavesTable({
                   tabIndex={0}
                   role="button"
                   aria-label={`Abrir detalhes de ${r.fullName}`}
-                  className="cursor-pointer focus-visible:bg-teal-50/60 focus-visible:outline-none"
+                  className="cursor-pointer focus-visible:bg-primary-soft focus-visible:outline-none"
                   onClick={() => setSelected(r)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
@@ -219,7 +219,7 @@ export function LeavesTable({
                     <p className="app-table-emphasis truncate capitalize">
                       {r.fullName.toLocaleLowerCase("pt-BR")}
                     </p>
-                    <p className="app-table-meta text-teal-800">
+                    <p className="app-table-meta text-primary">
                       {formatRegistrationDisplay(r.registration)}
                     </p>
                   </td>
@@ -233,11 +233,11 @@ export function LeavesTable({
                   </td>
                   <td className="app-table-num">
                     {formatDateBR(r.startDate)}
-                    <span className="mx-1 text-slate-300">→</span>
+                    <span className="mx-1 text-muted-foreground">→</span>
                     {formatDateBR(r.endDate)}
                   </td>
                   <td className="app-table-num">{r.daysCount ?? "—"}</td>
-                  <td className="truncate text-left text-slate-600">
+                  <td className="truncate text-left text-muted-foreground">
                     {formatUnitDisplayName(r.unitName)}
                   </td>
                   <td className="text-center">
@@ -250,7 +250,7 @@ export function LeavesTable({
                   </td>
                   <td className="text-center">
                     {r.returnLabel === "—" ? (
-                      <span className="text-slate-400">—</span>
+                      <span className="text-muted-foreground">—</span>
                     ) : (
                       <div className="flex justify-center">
                         <StatusBadge
@@ -260,7 +260,7 @@ export function LeavesTable({
                       </div>
                     )}
                   </td>
-                  <td className="text-slate-400">
+                  <td className="text-muted-foreground">
                     <ChevronRight aria-hidden />
                   </td>
                 </tr>
@@ -268,7 +268,7 @@ export function LeavesTable({
             })}
             {!rows.length ? (
               <tr>
-                <td colSpan={8} className="py-10 text-center text-slate-500">
+                <td colSpan={8} className="py-10 text-center text-muted-foreground">
                   Nenhum afastamento com os filtros atuais.
                 </td>
               </tr>
@@ -281,21 +281,21 @@ export function LeavesTable({
         <SheetContent side="right" className="w-full gap-0 overflow-hidden p-0 sm:max-w-lg">
           {selected ? (
             <div className="flex h-full min-h-0 flex-col">
-              <SheetHeader className="shrink-0 space-y-0 border-b border-slate-200 bg-gradient-to-b from-teal-50/70 to-white px-5 pt-5 pb-4 pr-12 text-left">
+              <SheetHeader className="shrink-0 space-y-0 border-b border-border bg-card px-5 pt-5 pb-4 pr-12 text-left">
                 <div className="flex items-start gap-3">
                   <div
-                    className="flex size-11 shrink-0 items-center justify-center rounded-full bg-teal-800 text-[13px] font-semibold tracking-wide text-white"
+                    className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-[13px] font-semibold tracking-wide text-primary-foreground"
                     aria-hidden
                   >
                     {initialsFromName(selected.fullName)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <SheetTitle className="text-[15px] leading-snug font-semibold text-slate-900 capitalize">
+                    <SheetTitle className="text-[15px] leading-snug font-semibold text-foreground capitalize">
                       {selected.fullName.toLocaleLowerCase("pt-BR")}
                     </SheetTitle>
-                    <SheetDescription className="mt-1 text-[12px] text-slate-500">
+                    <SheetDescription className="mt-1 text-[12px] text-muted-foreground">
                       Mat. {formatRegistrationDisplay(selected.registration)}
-                      <span className="mx-1.5 text-slate-300">·</span>
+                      <span className="mx-1.5 text-muted-foreground">·</span>
                       {leaveTypeLabel(selected.leaveType)}
                     </SheetDescription>
                     <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -318,7 +318,7 @@ export function LeavesTable({
                 </div>
               </SheetHeader>
 
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50/50 px-5 py-4">
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-muted/50 px-5 py-4">
                 <DetailSection title="Identificação">
                   <DetailRow
                     label="Unidade"
@@ -388,12 +388,12 @@ export function LeavesTable({
                 ) : null}
               </div>
 
-              <div className="shrink-0 border-t border-slate-200 bg-white px-5 py-3.5">
+              <div className="shrink-0 border-t border-border bg-card px-5 py-3.5">
                 <Link
                   href={`/colaboradores/${selected.employeeId}`}
                   className={cn(
                     buttonVariants({ variant: "ghost", size: "sm" }),
-                    "h-8 gap-1.5 text-[12px] text-teal-800 hover:bg-teal-50 hover:text-teal-900",
+                    "h-8 gap-1.5 text-[12px] text-primary hover:bg-primary-soft hover:text-primary",
                   )}
                   onClick={() => {
                     startTransition(() => router.refresh());

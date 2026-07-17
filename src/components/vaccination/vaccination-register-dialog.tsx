@@ -56,7 +56,7 @@ export function VaccinationRegisterDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button size="sm" className="h-8 bg-teal-800 text-[13px] hover:bg-teal-900">
+          <Button size="sm" className="h-8 bg-primary text-[13px] hover:bg-primary-hover">
             Registrar situação
           </Button>
         }
@@ -89,7 +89,7 @@ export function VaccinationRegisterDialog({
                 required
                 value={vaccine}
                 onChange={(e) => setVaccine(e.target.value as VaccineCode)}
-                className="h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-[13px] outline-none focus-visible:border-teal-600"
+                className="h-9 w-full rounded-md border border-border bg-card px-2.5 text-[13px] outline-none focus-visible:border-primary"
               >
                 {VACCINE_DEFS.map((v) => (
                   <option key={v.code} value={v.code}>
@@ -115,7 +115,7 @@ export function VaccinationRegisterDialog({
                 required
                 key={vaccine}
                 defaultValue={situations[0]}
-                className="h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-[13px] outline-none focus-visible:border-teal-600"
+                className="h-9 w-full rounded-md border border-border bg-card px-2.5 text-[13px] outline-none focus-visible:border-primary"
               >
                 {situations.map((s) => (
                   <option key={s} value={s}>
@@ -157,7 +157,7 @@ export function VaccinationRegisterDialog({
               type="submit"
               size="sm"
               disabled={pending}
-              className="bg-teal-800 hover:bg-teal-900"
+              className="bg-primary hover:bg-primary-hover"
             >
               {pending ? "Salvando…" : "Salvar"}
             </Button>

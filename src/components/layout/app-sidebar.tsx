@@ -78,16 +78,14 @@ function NavLinks({
                         ? "justify-center px-0"
                         : "gap-1.5 px-[10px] py-[6px]",
                       active
-                        ? "border border-sidebar-border bg-sidebar-primary font-medium text-sidebar-primary-foreground shadow-sm"
+                        ? "border border-primary-border bg-primary-soft font-medium text-primary"
                         : "border border-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                     )}
                   >
                     <Icon
                       className={cn(
                         "size-[14px] shrink-0",
-                        active
-                          ? "text-sidebar-primary-foreground"
-                          : "text-sidebar-foreground",
+                        active ? "text-primary" : "text-sidebar-foreground",
                       )}
                       strokeWidth={1.75}
                     />

@@ -68,7 +68,7 @@ export function AsoFilters({
   };
 
   return (
-    <div className="mb-3 space-y-3 rounded-lg border border-slate-200 bg-white p-3">
+    <div className="mb-3 space-y-3 rounded-lg border border-border bg-card p-3">
       <form
         action="/asos"
         method="get"
@@ -78,7 +78,7 @@ export function AsoFilters({
         <input type="hidden" name="mode" value={params.mode} />
 
         <div className="w-full space-y-1 lg:w-28">
-          <label htmlFor="aso-year" className="text-[11px] font-medium text-slate-500">
+          <label htmlFor="aso-year" className="text-[11px] font-medium text-muted-foreground">
             Ano
           </label>
           <select
@@ -86,7 +86,7 @@ export function AsoFilters({
             name="year"
             defaultValue={params.year}
             onChange={(e) => submitForm(e.currentTarget)}
-            className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-[13px] outline-none focus-visible:border-teal-600"
+            className="h-8 w-full rounded-md border border-border bg-card px-2 text-[13px] outline-none focus-visible:border-primary"
           >
             {years.map((y) => (
               <option key={y} value={y}>
@@ -97,7 +97,7 @@ export function AsoFilters({
         </div>
 
         <div className="w-full space-y-1 lg:w-40">
-          <label htmlFor="aso-month" className="text-[11px] font-medium text-slate-500">
+          <label htmlFor="aso-month" className="text-[11px] font-medium text-muted-foreground">
             Competência
           </label>
           <select
@@ -105,7 +105,7 @@ export function AsoFilters({
             name="month"
             defaultValue={params.month}
             onChange={(e) => submitForm(e.currentTarget)}
-            className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-[13px] outline-none focus-visible:border-teal-600"
+            className="h-8 w-full rounded-md border border-border bg-card px-2 text-[13px] outline-none focus-visible:border-primary"
           >
             {MONTH_NAMES.map((name, idx) => (
               <option key={name} value={idx + 1}>
@@ -117,7 +117,7 @@ export function AsoFilters({
 
         {!hideRegion ? (
           <div className="w-full space-y-1 lg:w-44">
-            <label htmlFor="aso-region" className="text-[11px] font-medium text-slate-500">
+            <label htmlFor="aso-region" className="text-[11px] font-medium text-muted-foreground">
               Regional
             </label>
             <select
@@ -136,7 +136,7 @@ export function AsoFilters({
                 }
                 form?.requestSubmit();
               }}
-              className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-[13px] outline-none focus-visible:border-teal-600 disabled:bg-slate-50"
+              className="h-8 w-full rounded-md border border-border bg-card px-2 text-[13px] outline-none focus-visible:border-primary disabled:bg-muted"
             >
               {!lockRegion ? <option value="ALL">Todas</option> : null}
               {regions.map((r) => (
@@ -152,7 +152,7 @@ export function AsoFilters({
 
         {!hideUnit ? (
           <div className="w-full space-y-1 lg:w-56">
-            <label htmlFor="aso-unit" className="text-[11px] font-medium text-slate-500">
+            <label htmlFor="aso-unit" className="text-[11px] font-medium text-muted-foreground">
               Unidade
             </label>
             <select
@@ -164,7 +164,7 @@ export function AsoFilters({
                 setSelectedUnit(e.target.value);
                 submitForm(e.currentTarget);
               }}
-              className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-[13px] outline-none focus-visible:border-teal-600 disabled:bg-slate-50"
+              className="h-8 w-full rounded-md border border-border bg-card px-2 text-[13px] outline-none focus-visible:border-primary disabled:bg-muted"
             >
               {!lockUnit ? <option value="ALL">Todas</option> : null}
               {filteredUnits.map((u) => (
@@ -179,7 +179,7 @@ export function AsoFilters({
         ) : null}
 
         <div className="min-w-[200px] flex-1 space-y-1">
-          <label htmlFor="aso-q" className="text-[11px] font-medium text-slate-500">
+          <label htmlFor="aso-q" className="text-[11px] font-medium text-muted-foreground">
             Busca nominal
           </label>
           <input
@@ -187,20 +187,20 @@ export function AsoFilters({
             name="q"
             defaultValue={params.q ?? ""}
             placeholder="Nome ou matrícula — Enter para buscar"
-            className="h-8 w-full rounded-md border border-slate-200 px-2.5 text-[13px] outline-none focus-visible:border-teal-600"
+            className="h-8 w-full rounded-md border border-border px-2.5 text-[13px] outline-none focus-visible:border-primary"
           />
         </div>
 
         <Button
           type="submit"
           size="sm"
-          className="h-8 bg-teal-700 px-3 text-[13px] hover:bg-teal-800"
+          className="h-8 bg-primary px-3 text-[13px] hover:bg-primary-hover"
         >
           Buscar
         </Button>
       </form>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle pt-2">
         <div className="flex flex-wrap gap-1">
           {ASO_TYPE_TABS.map((tab) => (
             <Link
@@ -209,8 +209,8 @@ export function AsoFilters({
               className={cn(
                 "rounded-md px-2.5 py-1 text-[12.5px] font-medium transition-colors",
                 params.asoType === tab.value
-                  ? "bg-teal-700 text-white"
-                  : "text-slate-600 hover:bg-slate-100",
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted",
               )}
             >
               {tab.label}
@@ -218,13 +218,13 @@ export function AsoFilters({
           ))}
         </div>
 
-        <div className="flex overflow-hidden rounded-md border border-slate-200">
+        <div className="flex overflow-hidden rounded-md border border-border">
           <Link
             href={buildAsoUrl("/asos", current, { mode: "monthly" })}
             className={cn(
               buttonVariants({ variant: "ghost", size: "sm" }),
               "h-7 rounded-none px-3 text-[12.5px]",
-              params.mode === "monthly" ? "bg-teal-700 text-white hover:bg-teal-700" : "",
+              params.mode === "monthly" ? "bg-primary text-primary-foreground hover:bg-primary" : "",
             )}
           >
             Mensal
@@ -234,7 +234,7 @@ export function AsoFilters({
             className={cn(
               buttonVariants({ variant: "ghost", size: "sm" }),
               "h-7 rounded-none px-3 text-[12.5px]",
-              params.mode === "accumulated" ? "bg-teal-700 text-white hover:bg-teal-700" : "",
+              params.mode === "accumulated" ? "bg-primary text-primary-foreground hover:bg-primary" : "",
             )}
           >
             Acumulado

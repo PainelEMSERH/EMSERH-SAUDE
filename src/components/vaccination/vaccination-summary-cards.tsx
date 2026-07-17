@@ -17,20 +17,20 @@ function Kpi({
   href?: string;
 }) {
   const toneClasses = {
-    default: "text-slate-900",
+    default: "text-foreground",
     danger: "text-red-700",
     warn: "text-amber-700",
-    ok: "text-teal-800",
+    ok: "text-primary",
   } as const;
 
   const body = (
     <div
       className={cn(
         "flex h-full min-w-0 flex-col justify-center px-2.5 py-2.5 sm:px-3",
-        href ? "transition-colors hover:bg-teal-50/40" : "",
+        href ? "transition-colors hover:bg-primary-soft" : "",
       )}
     >
-      <p className="text-[10px] font-semibold tracking-[0.05em] text-slate-500 uppercase">
+      <p className="text-[10px] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
         {label}
       </p>
       <p
@@ -42,7 +42,7 @@ function Kpi({
         {value}
       </p>
       {hint ? (
-        <p className="mt-1 truncate text-[10px] leading-tight text-slate-500" title={hint}>
+        <p className="mt-1 truncate text-[10px] leading-tight text-muted-foreground" title={hint}>
           {hint}
         </p>
       ) : (
@@ -63,8 +63,8 @@ export function VaccinationSummaryCards({
 }) {
   return (
     <div className="mb-3">
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-        <div className="grid grid-cols-2 divide-x divide-y divide-slate-100 sm:grid-cols-3 lg:grid-cols-5 lg:divide-y-0">
+      <section className="overflow-hidden rounded-lg border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <div className="grid grid-cols-2 divide-x divide-y divide-border-subtle sm:grid-cols-3 lg:grid-cols-5 lg:divide-y-0">
           <Kpi
             label="Colaboradores"
             value={String(metrics.total)}

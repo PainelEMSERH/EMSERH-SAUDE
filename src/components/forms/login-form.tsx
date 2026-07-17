@@ -19,9 +19,9 @@ export function LoginForm() {
   const [state, action, pending] = useActionState(loginAction, initial);
 
   return (
-    <Card className="w-full max-w-md border-slate-200 shadow-sm">
+    <Card className="w-full max-w-md border-border shadow-sm">
       <CardHeader>
-        <p className="text-xs font-semibold tracking-[0.2em] text-teal-700 uppercase">
+        <p className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">
           EMSERH
         </p>
         <CardTitle className="text-xl">Saúde Ocupacional</CardTitle>
@@ -60,7 +60,7 @@ export function LoginForm() {
           ) : null}
           <Button
             type="submit"
-            className="w-full bg-teal-700 hover:bg-teal-800"
+            className="w-full bg-primary hover:bg-primary-hover"
             disabled={pending}
           >
             {pending ? "Entrando..." : "Entrar"}

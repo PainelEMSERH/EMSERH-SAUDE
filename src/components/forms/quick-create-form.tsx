@@ -46,7 +46,7 @@ export function QuickCreateForm({
   return (
     <form
       action={formAction}
-      className="mb-6 space-y-3 rounded-xl border border-slate-200 bg-white p-4"
+      className="mb-6 space-y-3 rounded-xl border border-border bg-card p-4"
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {fields.map((field) => (
@@ -63,7 +63,7 @@ export function QuickCreateForm({
                 name={field.name}
                 required={field.required}
                 defaultValue={field.defaultValue ?? ""}
-                className="h-8 w-full rounded-lg border border-slate-200 px-2 text-sm"
+                className="h-8 w-full rounded-lg border border-border px-2 text-sm"
               >
                 <option value="">—</option>
                 {field.options?.map((o) => (
@@ -98,14 +98,14 @@ export function QuickCreateForm({
           {state.error}
         </p>
       ) : state.ok ? (
-        <p className="rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-800">
+        <p className="rounded-md bg-primary-soft px-3 py-2 text-sm text-primary">
           Registro salvo.
         </p>
       ) : null}
       <Button
         type="submit"
         disabled={pending}
-        className="bg-teal-700 hover:bg-teal-800"
+        className="bg-primary hover:bg-primary-hover"
       >
         {pending ? "Salvando..." : submitLabel}
       </Button>

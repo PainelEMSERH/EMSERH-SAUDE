@@ -131,13 +131,13 @@ function DetailSection({
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200/90 bg-white">
-      <div className="border-b border-slate-100 bg-slate-50/80 px-3.5 py-2">
-        <h4 className="text-[11px] font-semibold tracking-[0.04em] text-slate-600 uppercase">
+    <section className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="border-b border-border-subtle bg-muted/80 px-3.5 py-2">
+        <h4 className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
           {title}
         </h4>
       </div>
-      <dl className="divide-y divide-slate-100">{children}</dl>
+      <dl className="divide-y divide-border-subtle">{children}</dl>
     </section>
   );
 }
@@ -159,11 +159,11 @@ function DetailRow({
 
   return (
     <div className="flex items-start justify-between gap-4 px-3.5 py-2.5">
-      <dt className="shrink-0 pt-0.5 text-[12px] text-slate-500">{label}</dt>
+      <dt className="shrink-0 pt-0.5 text-[12px] text-muted-foreground">{label}</dt>
       <dd
         className={cn(
           "min-w-0 text-right text-[13px] leading-snug",
-          empty ? "font-normal text-slate-400" : "font-medium text-slate-900",
+          empty ? "font-normal text-muted-foreground" : "font-medium text-foreground",
           mono && !empty ? "tabular-nums tracking-tight" : "",
         )}
       >
@@ -218,7 +218,7 @@ export function AsoNominalFilters({
   }
 
   return (
-    <div className="mb-2 rounded-lg border border-slate-200 bg-white p-2.5">
+    <div className="mb-2 rounded-lg border border-border bg-card p-2.5">
       <form action="/asos" className="flex flex-wrap items-end gap-2" method="get">
         {Object.entries(current).map(([k, v]) => {
           if (
@@ -229,13 +229,13 @@ export function AsoNominalFilters({
           }
           return <input key={k} type="hidden" name={k} value={String(v)} />;
         })}
-        <label className="text-[11px] font-medium text-slate-600">
+        <label className="text-[11px] font-medium text-muted-foreground">
           Situação funcional
           <select
             name="functional"
             defaultValue={params.functional || "ALL"}
             onChange={(e) => submitOnChange(e.currentTarget)}
-            className="mt-0.5 block h-8 min-w-[140px] rounded-md border border-slate-200 px-2 text-[12px]"
+            className="mt-0.5 block h-8 min-w-[140px] rounded-md border border-border px-2 text-[12px]"
           >
             <option value="ALL">Todas</option>
             <option value="ATIVO">Ativo</option>
@@ -244,13 +244,13 @@ export function AsoNominalFilters({
             <option value="DEMITIDO">Demitido</option>
           </select>
         </label>
-        <label className="text-[11px] font-medium text-slate-600">
+        <label className="text-[11px] font-medium text-muted-foreground">
           Execução
           <select
             name="execution"
             defaultValue={params.execution || "ALL"}
             onChange={(e) => submitOnChange(e.currentTarget)}
-            className="mt-0.5 block h-8 min-w-[140px] rounded-md border border-slate-200 px-2 text-[12px]"
+            className="mt-0.5 block h-8 min-w-[140px] rounded-md border border-border px-2 text-[12px]"
           >
             <option value="ALL">Todas</option>
             <option value="PREVISTO">Previsto</option>
@@ -261,13 +261,13 @@ export function AsoNominalFilters({
             <option value="REPROGRAMADO">Reprogramado</option>
           </select>
         </label>
-        <label className="text-[11px] font-medium text-slate-600">
+        <label className="text-[11px] font-medium text-muted-foreground">
           Alterdata
           <select
             name="alterdata"
             defaultValue={params.alterdata || "ALL"}
             onChange={(e) => submitOnChange(e.currentTarget)}
-            className="mt-0.5 block h-8 min-w-[160px] rounded-md border border-slate-200 px-2 text-[12px]"
+            className="mt-0.5 block h-8 min-w-[160px] rounded-md border border-border px-2 text-[12px]"
           >
             <option value="ALL">Todas</option>
             <option value="CONFIRMADO">Confirmado</option>
@@ -276,7 +276,7 @@ export function AsoNominalFilters({
             <option value="DIVERGENCIA_DATA">Divergência</option>
           </select>
         </label>
-        <label className="flex items-center gap-1.5 pb-1.5 text-[12px] text-slate-700">
+        <label className="flex items-center gap-1.5 pb-1.5 text-[12px] text-foreground/80">
           <input
             type="checkbox"
             name="pendingOnly"
@@ -286,7 +286,7 @@ export function AsoNominalFilters({
           />
           Somente pendentes
         </label>
-        <label className="flex items-center gap-1.5 pb-1.5 text-[12px] text-slate-700">
+        <label className="flex items-center gap-1.5 pb-1.5 text-[12px] text-foreground/80">
           <input
             type="checkbox"
             name="divergencesOnly"
@@ -302,12 +302,12 @@ export function AsoNominalFilters({
           {active.map((a) => (
             <span
               key={a.key}
-              className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-600"
+              className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
             >
               {a.label}
             </span>
           ))}
-          <Link href={clearHref} className="text-[11px] font-medium text-teal-800 hover:underline">
+          <Link href={clearHref} className="text-[11px] font-medium text-primary hover:underline">
             Limpar filtros nominais
           </Link>
         </div>
@@ -350,8 +350,8 @@ export function AsoNominalTable({
   return (
     <>
       <div className="mb-1 flex items-center justify-between">
-        <h3 className="text-[13px] font-semibold text-slate-800">Relação nominal</h3>
-        <p className="text-[11px] text-slate-500">Clique na linha para ver detalhes</p>
+        <h3 className="text-[13px] font-semibold text-foreground">Relação nominal</h3>
+        <p className="text-[11px] text-muted-foreground">Clique na linha para ver detalhes</p>
       </div>
       <div className="rounded-lg border border-border bg-card">
         <table className="app-data-table">
@@ -366,7 +366,7 @@ export function AsoNominalTable({
             <col className="w-[8%]" />
             <col className="w-[3%]" />
           </colgroup>
-          <thead className="sticky top-0 z-30 shadow-[0_1px_0_0_var(--border)]">
+          <thead>
             <tr>
               {[
                 "Colaborador",
@@ -411,8 +411,8 @@ export function AsoNominalTable({
                   aria-label={`Abrir detalhes de ${r.employeeName}`}
                   className={cn(
                     "cursor-pointer outline-none",
-                    "focus-visible:bg-teal-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500",
-                    isOpen ? "bg-teal-50/90 ring-1 ring-inset ring-teal-200" : "",
+                    "focus-visible:bg-primary-soft focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                    isOpen ? "bg-primary-soft/90 ring-1 ring-inset ring-primary" : "",
                   )}
                   onClick={() => setSelected(r)}
                   onKeyDown={(e) => {
@@ -433,7 +433,7 @@ export function AsoNominalTable({
                   <td className="app-table-num">
                     <Link
                       href={`/colaboradores/${r.employeeId}`}
-                      className="app-table-emphasis text-teal-800 hover:underline"
+                      className="app-table-emphasis text-primary hover:underline"
                       onClick={(e) => e.stopPropagation()}
                       onKeyDown={(e) => e.stopPropagation()}
                     >
@@ -442,7 +442,7 @@ export function AsoNominalTable({
                   </td>
                   <td className="text-left">
                     <span
-                      className="block truncate text-slate-600"
+                      className="block truncate text-muted-foreground"
                       title={r.unitNameSnapshot ?? undefined}
                     >
                       {formatUnitDisplayName(r.unitNameSnapshot)}
@@ -470,11 +470,11 @@ export function AsoNominalTable({
                       />
                     </span>
                   </td>
-                  <td className="text-center text-slate-400">
+                  <td className="text-center text-muted-foreground">
                     <ChevronRight
                       className={cn(
                         "mx-auto transition-transform",
-                        isOpen ? "translate-x-0.5 text-teal-700" : "",
+                        isOpen ? "translate-x-0.5 text-primary" : "",
                       )}
                       aria-hidden
                     />
@@ -484,7 +484,7 @@ export function AsoNominalTable({
             })}
             {!rows.length ? (
               <tr>
-                <td colSpan={9} className="py-8 text-center text-slate-500">
+                <td colSpan={9} className="py-8 text-center text-muted-foreground">
                   Nenhum colaborador nesta competência com os filtros atuais.
                 </td>
               </tr>
@@ -500,21 +500,21 @@ export function AsoNominalTable({
         >
           {selected ? (
             <div className="flex h-full min-h-0 flex-col">
-              <SheetHeader className="shrink-0 space-y-0 border-b border-slate-200 bg-gradient-to-b from-teal-50/70 to-white px-5 pt-5 pb-4 pr-12 text-left">
+              <SheetHeader className="shrink-0 space-y-0 border-b border-border bg-card px-5 pt-5 pb-4 pr-12 text-left">
                 <div className="flex items-start gap-3">
                   <div
-                    className="flex size-11 shrink-0 items-center justify-center rounded-full bg-teal-800 text-[13px] font-semibold tracking-wide text-white"
+                    className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-[13px] font-semibold tracking-wide text-primary-foreground"
                     aria-hidden
                   >
                     {initialsFromName(selected.employeeName)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <SheetTitle className="text-[15px] leading-snug font-semibold text-slate-900 capitalize">
+                    <SheetTitle className="text-[15px] leading-snug font-semibold text-foreground capitalize">
                       {selected.employeeName.toLocaleLowerCase("pt-BR")}
                     </SheetTitle>
-                    <SheetDescription className="mt-1 text-[12px] text-slate-500">
+                    <SheetDescription className="mt-1 text-[12px] text-muted-foreground">
                       Mat. {formatRegistrationDisplay(selected.registration)}
-                      <span className="mx-1.5 text-slate-300">·</span>
+                      <span className="mx-1.5 text-muted-foreground">·</span>
                       {humanizeLabel(selected.asoType)}
                     </SheetDescription>
                     <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -537,7 +537,7 @@ export function AsoNominalTable({
                 </div>
               </SheetHeader>
 
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50/50 px-5 py-4">
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-muted/50 px-5 py-4">
                 <DetailSection title="Identificação">
                   <DetailRow
                     label="Unidade"
@@ -624,8 +624,8 @@ export function AsoNominalTable({
                 </DetailSection>
               </div>
 
-              <div className="shrink-0 space-y-2 border-t border-slate-200 bg-white px-5 py-3.5">
-                <p className="text-[10px] font-semibold tracking-[0.04em] text-slate-500 uppercase">
+              <div className="shrink-0 space-y-2 border-t border-border bg-card px-5 py-3.5">
+                <p className="text-[10px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
                   Ações
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -641,7 +641,7 @@ export function AsoNominalTable({
                       type="button"
                       className={cn(
                         buttonVariants({ variant: "default", size: "sm" }),
-                        "h-8 bg-teal-800 text-[12px] hover:bg-teal-900",
+                        "h-8 bg-primary text-[12px] hover:bg-primary-hover",
                       )}
                       onClick={() => {
                         setRegisterOpen(true);
@@ -696,7 +696,7 @@ export function AsoNominalTable({
                     href={`/colaboradores/${selected.employeeId}`}
                     className={cn(
                       buttonVariants({ variant: "ghost", size: "sm" }),
-                      "h-8 gap-1.5 text-[12px] text-teal-800 hover:bg-teal-50 hover:text-teal-900",
+                      "h-8 gap-1.5 text-[12px] text-primary hover:bg-primary-soft hover:text-primary",
                     )}
                   >
                     Abrir prontuário
@@ -711,13 +711,13 @@ export function AsoNominalTable({
 
       {registerOpen && selected ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4">
-          <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-4 shadow-lg">
-            <h3 className="text-sm font-semibold text-slate-900">
+          <div className="w-full max-w-md rounded-lg border border-border bg-card p-4 shadow-lg">
+            <h3 className="text-sm font-semibold text-foreground">
               {selected.asoRecordId || selected.executionStatus === "REALIZADO"
                 ? "Realização / correção"
                 : "Registrar realização"}
             </h3>
-            <p className="mt-1 text-[12px] text-slate-500">
+            <p className="mt-1 text-[12px] text-muted-foreground">
               {selected.employeeName} · Mat.{" "}
               {formatRegistrationDisplay(selected.registration)} ·{" "}
               {humanizeLabel(selected.asoType)} ·{" "}
@@ -744,22 +744,22 @@ export function AsoNominalTable({
               }}
             >
               <input type="hidden" name="planId" value={selected.id} />
-              <label className="block text-[11px] font-medium text-slate-600">
+              <label className="block text-[11px] font-medium text-muted-foreground">
                 Data realizada *
                 <input
                   required
                   type="date"
                   name="performedDate"
                   defaultValue={selected.performedDate ?? undefined}
-                  className="mt-1 h-8 w-full rounded-md border border-slate-200 px-2 text-[13px]"
+                  className="mt-1 h-8 w-full rounded-md border border-border px-2 text-[13px]"
                 />
               </label>
-              <label className="block text-[11px] font-medium text-slate-600">
+              <label className="block text-[11px] font-medium text-muted-foreground">
                 Resultado
                 <select
                   name="result"
                   defaultValue={selected.result ?? ""}
-                  className="mt-1 h-8 w-full rounded-md border border-slate-200 px-2 text-[13px]"
+                  className="mt-1 h-8 w-full rounded-md border border-border px-2 text-[13px]"
                 >
                   <option value="">—</option>
                   <option value="APTO">Apto</option>
@@ -768,34 +768,34 @@ export function AsoNominalTable({
                 </select>
               </label>
               {selected.asoType === "PERIODICO" ? (
-                <label className="block text-[11px] font-medium text-slate-600">
+                <label className="block text-[11px] font-medium text-muted-foreground">
                   Periodicidade (meses)
                   <input
                     type="number"
                     name="periodicityMonths"
                     defaultValue={12}
-                    className="mt-1 h-8 w-full rounded-md border border-slate-200 px-2 text-[13px]"
+                    className="mt-1 h-8 w-full rounded-md border border-border px-2 text-[13px]"
                   />
                 </label>
               ) : null}
               {(selected.asoRecordId || selected.executionStatus === "REALIZADO") &&
               canUpdate ? (
-                <label className="block text-[11px] font-medium text-slate-600">
+                <label className="block text-[11px] font-medium text-muted-foreground">
                   Motivo da correção *
                   <input
                     required
                     name="correctionReason"
-                    className="mt-1 h-8 w-full rounded-md border border-slate-200 px-2 text-[13px]"
+                    className="mt-1 h-8 w-full rounded-md border border-border px-2 text-[13px]"
                     placeholder="Obrigatório para alterar realização existente"
                   />
                 </label>
               ) : null}
-              <label className="block text-[11px] font-medium text-slate-600">
+              <label className="block text-[11px] font-medium text-muted-foreground">
                 Observação administrativa
                 <textarea
                   name="adminNotes"
                   rows={2}
-                  className="mt-1 w-full rounded-md border border-slate-200 px-2 py-1 text-[13px]"
+                  className="mt-1 w-full rounded-md border border-border px-2 py-1 text-[13px]"
                 />
               </label>
               {error ? (
@@ -808,14 +808,14 @@ export function AsoNominalTable({
                   type="button"
                   disabled={pending}
                   onClick={() => setRegisterOpen(false)}
-                  className="h-8 rounded-md border border-slate-200 px-3 text-[13px]"
+                  className="h-8 rounded-md border border-border px-3 text-[13px]"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={pending}
-                  className="h-8 rounded-md bg-teal-700 px-3 text-[13px] text-white hover:bg-teal-800 disabled:opacity-60"
+                  className="h-8 rounded-md bg-primary px-3 text-[13px] text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
                 >
                   {pending ? "Salvando..." : "Salvar"}
                 </button>

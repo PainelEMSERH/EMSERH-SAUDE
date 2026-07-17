@@ -14,7 +14,7 @@ export function MirrorSyncForm() {
       <Button
         type="button"
         disabled={pending}
-        className="bg-teal-700 hover:bg-teal-800"
+        className="bg-primary hover:bg-primary-hover"
         onClick={() => {
           setError(null);
           setMessage(null);
@@ -33,11 +33,11 @@ export function MirrorSyncForm() {
         </p>
       ) : null}
       {message ? (
-        <p className="rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-800">
+        <p className="rounded-md bg-primary-soft px-3 py-2 text-sm text-primary">
           {message}
         </p>
       ) : null}
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted-foreground">
         Somente leitura (HTTP GET). A planilha oficial nunca é acessada. No
         espelho: Compartilhar → Qualquer pessoa com o link → Leitor.
       </p>

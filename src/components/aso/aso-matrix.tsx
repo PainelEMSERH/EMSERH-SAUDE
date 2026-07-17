@@ -34,12 +34,12 @@ type Selection = {
 };
 
 const TONE_CLASSES: Record<AsoMatrixCell["tone"], string> = {
-  ok: "bg-teal-50 text-teal-800 hover:bg-teal-100",
+  ok: "bg-primary-soft text-primary hover:bg-primary-soft",
   near: "bg-amber-50 text-amber-800 hover:bg-amber-100",
   below: "bg-red-50 text-red-800 hover:bg-red-100",
-  empty: "bg-slate-50 text-slate-500 hover:bg-slate-100",
+  empty: "bg-muted text-muted-foreground hover:bg-muted",
   future: "bg-sky-50/60 text-sky-700 hover:bg-sky-100",
-  neutral: "bg-slate-50 text-slate-700 hover:bg-slate-100",
+  neutral: "bg-muted text-foreground/80 hover:bg-muted",
 };
 
 function cellLabel(cell: AsoMatrixCell): string {
@@ -119,7 +119,7 @@ export function AsoMatrix({
 
   if (!rows.length) {
     return (
-      <div className="flex min-h-[120px] items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-[13px] text-slate-500">
+      <div className="flex min-h-[120px] items-center justify-center rounded-lg border border-dashed border-border bg-card text-[13px] text-muted-foreground">
         Sem dados de planejamento para o período. Gere o planejamento anual.
       </div>
     );
@@ -148,12 +148,12 @@ export function AsoMatrix({
 
   return (
     <div className="mb-3 w-full overflow-hidden rounded-lg border border-border bg-card">
-      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 px-3 py-2">
+      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border-subtle px-3 py-2">
         <div className="min-w-0">
-          <h3 className="text-[13px] font-semibold text-slate-800">
+          <h3 className="text-[13px] font-semibold text-foreground">
             Matriz anual
           </h3>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-muted-foreground">
             {unitSelected
               ? "Detalhe da unidade selecionada. Clique na célula e use Abrir competência."
               : unitCount > 1
@@ -165,7 +165,7 @@ export function AsoMatrix({
           <button
             type="button"
             onClick={() => setCollapsed((v) => !v)}
-            className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+            className="rounded-md border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
           >
             {collapsed ? "Expandir matriz" : "Recolher matriz"}
           </button>
@@ -175,8 +175,8 @@ export function AsoMatrix({
               className={cn(
                 "rounded-md px-2.5 py-1 text-[12px] font-semibold transition-colors",
                 appliedMatches
-                  ? "border border-teal-200 bg-teal-50 text-teal-800"
-                  : "bg-teal-700 text-white hover:bg-teal-800",
+                  ? "border border-primary-border bg-primary-soft text-primary"
+                  : "bg-primary text-primary-foreground hover:bg-primary-hover",
               )}
             >
               {appliedMatches
@@ -188,22 +188,22 @@ export function AsoMatrix({
       </div>
 
       {selection && selectedCell ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-slate-100 bg-slate-50/80 px-3 py-1.5 text-[11px] text-slate-600">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border-subtle bg-muted/80 px-3 py-1.5 text-[11px] text-muted-foreground">
           <span>
             Selecionado:{" "}
-            <strong className="font-semibold text-slate-800">
+            <strong className="font-semibold text-foreground">
               {selection.label}
             </strong>{" "}
             · {MONTH_NAMES[selection.month - 1]}
           </span>
-          <span className="tabular-nums text-slate-500">
+          <span className="tabular-nums text-muted-foreground">
             {cellTitle(selectedCell)}
           </span>
         </div>
       ) : null}
 
       {!unitSelected && unitCount > 1 ? (
-        <div className="border-b border-teal-100 bg-teal-50/60 px-3 py-1.5 text-[11px] text-teal-900">
+        <div className="border-b border-primary-border bg-primary-soft/60 px-3 py-1.5 text-[11px] text-primary">
           Para ver a matriz por unidade, escolha a <strong>Unidade</strong> no
           filtro acima. Aqui fica só o consolidado da regional — sem lista
           interminável.
@@ -220,7 +220,7 @@ export function AsoMatrix({
           </colgroup>
           <thead>
             <tr>
-              <th className="sticky left-0 z-10 bg-[#f7f7f7] text-left dark:bg-[#1c1c1c]">
+              <th className="sticky left-0 z-10 bg-muted text-left dark:bg-card">
                 Escopo
               </th>
               {MONTH_LABELS.map((label, idx) => {
@@ -231,12 +231,12 @@ export function AsoMatrix({
                     key={label}
                     className={cn(
                       "text-center",
-                      headerSelected ? "bg-teal-50 text-teal-900" : "",
+                      headerSelected ? "bg-primary-soft text-primary" : "",
                     )}
                   >
                     <button
                       type="button"
-                      className="w-full !px-0.5 !py-0.5 !text-[10px] !font-semibold hover:text-teal-800"
+                      className="w-full !px-0.5 !py-0.5 !text-[10px] !font-semibold hover:text-primary"
                       title={`Selecionar ${MONTH_NAMES[idx]} no escopo atual`}
                       onClick={() => {
                         const base =
@@ -270,8 +270,8 @@ export function AsoMatrix({
                   <td
                     className={cn(
                       "sticky left-0 z-10 max-w-[148px] truncate bg-card",
-                      "app-table-emphasis text-slate-700",
-                      rowSelected ? "bg-teal-50/80" : "",
+                      "app-table-emphasis text-foreground/80",
+                      rowSelected ? "bg-primary-soft/80" : "",
                       row.cadastralAlert ? "text-amber-900" : "",
                     )}
                     title={
@@ -307,9 +307,9 @@ export function AsoMatrix({
                             "flex h-[40px] w-full flex-col items-center justify-center rounded !px-0.5 leading-none transition-colors",
                             TONE_CLASSES[cell.tone],
                             isSelected
-                              ? "bg-teal-100/80 ring-2 ring-teal-600 ring-offset-1"
+                              ? "bg-primary-soft ring-2 ring-primary ring-offset-1"
                               : isApplied
-                                ? "ring-1 ring-teal-300"
+                                ? "ring-1 ring-primary"
                                 : "",
                           )}
                         >
@@ -329,7 +329,7 @@ export function AsoMatrix({
           </tbody>
         </table>
       ) : (
-        <div className="px-3 py-2 text-[12px] text-slate-500">
+        <div className="px-3 py-2 text-[12px] text-muted-foreground">
           Matriz recolhida
           {selection
             ? ` · seleção: ${selection.label} · ${MONTH_NAMES[selection.month - 1]}`

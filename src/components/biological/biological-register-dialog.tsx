@@ -41,7 +41,7 @@ export function BiologicalRegisterDialog() {
         render={
           <Button
             size="sm"
-            className="h-8 bg-teal-800 text-[13px] hover:bg-teal-900"
+            className="h-8 bg-primary text-[13px] hover:bg-primary-hover"
           >
             Registrar acidente
           </Button>
@@ -82,7 +82,7 @@ export function BiologicalRegisterDialog() {
                 id="pepStarted"
                 name="pepStarted"
                 defaultValue="false"
-                className="h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-[13px] outline-none focus-visible:border-teal-600"
+                className="h-9 w-full rounded-md border border-border bg-card px-2.5 text-[13px] outline-none focus-visible:border-primary"
               >
                 <option value="true">Sim</option>
                 <option value="false">Não</option>
@@ -134,7 +134,7 @@ export function BiologicalRegisterDialog() {
               type="submit"
               size="sm"
               disabled={pending}
-              className="bg-teal-800 hover:bg-teal-900"
+              className="bg-primary hover:bg-primary-hover"
             >
               {pending ? "Salvando…" : "Salvar"}
             </Button>

@@ -71,7 +71,7 @@ export function DataTable<T extends { id: string }>({
               <th
                 key={col.key}
                 className={cn(
-                  stickyHeader && "bg-[#f7f7f7] dark:bg-[#1c1c1c]",
+                  stickyHeader && "bg-muted dark:bg-card",
                   col.className,
                   "text-center",
                 )}

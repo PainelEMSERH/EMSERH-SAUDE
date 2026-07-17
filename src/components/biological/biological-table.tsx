@@ -47,13 +47,13 @@ function DetailSection({
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200/90 bg-white">
-      <div className="border-b border-slate-100 bg-slate-50/80 px-3.5 py-2">
-        <h4 className="text-[11px] font-semibold tracking-[0.04em] text-slate-600 uppercase">
+    <section className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="border-b border-border-subtle bg-muted/80 px-3.5 py-2">
+        <h4 className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
           {title}
         </h4>
       </div>
-      <dl className="divide-y divide-slate-100">{children}</dl>
+      <dl className="divide-y divide-border-subtle">{children}</dl>
     </section>
   );
 }
@@ -72,11 +72,11 @@ function DetailRow({
     (typeof value === "string" && !value.trim());
   return (
     <div className="flex items-start justify-between gap-4 px-3.5 py-2.5">
-      <dt className="shrink-0 pt-0.5 text-[12px] text-slate-500">{label}</dt>
+      <dt className="shrink-0 pt-0.5 text-[12px] text-muted-foreground">{label}</dt>
       <dd
         className={cn(
           "min-w-0 text-right text-[13px] leading-snug",
-          empty ? "font-normal text-slate-400" : "font-medium text-slate-900",
+          empty ? "font-normal text-muted-foreground" : "font-medium text-foreground",
         )}
       >
         {empty ? "—" : value}
@@ -87,14 +87,14 @@ function DetailRow({
 
 function FollowupCell({ followups, offset }: { followups: BioFollowupView[]; offset: number }) {
   const f = followups.find((x) => x.dayOffset === offset);
-  if (!f) return <span className="app-table-meta text-slate-400">—</span>;
+  if (!f) return <span className="app-table-meta text-muted-foreground">—</span>;
   return (
     <div className="flex flex-col items-center gap-0.5" title={`Venc. ${formatDateBR(f.dueDate)}`}>
       <StatusBadge
         label={followupLabel(f.displayStatus)}
         tone={followupTone(f.displayStatus)}
       />
-      <span className="app-table-meta app-table-num text-slate-400">
+      <span className="app-table-meta app-table-num text-muted-foreground">
         {formatDateBR(f.dueDate)}
       </span>
     </div>
@@ -123,7 +123,7 @@ function CompleteFollowupForm({
 
   if (followup.displayStatus === "REALIZADO") {
     return (
-      <p className="text-[11px] text-teal-800">
+      <p className="text-[11px] text-primary">
         Realizado em {formatDateBR(followup.performedAt)}
       </p>
     );
@@ -134,19 +134,19 @@ function CompleteFollowupForm({
   return (
     <form action={action} className="flex flex-wrap items-end gap-2">
       <input type="hidden" name="followupId" value={followup.id} />
-      <label className="text-[11px] text-slate-500">
+      <label className="text-[11px] text-muted-foreground">
         Data
         <input
           type="date"
           name="performedAt"
           defaultValue={today}
-          className="mt-0.5 h-7 w-[130px] rounded-md border border-slate-200 bg-white px-2 text-[12px]"
+          className="mt-0.5 h-7 w-[130px] rounded-md border border-border bg-card px-2 text-[12px]"
         />
       </label>
       <button
         type="submit"
         disabled={pending}
-        className="h-7 rounded-md bg-teal-800 px-2.5 text-[11px] font-medium text-white hover:bg-teal-900 disabled:opacity-60"
+        className="h-7 rounded-md bg-primary px-2.5 text-[11px] font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
       >
         {pending ? "…" : "Marcar ok"}
       </button>
@@ -189,7 +189,7 @@ function ConcludeForm({
         <textarea
           name="conclusion"
           rows={2}
-          className="mt-1 w-full resize-none rounded-md border border-amber-200 bg-white px-2 py-1.5 text-[12px]"
+          className="mt-1 w-full resize-none rounded-md border border-amber-200 bg-card px-2 py-1.5 text-[12px]"
           placeholder="Ex.: esquema laboratorial completo, alta do acompanhamento"
         />
       </label>
@@ -226,10 +226,10 @@ export function BiologicalTable({
   return (
     <>
       <div className="mb-1 flex items-center justify-between gap-2">
-        <h3 className="text-[13px] font-semibold text-slate-800">
+        <h3 className="text-[13px] font-semibold text-foreground">
           Exposições e acompanhamentos
         </h3>
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-muted-foreground">
           Clique na linha para D30/D60/D90 e detalhe
         </p>
       </div>
@@ -247,7 +247,7 @@ export function BiologicalTable({
             <col className="w-[9%]" />
             <col className="w-[3%]" />
           </colgroup>
-          <thead className="sticky top-0 z-[1]">
+          <thead>
             <tr>
               <th className="text-left">Colaborador</th>
               <th className="text-center">Data</th>
@@ -268,7 +268,7 @@ export function BiologicalTable({
                 tabIndex={0}
                 role="button"
                 aria-label={`Abrir acidente de ${r.fullName}`}
-                className="cursor-pointer focus-visible:bg-teal-50/60 focus-visible:outline-none"
+                className="cursor-pointer focus-visible:bg-primary-soft focus-visible:outline-none"
                 onClick={() => setSelected(r)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -281,14 +281,14 @@ export function BiologicalTable({
                   <p className="app-table-emphasis truncate capitalize">
                     {r.fullName.toLocaleLowerCase("pt-BR")}
                   </p>
-                  <p className="app-table-meta text-teal-800">
+                  <p className="app-table-meta text-primary">
                     {formatRegistrationDisplay(r.registration)}
                   </p>
                 </td>
                 <td className="app-table-num">{formatDateBR(r.occurredAt)}</td>
                 <td className="text-left">
                   <span
-                    className="line-clamp-2 leading-snug text-slate-800"
+                    className="line-clamp-2 leading-snug text-foreground"
                     title={r.exposureType ?? undefined}
                   >
                     {r.exposureType?.trim() || "—"}
@@ -301,7 +301,7 @@ export function BiologicalTable({
                   />
                 </td>
                 <td
-                  className="app-table-num text-slate-600"
+                  className="app-table-num text-muted-foreground"
                   title={r.catNumber ?? undefined}
                 >
                   {catShort(r.catNumber)}
@@ -321,14 +321,14 @@ export function BiologicalTable({
                     tone={bioStatusTone(r.status)}
                   />
                 </td>
-                <td className="w-8 text-right text-slate-400">
+                <td className="w-8 text-right text-muted-foreground">
                   <ChevronRight className="ml-auto" aria-hidden />
                 </td>
               </tr>
             ))}
             {!rows.length ? (
               <tr>
-                <td colSpan={10} className="py-10 text-center text-slate-500">
+                <td colSpan={10} className="py-10 text-center text-muted-foreground">
                   Nenhum acidente com os filtros atuais.
                 </td>
               </tr>
@@ -347,21 +347,21 @@ export function BiologicalTable({
         >
           {selected ? (
             <div className="flex h-full min-h-0 flex-col">
-              <SheetHeader className="shrink-0 space-y-0 border-b border-slate-200 bg-gradient-to-b from-teal-50/70 to-white px-5 pt-5 pb-4 pr-12 text-left">
+              <SheetHeader className="shrink-0 space-y-0 border-b border-border bg-card px-5 pt-5 pb-4 pr-12 text-left">
                 <div className="flex items-start gap-3">
                   <div
-                    className="flex size-11 shrink-0 items-center justify-center rounded-full bg-teal-800 text-[13px] font-semibold tracking-wide text-white"
+                    className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-[13px] font-semibold tracking-wide text-primary-foreground"
                     aria-hidden
                   >
                     {initialsFromName(selected.fullName)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <SheetTitle className="text-[15px] leading-snug font-semibold text-slate-900 capitalize">
+                    <SheetTitle className="text-[15px] leading-snug font-semibold text-foreground capitalize">
                       {selected.fullName.toLocaleLowerCase("pt-BR")}
                     </SheetTitle>
-                    <SheetDescription className="mt-1 text-[12px] text-slate-500">
+                    <SheetDescription className="mt-1 text-[12px] text-muted-foreground">
                       Mat. {formatRegistrationDisplay(selected.registration)}
-                      <span className="mx-1.5 text-slate-300">·</span>
+                      <span className="mx-1.5 text-muted-foreground">·</span>
                       {formatDateTimeBR(selected.occurredAt)}
                     </SheetDescription>
                     <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -382,7 +382,7 @@ export function BiologicalTable({
                 </div>
               </SheetHeader>
 
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50/50 px-5 py-4">
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-muted/50 px-5 py-4">
                 <DetailSection title="Ocorrência">
                   <DetailRow
                     label="Unidade"
@@ -414,25 +414,25 @@ export function BiologicalTable({
                 </DetailSection>
 
                 {selected.description ? (
-                  <section className="overflow-hidden rounded-lg border border-slate-200/90 bg-white">
-                    <div className="border-b border-slate-100 bg-slate-50/80 px-3.5 py-2">
-                      <h4 className="text-[11px] font-semibold tracking-[0.04em] text-slate-600 uppercase">
+                  <section className="overflow-hidden rounded-lg border border-border bg-card">
+                    <div className="border-b border-border-subtle bg-muted/80 px-3.5 py-2">
+                      <h4 className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
                         Descrição
                       </h4>
                     </div>
-                    <p className="px-3.5 py-3 text-[12px] leading-relaxed whitespace-pre-wrap text-slate-700">
+                    <p className="px-3.5 py-3 text-[12px] leading-relaxed whitespace-pre-wrap text-foreground/80">
                       {selected.description}
                     </p>
                   </section>
                 ) : null}
 
-                <section className="overflow-hidden rounded-lg border border-slate-200/90 bg-white">
-                  <div className="border-b border-slate-100 bg-slate-50/80 px-3.5 py-2">
-                    <h4 className="text-[11px] font-semibold tracking-[0.04em] text-slate-600 uppercase">
+                <section className="overflow-hidden rounded-lg border border-border bg-card">
+                  <div className="border-b border-border-subtle bg-muted/80 px-3.5 py-2">
+                    <h4 className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
                       Acompanhamentos
                     </h4>
                   </div>
-                  <div className="divide-y divide-slate-100">
+                  <div className="divide-y divide-border-subtle">
                     {selected.followups.map((f) => (
                       <div
                         key={f.id}
@@ -440,7 +440,7 @@ export function BiologicalTable({
                       >
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-[13px] font-semibold text-slate-900">
+                            <span className="text-[13px] font-semibold text-foreground">
                               D{f.dayOffset}
                             </span>
                             <StatusBadge
@@ -448,7 +448,7 @@ export function BiologicalTable({
                               tone={followupTone(f.displayStatus)}
                             />
                           </div>
-                          <p className="mt-0.5 text-[11px] text-slate-500">
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">
                             Venc. {formatDateBR(f.dueDate)}
                           </p>
                         </div>
@@ -458,14 +458,14 @@ export function BiologicalTable({
                             onDone={() => setSelected(null)}
                           />
                         ) : f.displayStatus === "REALIZADO" ? (
-                          <p className="text-[11px] text-teal-800">
+                          <p className="text-[11px] text-primary">
                             {formatDateBR(f.performedAt)}
                           </p>
                         ) : null}
                       </div>
                     ))}
                     {!selected.followups.length ? (
-                      <p className="px-3.5 py-4 text-[12px] text-slate-500">
+                      <p className="px-3.5 py-4 text-[12px] text-muted-foreground">
                         Sem follow-ups cadastrados.
                       </p>
                     ) : null}
@@ -486,12 +486,12 @@ export function BiologicalTable({
                 ) : null}
               </div>
 
-              <div className="shrink-0 border-t border-slate-200 bg-white px-5 py-3.5">
+              <div className="shrink-0 border-t border-border bg-card px-5 py-3.5">
                 <Link
                   href={`/colaboradores/${selected.employeeId}`}
                   className={cn(
                     buttonVariants({ variant: "ghost", size: "sm" }),
-                    "h-8 gap-1.5 text-[12px] text-teal-800 hover:bg-teal-50 hover:text-teal-900",
+                    "h-8 gap-1.5 text-[12px] text-primary hover:bg-primary-soft hover:text-primary",
                   )}
                 >
                   Abrir prontuário

@@ -51,8 +51,8 @@ export function LeavesFilters({
   };
 
   return (
-    <div className="mb-3 overflow-hidden rounded-lg border border-slate-200 bg-white">
-      <div className="flex flex-wrap gap-0 border-b border-slate-200">
+    <div className="mb-3 overflow-hidden rounded-lg border border-border bg-card">
+      <div className="flex flex-wrap gap-0 border-b border-border">
         {LEAVE_TABS.map((tab) => {
           const active = group === tab.value;
           const n = countFor(tab.value);
@@ -68,8 +68,8 @@ export function LeavesFilters({
               className={cn(
                 "inline-flex items-center gap-1.5 border-b-2 px-3.5 py-2.5 text-[13px] font-medium transition-colors",
                 active
-                  ? "border-teal-700 bg-teal-50/80 text-teal-900"
-                  : "border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                  ? "border-primary bg-primary-soft/80 text-primary"
+                  : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
               {tab.label}
@@ -77,8 +77,8 @@ export function LeavesFilters({
                 className={cn(
                   "rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
                   active
-                    ? "bg-teal-100 text-teal-800"
-                    : "bg-slate-100 text-slate-500",
+                    ? "bg-primary-soft text-primary"
+                    : "bg-muted text-muted-foreground",
                 )}
               >
                 {n}
@@ -103,21 +103,21 @@ export function LeavesFilters({
           apply(form);
         }}
       >
-        <label className="min-w-[180px] flex-1 text-[11px] font-medium text-slate-500">
+        <label className="min-w-[180px] flex-1 text-[11px] font-medium text-muted-foreground">
           Busca
           <input
             name="q"
             defaultValue={current.q ?? ""}
             placeholder="Nome ou matrícula"
-            className="mt-1 h-8 w-full rounded-md border border-slate-200 bg-white px-2.5 text-[13px] text-slate-800 outline-none focus-visible:border-teal-600"
+            className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2.5 text-[13px] text-foreground outline-none focus-visible:border-primary"
           />
         </label>
-        <label className="w-full text-[11px] font-medium text-slate-500 sm:w-[140px]">
+        <label className="w-full text-[11px] font-medium text-muted-foreground sm:w-[140px]">
           Status
           <select
             name="status"
             defaultValue={current.status ?? "ALL"}
-            className="mt-1 h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-[13px] outline-none focus-visible:border-teal-600"
+            className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2 text-[13px] outline-none focus-visible:border-primary"
           >
             <option value="ALL">Todos</option>
             {LEAVE_STATUSES.map((s) => (
@@ -128,12 +128,12 @@ export function LeavesFilters({
           </select>
         </label>
         {group === "licencas" || group === "ALL" ? (
-          <label className="w-full text-[11px] font-medium text-slate-500 sm:w-[220px]">
+          <label className="w-full text-[11px] font-medium text-muted-foreground sm:w-[220px]">
             Tipo (refinar)
             <select
               name="leaveType"
               defaultValue={current.leaveType ?? "ALL"}
-              className="mt-1 h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-[13px] outline-none focus-visible:border-teal-600"
+              className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2 text-[13px] outline-none focus-visible:border-primary"
             >
               <option value="ALL">Todos da aba</option>
               {(group === "licencas"
@@ -149,13 +149,13 @@ export function LeavesFilters({
         ) : (
           <input type="hidden" name="leaveType" value="" />
         )}
-        <label className="flex h-8 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 text-[12px] text-slate-700">
+        <label className="flex h-8 items-center gap-2 rounded-md border border-border bg-muted px-2.5 text-[12px] text-foreground/80">
           <input
             type="checkbox"
             name="returnPending"
             value="1"
             defaultChecked={current.returnPending === "1"}
-            className="size-3.5 accent-teal-800"
+            className="size-3.5 accent-primary"
             onChange={(e) => {
               const form = e.currentTarget.form;
               if (form) apply(form);
@@ -165,7 +165,7 @@ export function LeavesFilters({
         </label>
         <button
           type="submit"
-          className="h-8 rounded-md bg-teal-800 px-3 text-[12px] font-medium text-white hover:bg-teal-900"
+          className="h-8 rounded-md bg-primary px-3 text-[12px] font-medium text-primary-foreground hover:bg-primary-hover"
         >
           Filtrar
         </button>

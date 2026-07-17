@@ -26,7 +26,7 @@ export function VaccinationFilters({
   }
 
   return (
-    <div className="mb-3 rounded-lg border border-slate-200 bg-white p-3">
+    <div className="mb-3 rounded-lg border border-border bg-card p-3">
       <form
         className={cn(
           "flex flex-col gap-2.5 lg:flex-row lg:flex-wrap lg:items-end",
@@ -41,21 +41,21 @@ export function VaccinationFilters({
           apply(e.currentTarget);
         }}
       >
-        <label className="min-w-[200px] flex-1 text-[11px] font-medium text-slate-500">
+        <label className="min-w-[200px] flex-1 text-[11px] font-medium text-muted-foreground">
           Busca
           <input
             name="q"
             defaultValue={current.q ?? ""}
             placeholder="Nome ou matrícula"
-            className="mt-1 h-8 w-full rounded-md border border-slate-200 bg-white px-2.5 text-[13px] outline-none focus-visible:border-teal-600"
+            className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2.5 text-[13px] outline-none focus-visible:border-primary"
           />
         </label>
-        <label className="w-full text-[11px] font-medium text-slate-500 sm:w-[200px]">
+        <label className="w-full text-[11px] font-medium text-muted-foreground sm:w-[200px]">
           Carteira
           <select
             name="kit"
             defaultValue={current.kit ?? "ALL"}
-            className="mt-1 h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-[13px] outline-none focus-visible:border-teal-600"
+            className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2 text-[13px] outline-none focus-visible:border-primary"
           >
             <option value="ALL">Todas</option>
             <option value="incomplete">Incompletas / pendências</option>
@@ -66,7 +66,7 @@ export function VaccinationFilters({
         </label>
         <button
           type="submit"
-          className="h-8 rounded-md bg-teal-800 px-3 text-[12px] font-medium text-white hover:bg-teal-900"
+          className="h-8 rounded-md bg-primary px-3 text-[12px] font-medium text-primary-foreground hover:bg-primary-hover"
         >
           Filtrar
         </button>

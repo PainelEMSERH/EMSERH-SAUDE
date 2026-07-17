@@ -24,7 +24,7 @@ export default async function IndicadoresPage() {
                 await seedIndicatorsAction();
               }}
             >
-              <Button type="submit" className="bg-teal-700 hover:bg-teal-800">
+              <Button type="submit" className="bg-primary hover:bg-primary-hover">
                 Carregar catálogo base
               </Button>
             </form>
@@ -43,7 +43,7 @@ export default async function IndicadoresPage() {
             key: "rule",
             header: "Regra",
             cell: (r) => (
-              <span className="line-clamp-2 max-w-md text-xs text-slate-600">
+              <span className="line-clamp-2 max-w-md text-xs text-muted-foreground">
                 {r.calculationRule}
               </span>
             ),

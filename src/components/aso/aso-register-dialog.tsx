@@ -59,7 +59,7 @@ export function AsoRegisterDialog({
       <DialogTrigger
         render={
           trigger ?? (
-            <Button size="sm" className="h-8 bg-teal-700 text-[13px] hover:bg-teal-800">
+            <Button size="sm" className="h-8 bg-primary text-[13px] hover:bg-primary-hover">
               Registrar ASO
             </Button>
           )
@@ -89,7 +89,7 @@ export function AsoRegisterDialog({
                   id="asoType"
                   name="asoType"
                   required
-                  className="h-8 w-full rounded-lg border border-slate-200 px-2 text-sm"
+                  className="h-8 w-full rounded-lg border border-border px-2 text-sm"
                 >
                   {ASO_TYPES.map((t) => (
                     <option key={t} value={t}>
@@ -125,7 +125,7 @@ export function AsoRegisterDialog({
               <select
                 id="result"
                 name="result"
-                className="h-8 w-full rounded-lg border border-slate-200 px-2 text-sm"
+                className="h-8 w-full rounded-lg border border-border px-2 text-sm"
               >
                 <option value="">—</option>
                 <option value="APTO">Apto</option>
@@ -147,7 +147,7 @@ export function AsoRegisterDialog({
             <Button
               type="submit"
               disabled={pending}
-              className="bg-teal-700 hover:bg-teal-800"
+              className="bg-primary hover:bg-primary-hover"
             >
               {pending ? "Salvando..." : "Registrar"}
             </Button>

@@ -64,7 +64,7 @@ export function AsoReprogramDialog({
         </DialogHeader>
         <form action={formAction} className="space-y-3">
           <input type="hidden" name="planId" value={plan.id} />
-          <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
+          <p className="rounded-md border border-border bg-muted px-3 py-2 text-[12px] text-muted-foreground">
             A competência original e a data prevista histórica serão preservadas para
             aderência. A nova data gera item na competência correspondente.
           </p>
@@ -75,7 +75,7 @@ export function AsoReprogramDialog({
               name="newDate"
               type="date"
               required
-              className="h-8 w-full rounded-lg border border-slate-200 px-2 text-sm"
+              className="h-8 w-full rounded-lg border border-border px-2 text-sm"
             />
           </div>
           <div className="space-y-1">
@@ -84,7 +84,7 @@ export function AsoReprogramDialog({
               id="reason"
               name="reason"
               required
-              className="h-8 w-full rounded-lg border border-slate-200 px-2 text-sm"
+              className="h-8 w-full rounded-lg border border-border px-2 text-sm"
               placeholder="Motivo da reprogramação"
             />
           </div>
@@ -104,7 +104,7 @@ export function AsoReprogramDialog({
             <Button
               type="submit"
               disabled={pending}
-              className="bg-teal-700 hover:bg-teal-800"
+              className="bg-primary hover:bg-primary-hover"
             >
               {pending ? "Salvando..." : "Confirmar reprogramação"}
             </Button>

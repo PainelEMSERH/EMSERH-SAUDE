@@ -1,12 +1,15 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
+/** Tons semânticos via tokens — suaves, com significado preservado. */
 const TONES: Record<string, string> = {
-  ok: "border-teal-200 bg-teal-50 text-teal-800",
-  warn: "border-amber-200 bg-amber-50 text-amber-800",
-  danger: "border-red-200 bg-red-50 text-red-800",
-  muted: "border-slate-200 bg-slate-50 text-slate-700",
-  info: "border-sky-200 bg-sky-50 text-sky-800",
+  ok: "border-[color:var(--primary-border)] bg-[color:var(--primary-soft)] text-[color:var(--success)]",
+  warn: "border-amber-200/80 bg-amber-50 text-[color:var(--warning)] dark:border-amber-500/30 dark:bg-amber-500/10",
+  danger:
+    "border-red-200/80 bg-red-50 text-[color:var(--danger)] dark:border-red-500/30 dark:bg-red-500/10",
+  muted:
+    "border-border bg-muted text-muted-foreground",
+  info: "border-blue-200/80 bg-blue-50 text-[color:var(--info)] dark:border-blue-500/30 dark:bg-blue-500/10",
 };
 
 export function StatusBadge({
