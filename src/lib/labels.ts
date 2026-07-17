@@ -98,3 +98,16 @@ export function initialsFromName(fullName: string): string {
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
+
+/** Exibe matrícula com no mínimo 5 dígitos (zeros à esquerda). */
+export function formatRegistrationDisplay(
+  registration: string | null | undefined,
+): string {
+  if (!registration) return "—";
+  const raw = String(registration).trim();
+  if (!raw) return "—";
+  if (/^\d+$/.test(raw) && raw.length < 5) {
+    return raw.padStart(5, "0");
+  }
+  return raw;
+}

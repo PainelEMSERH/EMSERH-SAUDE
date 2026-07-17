@@ -9,6 +9,7 @@ import { requirePermission, userCan } from "@/lib/auth/guard";
 import { formatDateBR } from "@/lib/dates";
 import {
   humanizeLabel,
+  formatRegistrationDisplay,
   toneForFunctionalStatus,
 } from "@/lib/labels";
 import { listEmployees } from "@/db/queries/employees";
@@ -83,14 +84,14 @@ export default async function ColaboradoresPage({
           {
             key: "registration",
             header: "Matrícula",
-            className: "w-[100px]",
+            className: "w-[100px] text-center",
             cell: (r) => (
               <Link
                 href={`/colaboradores/${r.id}`}
                 className="font-semibold text-teal-800 hover:underline"
                 title={`Abrir prontuário de ${r.fullName}`}
               >
-                {r.registration}
+                {formatRegistrationDisplay(r.registration)}
               </Link>
             ),
           },
@@ -145,11 +146,14 @@ export default async function ColaboradoresPage({
           {
             key: "status",
             header: "Situação",
+            className: "text-center",
             cell: (r) => (
-              <StatusBadge
-                label={humanizeLabel(r.functionalStatus)}
-                tone={toneForFunctionalStatus(r.functionalStatus)}
-              />
+              <div className="flex justify-center">
+                <StatusBadge
+                  label={humanizeLabel(r.functionalStatus)}
+                  tone={toneForFunctionalStatus(r.functionalStatus)}
+                />
+              </div>
             ),
           },
           {
