@@ -147,7 +147,7 @@ export function AsoMatrix({
     selection.rowKey === (activeKey ?? rows[0]?.key);
 
   return (
-    <div className="mb-3 w-full overflow-hidden rounded-lg border border-slate-200 bg-white">
+    <div className="mb-3 w-full overflow-hidden rounded-lg border border-border bg-card">
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 px-3 py-2">
         <div className="min-w-0">
           <h3 className="text-[13px] font-semibold text-slate-800">
@@ -211,127 +211,123 @@ export function AsoMatrix({
       ) : null}
 
       {!collapsed ? (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] table-fixed border-collapse text-[11px]">
-            <colgroup>
-              <col className="w-[148px]" />
-              {MONTH_LABELS.map((label) => (
-                <col key={label} />
-              ))}
-            </colgroup>
-            <thead>
-              <tr className="bg-slate-50">
-                <th className="sticky left-0 z-10 border-b border-slate-200 bg-slate-50 px-2 py-1.5 text-left font-semibold text-slate-600">
-                  Escopo
-                </th>
-                {MONTH_LABELS.map((label, idx) => {
-                  const month = idx + 1;
-                  const headerSelected = selection?.month === month;
-                  return (
-                    <th
-                      key={label}
-                      className={cn(
-                        "border-b border-slate-200 px-0 py-1.5 text-center font-semibold text-slate-600",
-                        headerSelected ? "bg-teal-50 text-teal-900" : "",
-                      )}
-                    >
-                      <button
-                        type="button"
-                        className="w-full px-0.5 py-0.5 hover:text-teal-800"
-                        title={`Selecionar ${MONTH_NAMES[idx]} no escopo atual`}
-                        onClick={() => {
-                          const base =
-                            rows.find((r) => r.key === selection?.rowKey) ??
-                            rows.find((r) => r.key === activeKey) ??
-                            rows[0];
-                          setSelection({
-                            rowKey: base.key,
-                            label: base.label,
-                            month,
-                            regionId: base.regionId,
-                            unitId: base.unitId,
-                          });
-                        }}
-                      >
-                        {label}
-                      </button>
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => {
-                const rowSelected = selection?.rowKey === row.key;
+        <table className="app-data-table">
+          <colgroup>
+            <col className="w-[148px]" />
+            {MONTH_LABELS.map((label) => (
+              <col key={label} />
+            ))}
+          </colgroup>
+          <thead>
+            <tr>
+              <th className="sticky left-0 z-10 bg-[#f7f7f7] text-left dark:bg-[#1c1c1c]">
+                Escopo
+              </th>
+              {MONTH_LABELS.map((label, idx) => {
+                const month = idx + 1;
+                const headerSelected = selection?.month === month;
                 return (
-                  <tr
-                    key={row.key}
+                  <th
+                    key={label}
                     className={cn(
-                      "border-b border-slate-100",
-                      row.cadastralAlert ? "bg-amber-50/30" : "",
+                      "text-center",
+                      headerSelected ? "bg-teal-50 text-teal-900" : "",
                     )}
                   >
-                    <td
-                      className={cn(
-                        "sticky left-0 z-10 max-w-[148px] truncate bg-white px-2 py-1 font-medium text-slate-700",
-                        rowSelected ? "bg-teal-50/80" : "",
-                        row.cadastralAlert ? "text-amber-900" : "",
-                      )}
-                      title={
-                        row.cadastralAlert
-                          ? "Problema cadastral: regional ausente no Alterdata"
-                          : row.label
-                      }
+                    <button
+                      type="button"
+                      className="w-full !px-0.5 !py-0.5 !text-[10px] !font-semibold hover:text-teal-800"
+                      title={`Selecionar ${MONTH_NAMES[idx]} no escopo atual`}
+                      onClick={() => {
+                        const base =
+                          rows.find((r) => r.key === selection?.rowKey) ??
+                          rows.find((r) => r.key === activeKey) ??
+                          rows[0];
+                        setSelection({
+                          rowKey: base.key,
+                          label: base.label,
+                          month,
+                          regionId: base.regionId,
+                          unitId: base.unitId,
+                        });
+                      }}
                     >
-                      {row.label}
-                    </td>
-                    {row.cells.map((cell) => {
-                      const isSelected =
-                        selection?.rowKey === row.key &&
-                        selection.month === cell.month;
-                      const isApplied =
-                        activeMonth === cell.month &&
-                        (activeKey ?? rows[0]?.key) === row.key;
-                      return (
-                        <td key={cell.month} className="p-0.5 text-center">
-                          <button
-                            type="button"
-                            title={cellTitle(cell)}
-                            onClick={() =>
-                              setSelection({
-                                rowKey: row.key,
-                                label: row.label,
-                                month: cell.month,
-                                regionId: row.regionId,
-                                unitId: row.unitId,
-                              })
-                            }
-                            className={cn(
-                              "flex h-[40px] w-full flex-col items-center justify-center rounded px-0.5 leading-none transition-colors",
-                              TONE_CLASSES[cell.tone],
-                              isSelected
-                                ? "bg-teal-100/80 ring-2 ring-teal-600 ring-offset-1"
-                                : isApplied
-                                  ? "ring-1 ring-teal-300"
-                                  : "",
-                            )}
-                          >
-                            <span className="text-[11px] font-semibold tabular-nums">
-                              {cellLabel(cell)}
-                            </span>
-                            <span className="mt-0.5 text-[9px] font-normal tabular-nums opacity-75">
-                              {cellSub(cell)}
-                            </span>
-                          </button>
-                        </td>
-                      );
-                    })}
-                  </tr>
+                      {label}
+                    </button>
+                  </th>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const rowSelected = selection?.rowKey === row.key;
+              return (
+                <tr
+                  key={row.key}
+                  className={cn(row.cadastralAlert ? "bg-amber-50/30" : "")}
+                >
+                  <td
+                    className={cn(
+                      "sticky left-0 z-10 max-w-[148px] truncate bg-card",
+                      "app-table-emphasis text-slate-700",
+                      rowSelected ? "bg-teal-50/80" : "",
+                      row.cadastralAlert ? "text-amber-900" : "",
+                    )}
+                    title={
+                      row.cadastralAlert
+                        ? "Problema cadastral: regional ausente no Alterdata"
+                        : row.label
+                    }
+                  >
+                    {row.label}
+                  </td>
+                  {row.cells.map((cell) => {
+                    const isSelected =
+                      selection?.rowKey === row.key &&
+                      selection.month === cell.month;
+                    const isApplied =
+                      activeMonth === cell.month &&
+                      (activeKey ?? rows[0]?.key) === row.key;
+                    return (
+                      <td key={cell.month} className="!p-0.5 text-center">
+                        <button
+                          type="button"
+                          title={cellTitle(cell)}
+                          onClick={() =>
+                            setSelection({
+                              rowKey: row.key,
+                              label: row.label,
+                              month: cell.month,
+                              regionId: row.regionId,
+                              unitId: row.unitId,
+                            })
+                          }
+                          className={cn(
+                            "flex h-[40px] w-full flex-col items-center justify-center rounded !px-0.5 leading-none transition-colors",
+                            TONE_CLASSES[cell.tone],
+                            isSelected
+                              ? "bg-teal-100/80 ring-2 ring-teal-600 ring-offset-1"
+                              : isApplied
+                                ? "ring-1 ring-teal-300"
+                                : "",
+                          )}
+                        >
+                          <span className="app-table-num text-[11px] font-semibold">
+                            {cellLabel(cell)}
+                          </span>
+                          <span className="app-table-meta mt-0.5 opacity-75">
+                            {cellSub(cell)}
+                          </span>
+                        </button>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       ) : (
         <div className="px-3 py-2 text-[12px] text-slate-500">
           Matriz recolhida

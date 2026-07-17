@@ -87,14 +87,14 @@ function DetailRow({
 
 function FollowupCell({ followups, offset }: { followups: BioFollowupView[]; offset: number }) {
   const f = followups.find((x) => x.dayOffset === offset);
-  if (!f) return <span className="text-[10px] text-slate-400">—</span>;
+  if (!f) return <span className="app-table-meta text-slate-400">—</span>;
   return (
     <div className="flex flex-col items-center gap-0.5" title={`Venc. ${formatDateBR(f.dueDate)}`}>
       <StatusBadge
         label={followupLabel(f.displayStatus)}
         tone={followupTone(f.displayStatus)}
       />
-      <span className="text-[9px] tabular-nums text-slate-400">
+      <span className="app-table-meta app-table-num text-slate-400">
         {formatDateBR(f.dueDate)}
       </span>
     </div>
@@ -233,115 +233,108 @@ export function BiologicalTable({
           Clique na linha para D30/D60/D90 e detalhe
         </p>
       </div>
-      <div className="rounded-lg border border-slate-200 bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px] table-fixed border-collapse text-left text-[11px]">
-            <colgroup>
-              <col className="w-[18%]" />
-              <col className="w-[10%]" />
-              <col className="w-[16%]" />
-              <col className="w-[7%]" />
-              <col className="w-[10%]" />
-              <col className="w-[9%]" />
-              <col className="w-[9%]" />
-              <col className="w-[9%]" />
-              <col className="w-[9%]" />
-              <col className="w-[3%]" />
-            </colgroup>
-            <thead className="sticky top-0 z-[1] bg-slate-50 text-[10px] font-semibold tracking-wide text-slate-500 uppercase">
-              <tr className="border-b border-slate-200">
-                <th className="px-3 py-2.5 text-left font-semibold">Colaborador</th>
-                <th className="px-2 py-2.5 text-center font-semibold">Data</th>
-                <th className="px-2 py-2.5 text-left font-semibold">Local</th>
-                <th className="px-1.5 py-2.5 text-center font-semibold">PEP</th>
-                <th className="px-1.5 py-2.5 text-center font-semibold">CAT</th>
-                <th className="px-1 py-2.5 text-center font-semibold">D30</th>
-                <th className="px-1 py-2.5 text-center font-semibold">D60</th>
-                <th className="px-1 py-2.5 text-center font-semibold">D90</th>
-                <th className="px-1.5 py-2.5 text-center font-semibold">Status</th>
-                <th className="w-8 px-0 py-2.5" aria-hidden />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr
-                  key={r.id}
-                  tabIndex={0}
-                  role="button"
-                  aria-label={`Abrir acidente de ${r.fullName}`}
-                  className="cursor-pointer border-b border-slate-100 transition-colors hover:bg-teal-50/40 focus-visible:bg-teal-50/60 focus-visible:outline-none"
-                  onClick={() => setSelected(r)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setSelected(r);
-                    }
-                  }}
+      <div className="rounded-lg border border-border bg-card">
+        <table className="app-data-table">
+          <colgroup>
+            <col className="w-[18%]" />
+            <col className="w-[10%]" />
+            <col className="w-[16%]" />
+            <col className="w-[7%]" />
+            <col className="w-[10%]" />
+            <col className="w-[9%]" />
+            <col className="w-[9%]" />
+            <col className="w-[9%]" />
+            <col className="w-[9%]" />
+            <col className="w-[3%]" />
+          </colgroup>
+          <thead className="sticky top-0 z-[1]">
+            <tr>
+              <th className="text-left">Colaborador</th>
+              <th className="text-center">Data</th>
+              <th className="text-left">Local</th>
+              <th className="text-center">PEP</th>
+              <th className="text-center">CAT</th>
+              <th className="text-center">D30</th>
+              <th className="text-center">D60</th>
+              <th className="text-center">D90</th>
+              <th className="text-center">Status</th>
+              <th className="w-8" aria-hidden />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr
+                key={r.id}
+                tabIndex={0}
+                role="button"
+                aria-label={`Abrir acidente de ${r.fullName}`}
+                className="cursor-pointer focus-visible:bg-teal-50/60 focus-visible:outline-none"
+                onClick={() => setSelected(r)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelected(r);
+                  }
+                }}
+              >
+                <td className="text-left">
+                  <p className="app-table-emphasis truncate capitalize">
+                    {r.fullName.toLocaleLowerCase("pt-BR")}
+                  </p>
+                  <p className="app-table-meta text-teal-800">
+                    {formatRegistrationDisplay(r.registration)}
+                  </p>
+                </td>
+                <td className="app-table-num">{formatDateBR(r.occurredAt)}</td>
+                <td className="text-left">
+                  <span
+                    className="line-clamp-2 leading-snug text-slate-800"
+                    title={r.exposureType ?? undefined}
+                  >
+                    {r.exposureType?.trim() || "—"}
+                  </span>
+                </td>
+                <td className="text-center">
+                  <StatusBadge
+                    label={r.pepStarted ? "Sim" : "Não"}
+                    tone={r.pepStarted ? "info" : "muted"}
+                  />
+                </td>
+                <td
+                  className="app-table-num text-slate-600"
+                  title={r.catNumber ?? undefined}
                 >
-                  <td className="px-3 py-2 text-left">
-                    <p className="truncate font-medium text-slate-900 capitalize">
-                      {r.fullName.toLocaleLowerCase("pt-BR")}
-                    </p>
-                    <p className="text-[10px] tabular-nums text-teal-800">
-                      {formatRegistrationDisplay(r.registration)}
-                    </p>
-                  </td>
-                  <td className="px-2 py-2 text-center tabular-nums text-slate-700">
-                    {formatDateBR(r.occurredAt)}
-                  </td>
-                  <td className="px-2 py-2 text-left">
-                    <span
-                      className="line-clamp-2 text-[11px] leading-snug text-slate-800"
-                      title={r.exposureType ?? undefined}
-                    >
-                      {r.exposureType?.trim() || "—"}
-                    </span>
-                  </td>
-                  <td className="px-1.5 py-2 text-center">
-                    <StatusBadge
-                      label={r.pepStarted ? "Sim" : "Não"}
-                      tone={r.pepStarted ? "info" : "muted"}
-                    />
-                  </td>
-                  <td
-                    className="px-1.5 py-2 text-center tabular-nums text-[10px] text-slate-600"
-                    title={r.catNumber ?? undefined}
-                  >
-                    {catShort(r.catNumber)}
-                  </td>
-                  <td className="px-1 py-2 text-center">
-                    <FollowupCell followups={r.followups} offset={30} />
-                  </td>
-                  <td className="px-1 py-2 text-center">
-                    <FollowupCell followups={r.followups} offset={60} />
-                  </td>
-                  <td className="px-1 py-2 text-center">
-                    <FollowupCell followups={r.followups} offset={90} />
-                  </td>
-                  <td className="px-1.5 py-2 text-center">
-                    <StatusBadge
-                      label={bioStatusLabel(r.status)}
-                      tone={bioStatusTone(r.status)}
-                    />
-                  </td>
-                  <td className="w-8 pr-2.5 pl-0 py-2 text-right text-slate-400">
-                    <ChevronRight className="ml-auto size-3.5" aria-hidden />
-                  </td>
-                </tr>
-              ))}
-              {!rows.length ? (
-                <tr>
-                  <td
-                    colSpan={10}
-                    className="px-3 py-10 text-center text-slate-500"
-                  >
-                    Nenhum acidente com os filtros atuais.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
+                  {catShort(r.catNumber)}
+                </td>
+                <td className="text-center">
+                  <FollowupCell followups={r.followups} offset={30} />
+                </td>
+                <td className="text-center">
+                  <FollowupCell followups={r.followups} offset={60} />
+                </td>
+                <td className="text-center">
+                  <FollowupCell followups={r.followups} offset={90} />
+                </td>
+                <td className="text-center">
+                  <StatusBadge
+                    label={bioStatusLabel(r.status)}
+                    tone={bioStatusTone(r.status)}
+                  />
+                </td>
+                <td className="w-8 text-right text-slate-400">
+                  <ChevronRight className="ml-auto" aria-hidden />
+                </td>
+              </tr>
+            ))}
+            {!rows.length ? (
+              <tr>
+                <td colSpan={10} className="py-10 text-center text-slate-500">
+                  Nenhum acidente com os filtros atuais.
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
       </div>
 
       <Sheet

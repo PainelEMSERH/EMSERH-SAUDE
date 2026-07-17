@@ -126,7 +126,7 @@ function UserMenu({ user }: { user: SessionUser }) {
           <p className="truncate text-[11px] text-muted-foreground">
             {user.email}
           </p>
-          <p className="mt-1 text-[10px] font-semibold tracking-wide text-primary uppercase dark:text-ring">
+          <p className="mt-1 text-[10px] font-semibold tracking-wide text-primary uppercase">
             {user.role.replaceAll("_", " ")}
           </p>
         </div>
@@ -158,7 +158,7 @@ export function AppSidebar({ user }: { user: SessionUser }) {
       <div className={cn("pb-2 pt-5", collapsed ? "px-2" : "px-3")}>
         {collapsed ? (
           <p
-            className="text-center text-[11px] font-bold tracking-tight text-primary dark:text-ring"
+            className="text-center text-[11px] font-bold tracking-tight text-primary"
             title={APP_NAME}
           >
             ES
@@ -168,7 +168,7 @@ export function AppSidebar({ user }: { user: SessionUser }) {
             <p className="text-[14px] font-semibold tracking-tight text-foreground">
               Menu
             </p>
-            <p className="mt-0.5 truncate text-[9px] font-medium tracking-[0.12em] text-primary uppercase dark:text-ring">
+            <p className="mt-0.5 truncate text-[9px] font-medium tracking-[0.12em] text-primary uppercase">
               EMSERH · Saúde
             </p>
           </>
@@ -213,7 +213,7 @@ export function MobileNav({ user }: { user: SessionUser }) {
             <p className="text-[14px] font-semibold tracking-tight text-foreground">
               Menu
             </p>
-            <p className="mt-0.5 text-[9px] font-medium tracking-[0.12em] text-primary uppercase dark:text-ring">
+            <p className="mt-0.5 text-[9px] font-medium tracking-[0.12em] text-primary uppercase">
               {APP_NAME}
             </p>
           </div>

@@ -37,7 +37,7 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --font-sans: var(--font-outfit), Outfit, ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), Inter, system-ui, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --font-heading: var(--font-sans);
@@ -94,38 +94,40 @@
 }
 
 .dark {
-  --background: #121212;
-  --foreground: #e2e8f0;
+  /* Camadas: fundo → card → elevação (como no print) */
+  --background: #0d0d0d;
+  --foreground: #ffffff;
   --card: #171717;
-  --card-foreground: #e2e8f0;
-  --popover: #242424;
-  --popover-foreground: #a9a9a9;
-  --primary: #006239;
-  --primary-foreground: #dde8e3;
-  --secondary: #242424;
-  --secondary-foreground: #fafafa;
-  --muted: #1f1f1f;
-  --muted-foreground: #a2a2a2;
-  --accent: #313131;
-  --accent-foreground: #fafafa;
-  --destructive: #541c15;
-  --destructive-foreground: #ede9e8;
-  --border: #292929;
-  --input: #242424;
-  --ring: #4ade80;
-  --chart-1: #4ade80;
+  --card-foreground: #ffffff;
+  --popover: #1c1c1c;
+  --popover-foreground: #d4d4d4;
+  /* Mint vivo no escuro — igual ao print, não verde fechado */
+  --primary: #72e3ad;
+  --primary-foreground: #0f1f18;
+  --secondary: #1c1c1c;
+  --secondary-foreground: #f5f5f5;
+  --muted: #1c1c1c;
+  --muted-foreground: #a3a3a3;
+  --accent: #222222;
+  --accent-foreground: #f5f5f5;
+  --destructive: #ef4444;
+  --destructive-foreground: #fff5f5;
+  --border: #2a2a2a;
+  --input: #1c1c1c;
+  --ring: #72e3ad;
+  --chart-1: #72e3ad;
   --chart-2: #60a5fa;
   --chart-3: #a78bfa;
   --chart-4: #fbbf24;
   --chart-5: #2dd4bf;
-  --sidebar: #121212;
-  --sidebar-foreground: #898989;
-  --sidebar-primary: #006239;
-  --sidebar-primary-foreground: #dde8e3;
-  --sidebar-accent: #313131;
-  --sidebar-accent-foreground: #fafafa;
-  --sidebar-border: #292929;
-  --sidebar-ring: #4ade80;
+  --sidebar: #0d0d0d;
+  --sidebar-foreground: #a3a3a3;
+  --sidebar-primary: #72e3ad;
+  --sidebar-primary-foreground: #0f1f18;
+  --sidebar-accent: #1c1c1c;
+  --sidebar-accent-foreground: #f5f5f5;
+  --sidebar-border: #2a2a2a;
+  --sidebar-ring: #72e3ad;
 }
 
 @layer base {
@@ -140,3 +142,102 @@
     @apply font-sans;
   }
 }
+
+/* Padrão tipográfico/espacial só para tabelas de dados do sistema */
+@layer components {
+  .app-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.35;
+  }
+
+  .app-data-table thead th {
+    height: auto;
+    min-height: 36px;
+    padding: 10px 12px;
+    background: #f7f7f7;
+    border-bottom: 1px solid var(--border);
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    vertical-align: middle;
+  }
+
+  .dark .app-data-table thead th {
+    background: #1c1c1c;
+    color: #a3a3a3;
+  }
+
+  .app-data-table tbody td {
+    min-height: 40px;
+    padding: 10px 12px;
+    vertical-align: middle;
+    font-size: 11px;
+    font-weight: 400;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  }
+
+  .app-data-table tbody tr {
+    transition: background-color 120ms ease;
+  }
+
+  .app-data-table tbody tr:hover {
+    background: color-mix(in srgb, var(--primary) 8%, transparent);
+  }
+
+  .app-data-table .app-table-emphasis {
+    font-weight: 500;
+  }
+
+  .app-data-table .app-table-meta {
+    font-size: 10px;
+    font-weight: 400;
+    line-height: 1.3;
+  }
+
+  .app-data-table .app-table-num {
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  /* Badges / botões / ícones só dentro da tabela */
+  .app-data-table [data-slot="badge"],
+  .app-data-table .app-table-badge {
+    height: auto;
+    min-height: 0;
+    gap: 4px;
+    padding: 4px 8px;
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.2;
+  }
+
+  .app-data-table [data-slot="badge"] svg,
+  .app-data-table .app-table-badge svg,
+  .app-data-table td svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .app-data-table [data-slot="button"],
+  .app-data-table button:not([data-slot="dropdown-menu-trigger"]) {
+    gap: 4px;
+    padding: 4px 8px;
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.2;
+  }
+
+  .app-data-table [data-slot="button"] svg,
+  .app-data-table button:not([data-slot="dropdown-menu-trigger"]) svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+

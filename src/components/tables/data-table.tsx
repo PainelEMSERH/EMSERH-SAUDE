@@ -20,7 +20,7 @@ export function DataTable<T extends { id: string }>({
    */
   stickyHeaderMode = "page",
   maxHeightClassName = "max-h-[calc(100vh-240px)]",
-  tableLayout = "auto",
+  tableLayout = "fixed",
   containerClassName,
   tableClassName,
   cellClassName,
@@ -46,7 +46,7 @@ export function DataTable<T extends { id: string }>({
   return (
     <div
       className={cn(
-        "rounded-lg border border-slate-200 bg-white",
+        "rounded-lg border border-border bg-card",
         useInnerScroll
           ? cn("overflow-auto", maxHeightClassName)
           : "overflow-hidden",
@@ -55,24 +55,23 @@ export function DataTable<T extends { id: string }>({
     >
       <table
         className={cn(
-          "w-full caption-bottom text-sm",
-          tableLayout === "fixed" && "table-fixed",
+          "app-data-table",
+          tableLayout === "auto" && "[table-layout:auto]",
           tableClassName,
         )}
       >
         <thead
           className={cn(
             stickyHeader &&
-              "sticky top-0 z-20 border-b border-slate-200 bg-slate-50 shadow-[0_1px_0_0_rgb(226_232_240)]",
+              "sticky top-0 z-20 shadow-[0_1px_0_0_var(--border)]",
           )}
         >
-          <tr className="border-b border-slate-200 bg-slate-50 hover:bg-slate-50">
+          <tr>
             {columns.map((col) => (
               <th
                 key={col.key}
                 className={cn(
-                  "h-8 px-2.5 text-center align-middle text-[11px] font-semibold tracking-wide text-slate-500 uppercase",
-                  stickyHeader && "bg-slate-50",
+                  stickyHeader && "bg-[#f7f7f7] dark:bg-[#1c1c1c]",
                   col.className,
                   "text-center",
                 )}
@@ -84,18 +83,11 @@ export function DataTable<T extends { id: string }>({
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr
-              key={row.id}
-              className="border-b border-slate-100 transition-colors hover:bg-teal-50/50"
-            >
+            <tr key={row.id}>
               {columns.map((col) => (
                 <td
                   key={col.key}
-                  className={cn(
-                    "h-9 px-2.5 py-1.5 align-middle text-[12px]",
-                    cellClassName,
-                    col.className,
-                  )}
+                  className={cn(cellClassName, col.className)}
                 >
                   {col.cell(row)}
                 </td>

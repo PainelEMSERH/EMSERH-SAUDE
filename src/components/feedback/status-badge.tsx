@@ -20,7 +20,7 @@ export function StatusBadge({
     <Badge
       variant="outline"
       className={cn(
-        "px-1.5 py-0 text-[11px] font-medium leading-5 whitespace-nowrap",
+        "h-auto px-2 py-1 text-[10px] font-medium leading-none whitespace-nowrap",
         TONES[tone] ?? TONES.muted,
       )}
     >

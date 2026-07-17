@@ -13,14 +13,14 @@ export function ConnectionStatus({
     <div
       className={cn(
         "inline-flex items-center gap-1.5 text-[12px] font-medium",
-        online ? "text-primary dark:text-ring" : "text-muted-foreground",
+        online ? "text-primary" : "text-muted-foreground",
       )}
       title={online ? "Sessão ativa" : "Sem conexão"}
     >
       <span
         className={cn(
           "size-1.5 rounded-full",
-          online ? "bg-primary dark:bg-ring" : "bg-muted-foreground",
+          online ? "bg-primary" : "bg-muted-foreground",
         )}
         aria-hidden
       />

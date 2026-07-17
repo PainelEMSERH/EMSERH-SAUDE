@@ -353,8 +353,8 @@ export function AsoNominalTable({
         <h3 className="text-[13px] font-semibold text-slate-800">Relação nominal</h3>
         <p className="text-[11px] text-slate-500">Clique na linha para ver detalhes</p>
       </div>
-      <div className="rounded-lg border border-slate-200 bg-white">
-        <table className="w-full table-fixed border-collapse text-[12px]">
+      <div className="rounded-lg border border-border bg-card">
+        <table className="app-data-table">
           <colgroup>
             <col className="w-[21%]" />
             <col className="w-[9%]" />
@@ -366,7 +366,7 @@ export function AsoNominalTable({
             <col className="w-[8%]" />
             <col className="w-[3%]" />
           </colgroup>
-          <thead className="sticky top-0 z-30 border-b border-slate-200 bg-white shadow-[0_1px_0_0_rgb(226_232_240)]">
+          <thead className="sticky top-0 z-30 shadow-[0_1px_0_0_var(--border)]">
             <tr>
               {[
                 "Colaborador",
@@ -382,10 +382,7 @@ export function AsoNominalTable({
                 <th
                   key={h || `chevron-${idx}`}
                   scope="col"
-                  className={cn(
-                    "border-b border-slate-200 bg-white px-2 py-2 font-semibold tracking-wide text-slate-500 uppercase",
-                    idx === 0 ? "text-left" : "text-center",
-                  )}
+                  className={idx === 0 ? "text-left" : "text-center"}
                 >
                   {h}
                   {!h ? <span className="sr-only">Detalhes</span> : null}
@@ -413,8 +410,8 @@ export function AsoNominalTable({
                   aria-expanded={isOpen}
                   aria-label={`Abrir detalhes de ${r.employeeName}`}
                   className={cn(
-                    "cursor-pointer border-b border-slate-100 outline-none transition-colors",
-                    "hover:bg-teal-50/70 focus-visible:bg-teal-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500",
+                    "cursor-pointer outline-none",
+                    "focus-visible:bg-teal-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500",
                     isOpen ? "bg-teal-50/90 ring-1 ring-inset ring-teal-200" : "",
                   )}
                   onClick={() => setSelected(r)}
@@ -425,22 +422,25 @@ export function AsoNominalTable({
                     }
                   }}
                 >
-                  <td className="px-2 py-1.5 text-left font-medium text-slate-900">
-                    <span className="block truncate" title={r.employeeName}>
+                  <td className="text-left">
+                    <span
+                      className="app-table-emphasis block truncate"
+                      title={r.employeeName}
+                    >
                       {r.employeeName}
                     </span>
                   </td>
-                  <td className="px-2 py-1.5 text-center">
+                  <td className="app-table-num">
                     <Link
                       href={`/colaboradores/${r.employeeId}`}
-                      className="font-semibold text-teal-800 hover:underline"
+                      className="app-table-emphasis text-teal-800 hover:underline"
                       onClick={(e) => e.stopPropagation()}
                       onKeyDown={(e) => e.stopPropagation()}
                     >
                       {formatRegistrationDisplay(r.registration)}
                     </Link>
                   </td>
-                  <td className="px-2 py-1.5 text-left">
+                  <td className="text-left">
                     <span
                       className="block truncate text-slate-600"
                       title={r.unitNameSnapshot ?? undefined}
@@ -448,23 +448,21 @@ export function AsoNominalTable({
                       {formatUnitDisplayName(r.unitNameSnapshot)}
                     </span>
                   </td>
-                  <td className="px-2 py-1.5 text-center">{humanizeLabel(r.asoType)}</td>
-                  <td className="px-2 py-1.5 text-center tabular-nums">
-                    {formatDateBR(r.expectedDate)}
-                  </td>
-                  <td className="px-2 py-1.5 text-center">
+                  <td className="text-center">{humanizeLabel(r.asoType)}</td>
+                  <td className="app-table-num">{formatDateBR(r.expectedDate)}</td>
+                  <td className="text-center">
                     <StatusBadge
                       label={humanizeLabel(r.functionalStatusSnapshot)}
                       tone={toneForFunctionalStatus(r.functionalStatusSnapshot)}
                     />
                   </td>
-                  <td className="px-2 py-1.5 text-center">
+                  <td className="text-center">
                     <StatusBadge
                       label={humanizeLabel(effective)}
                       tone={toneForExecution(effective)}
                     />
                   </td>
-                  <td className="px-2 py-1.5 text-center">
+                  <td className="text-center">
                     <span title={humanizeLabel(r.alterdataStatus)}>
                       <StatusBadge
                         label={shortAlterdata(r.alterdataStatus)}
@@ -472,10 +470,10 @@ export function AsoNominalTable({
                       />
                     </span>
                   </td>
-                  <td className="px-1 py-1.5 text-center text-slate-400">
+                  <td className="text-center text-slate-400">
                     <ChevronRight
                       className={cn(
-                        "mx-auto h-4 w-4 transition-transform",
+                        "mx-auto transition-transform",
                         isOpen ? "translate-x-0.5 text-teal-700" : "",
                       )}
                       aria-hidden
@@ -486,7 +484,7 @@ export function AsoNominalTable({
             })}
             {!rows.length ? (
               <tr>
-                <td colSpan={9} className="px-3 py-8 text-center text-slate-500">
+                <td colSpan={9} className="py-8 text-center text-slate-500">
                   Nenhum colaborador nesta competência com os filtros atuais.
                 </td>
               </tr>

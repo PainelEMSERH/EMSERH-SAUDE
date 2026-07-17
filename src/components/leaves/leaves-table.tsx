@@ -174,111 +174,107 @@ export function LeavesTable({
         <h3 className="text-[13px] font-semibold text-slate-800">Relação nominal</h3>
         <p className="text-[11px] text-slate-500">Clique na linha para ver detalhes</p>
       </div>
-      <div className="rounded-lg border border-slate-200 bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px] table-fixed border-collapse text-left text-[11px]">
-            <colgroup>
-              <col className="w-[22%]" />
-              <col className="w-[13%]" />
-              <col className="w-[18%]" />
-              <col className="w-[7%]" />
-              <col className="w-[18%]" />
-              <col className="w-[10%]" />
-              <col className="w-[9%]" />
-              <col className="w-[3%]" />
-            </colgroup>
-            <thead className="sticky top-0 z-[1] bg-slate-50 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
-              <tr className="border-b border-slate-200">
-                <th className="px-3 py-2.5 text-left font-semibold">Colaborador</th>
-                <th className="px-3 py-2.5 text-center font-semibold">Tipo</th>
-                <th className="px-3 py-2.5 text-center font-semibold">Período</th>
-                <th className="px-3 py-2.5 text-center font-semibold">Dias</th>
-                <th className="px-3 py-2.5 text-left font-semibold">Unidade</th>
-                <th className="px-3 py-2.5 text-center font-semibold">Status</th>
-                <th className="px-3 py-2.5 text-center font-semibold">Retorno</th>
-                <th className="px-2 py-2.5" aria-hidden />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => {
-                return (
-                  <tr
-                    key={r.id}
-                    tabIndex={0}
-                    role="button"
-                    aria-label={`Abrir detalhes de ${r.fullName}`}
-                    className="cursor-pointer border-b border-slate-100 transition-colors hover:bg-teal-50/40 focus-visible:bg-teal-50/60 focus-visible:outline-none"
-                    onClick={() => setSelected(r)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setSelected(r);
-                      }
-                    }}
-                  >
-                    <td className="px-3 py-2.5 text-left">
-                      <p className="truncate font-medium text-slate-900 capitalize">
-                        {r.fullName.toLocaleLowerCase("pt-BR")}
-                      </p>
-                      <p className="text-[11px] tabular-nums text-teal-800">
-                        {formatRegistrationDisplay(r.registration)}
-                      </p>
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
+      <div className="rounded-lg border border-border bg-card">
+        <table className="app-data-table">
+          <colgroup>
+            <col className="w-[22%]" />
+            <col className="w-[13%]" />
+            <col className="w-[18%]" />
+            <col className="w-[7%]" />
+            <col className="w-[18%]" />
+            <col className="w-[10%]" />
+            <col className="w-[9%]" />
+            <col className="w-[3%]" />
+          </colgroup>
+          <thead className="sticky top-0 z-[1]">
+            <tr>
+              <th className="text-left">Colaborador</th>
+              <th className="text-center">Tipo</th>
+              <th className="text-center">Período</th>
+              <th className="text-center">Dias</th>
+              <th className="text-left">Unidade</th>
+              <th className="text-center">Status</th>
+              <th className="text-center">Retorno</th>
+              <th aria-hidden />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              return (
+                <tr
+                  key={r.id}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Abrir detalhes de ${r.fullName}`}
+                  className="cursor-pointer focus-visible:bg-teal-50/60 focus-visible:outline-none"
+                  onClick={() => setSelected(r)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelected(r);
+                    }
+                  }}
+                >
+                  <td className="text-left">
+                    <p className="app-table-emphasis truncate capitalize">
+                      {r.fullName.toLocaleLowerCase("pt-BR")}
+                    </p>
+                    <p className="app-table-meta text-teal-800">
+                      {formatRegistrationDisplay(r.registration)}
+                    </p>
+                  </td>
+                  <td className="text-center">
+                    <div className="flex justify-center">
+                      <StatusBadge
+                        label={leaveTypeLabel(r.leaveType)}
+                        tone={toneForLeaveType(r.leaveType)}
+                      />
+                    </div>
+                  </td>
+                  <td className="app-table-num">
+                    {formatDateBR(r.startDate)}
+                    <span className="mx-1 text-slate-300">→</span>
+                    {formatDateBR(r.endDate)}
+                  </td>
+                  <td className="app-table-num">{r.daysCount ?? "—"}</td>
+                  <td className="truncate text-left text-slate-600">
+                    {formatUnitDisplayName(r.unitName)}
+                  </td>
+                  <td className="text-center">
+                    <div className="flex justify-center">
+                      <StatusBadge
+                        label={humanizeLabel(r.displayStatus)}
+                        tone={toneForLeaveStatus(r.displayStatus)}
+                      />
+                    </div>
+                  </td>
+                  <td className="text-center">
+                    {r.returnLabel === "—" ? (
+                      <span className="text-slate-400">—</span>
+                    ) : (
                       <div className="flex justify-center">
                         <StatusBadge
-                          label={leaveTypeLabel(r.leaveType)}
-                          tone={toneForLeaveType(r.leaveType)}
+                          label={r.returnLabel}
+                          tone={r.returnTone}
                         />
                       </div>
-                    </td>
-                    <td className="px-3 py-2.5 text-center tabular-nums text-slate-700">
-                      {formatDateBR(r.startDate)}
-                      <span className="mx-1 text-slate-300">→</span>
-                      {formatDateBR(r.endDate)}
-                    </td>
-                    <td className="px-3 py-2.5 text-center tabular-nums text-slate-700">
-                      {r.daysCount ?? "—"}
-                    </td>
-                    <td className="truncate px-3 py-2.5 text-left text-slate-600">
-                      {formatUnitDisplayName(r.unitName)}
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <div className="flex justify-center">
-                        <StatusBadge
-                          label={humanizeLabel(r.displayStatus)}
-                          tone={toneForLeaveStatus(r.displayStatus)}
-                        />
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      {r.returnLabel === "—" ? (
-                        <span className="text-slate-400">—</span>
-                      ) : (
-                        <div className="flex justify-center">
-                          <StatusBadge
-                            label={r.returnLabel}
-                            tone={r.returnTone}
-                          />
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-2 py-2.5 text-slate-400">
-                      <ChevronRight className="size-4" aria-hidden />
-                    </td>
-                  </tr>
-                );
-              })}
-              {!rows.length ? (
-                <tr>
-                  <td colSpan={8} className="px-3 py-10 text-center text-slate-500">
-                    Nenhum afastamento com os filtros atuais.
+                    )}
+                  </td>
+                  <td className="text-slate-400">
+                    <ChevronRight aria-hidden />
                   </td>
                 </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
+              );
+            })}
+            {!rows.length ? (
+              <tr>
+                <td colSpan={8} className="py-10 text-center text-slate-500">
+                  Nenhum afastamento com os filtros atuais.
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
       </div>
 
       <Sheet open={Boolean(selected)} onOpenChange={(o) => !o && setSelected(null)}>
