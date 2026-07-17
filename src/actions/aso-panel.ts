@@ -20,7 +20,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth/guard";
 import { addRealMonths, computeDeadlineStatus } from "@/lib/dates";
 import { requireEmployeeInUserScope } from "@/lib/scope";
-import { syncAlterdataMirror } from "@/lib/sheets/mirror-sync";
+import { syncAlterdataAsoSnapshots } from "@/lib/sheets/mirror-sync";
 import { yearMonthFromDate } from "@/lib/aso/planning";
 import { migrateExistingAsoRecordsToPlans } from "@/lib/aso/migrate-existing";
 
@@ -54,26 +54,29 @@ export async function generatePlanningAction(
 export async function syncAlterdataAsoAction(): Promise<AsoActionState> {
   try {
     const user = await requirePermission("asos", "update");
-    const sync = await syncAlterdataMirror({ user });
+    const sync = await syncAlterdataAsoSnapshots({ user });
     if (!sync.ok) {
       return { error: sync.error || "Falha na sincronização." };
     }
-    await refreshPlanAlterdataStatuses();
+    const refreshed = await refreshPlanAlterdataStatuses();
     await writeAuditLog({
       user,
       action: "SYNC_MIRROR",
       entityType: "aso_alterdata_snapshots",
       entityId: sync.batchId,
       metadata: {
-        imported: sync.imported,
-        updated: sync.updated,
+        mode: "ASO_SNAPSHOTS_ONLY",
+        snapshotsInserted: sync.snapshotsInserted,
+        skipped: sync.skipped,
+        unmatched: sync.unmatched,
+        plansRefreshed: refreshed.updated,
         source: "aso_panel",
       },
     });
     revalidatePath("/asos");
     return {
       ok: true,
-      message: `Sincronização concluída: ${sync.imported} importados, ${sync.updated} atualizados.`,
+      message: `Sincronização ASO concluída: ${sync.snapshotsInserted} snapshots novos/atualizados · ${sync.skipped} sem alteração · ${sync.unmatched} matrículas sem cadastro · ${refreshed.updated} planos reconciliados.`,
     };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Falha ao sincronizar." };

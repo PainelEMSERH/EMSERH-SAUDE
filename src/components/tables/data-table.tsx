@@ -74,6 +74,7 @@ export function DataTable<T extends { id: string }>({
                   "h-8 px-2.5 text-center align-middle text-[11px] font-semibold tracking-wide text-slate-500 uppercase",
                   stickyHeader && "bg-slate-50",
                   col.className,
+                  "text-center",
                 )}
               >
                 {col.header}

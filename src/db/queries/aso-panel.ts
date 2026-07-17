@@ -940,18 +940,41 @@ export async function refreshPlanAlterdataStatuses(limit = 5000) {
     )
     .limit(limit);
 
-  let updated = 0;
-  for (const plan of plans) {
+  if (!plans.length) return { updated: 0 };
+
+  const employeeIds = [...new Set(plans.map((p) => p.employeeId))];
+  const snapsByEmployee = new Map<
+    string,
+    Array<{ nextAsoDate: string | null; syncedAt: Date }>
+  >();
+
+  const CHUNK_IN = 400;
+  for (let i = 0; i < employeeIds.length; i += CHUNK_IN) {
+    const chunk = employeeIds.slice(i, i + CHUNK_IN);
     const snaps = await db
       .select({
+        employeeId: asoAlterdataSnapshots.employeeId,
         nextAsoDate: asoAlterdataSnapshots.nextAsoDate,
         syncedAt: asoAlterdataSnapshots.syncedAt,
       })
       .from(asoAlterdataSnapshots)
-      .where(eq(asoAlterdataSnapshots.employeeId, plan.employeeId))
-      .orderBy(asoAlterdataSnapshots.syncedAt)
-      .limit(20);
+      .where(inArray(asoAlterdataSnapshots.employeeId, chunk))
+      .orderBy(
+        asoAlterdataSnapshots.employeeId,
+        asoAlterdataSnapshots.syncedAt,
+      );
 
+    for (const s of snaps) {
+      const list = snapsByEmployee.get(s.employeeId) ?? [];
+      list.push({ nextAsoDate: s.nextAsoDate, syncedAt: s.syncedAt });
+      if (list.length > 20) list.shift();
+      snapsByEmployee.set(s.employeeId, list);
+    }
+  }
+
+  const updates: Array<{ id: string; status: string }> = [];
+  for (const plan of plans) {
+    const snaps = snapsByEmployee.get(plan.employeeId) ?? [];
     const status = reconcileAlterdataStatus({
       performedDate: plan.performedDate,
       periodicityMonths: plan.periodicityMonths,
@@ -960,12 +983,21 @@ export async function refreshPlanAlterdataStatuses(limit = 5000) {
         syncedAt: s.syncedAt,
       })),
     });
-
-    await db
-      .update(asoMonthlyPlans)
-      .set({ alterdataStatus: status })
-      .where(eq(asoMonthlyPlans.id, plan.id));
-    updated += 1;
+    updates.push({ id: plan.id, status });
   }
-  return { updated };
+
+  const CHUNK_UPD = 40;
+  for (let i = 0; i < updates.length; i += CHUNK_UPD) {
+    const chunk = updates.slice(i, i + CHUNK_UPD);
+    await Promise.all(
+      chunk.map((u) =>
+        db
+          .update(asoMonthlyPlans)
+          .set({ alterdataStatus: u.status })
+          .where(eq(asoMonthlyPlans.id, u.id)),
+      ),
+    );
+  }
+
+  return { updated: updates.length };
 }

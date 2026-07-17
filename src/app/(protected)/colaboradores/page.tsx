@@ -121,7 +121,7 @@ export default async function ColaboradoresPage({
         columns={[
           {
             key: "registration",
-            header: "Matrícula",
+            header: "ID",
             className: "w-[7%] text-center whitespace-nowrap",
             cell: (r) => (
               <Link
@@ -135,7 +135,7 @@ export default async function ColaboradoresPage({
           },
           {
             key: "name",
-            header: "Nome",
+            header: "Colaborador",
             className: "w-[26%] text-left",
             cell: (r) => (
               <p

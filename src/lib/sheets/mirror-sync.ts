@@ -4,7 +4,7 @@
  * Sheet ID: somente via ALTERDATA_MIRROR_SHEET_ID (nunca hardcode em produção).
  */
 import { createHash } from "node:crypto";
-import { and, desc, eq, isNull, like } from "drizzle-orm";
+import { and, desc, eq, isNull, like, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   asoAlterdataSnapshots,
@@ -685,6 +685,273 @@ export async function syncAlterdataMirror(options?: {
     updated,
     skipped,
     errors,
+    batchId: batch.id,
+    headers,
+  };
+}
+
+export type AsoSnapshotSyncResult = MirrorSyncResult & {
+  snapshotsInserted: number;
+  unmatched: number;
+};
+
+/**
+ * Sync rápido para o painel de ASOs: lê o espelho e grava somente snapshots
+ * de Proximo_aso / Status_ASO. Não upserta cadastro de colaboradores.
+ */
+export async function syncAlterdataAsoSnapshots(options?: {
+  user?: SessionUser | null;
+}): Promise<AsoSnapshotSyncResult> {
+  const db = getDb();
+
+  const [running] = await db
+    .select({ id: importBatches.id })
+    .from(importBatches)
+    .where(
+      and(
+        eq(importBatches.status, "RUNNING"),
+        like(importBatches.sourceName, "mirror%"),
+      ),
+    )
+    .limit(1);
+
+  if (running) {
+    return {
+      ok: false,
+      error:
+        "Já existe uma sincronização do espelho em andamento. Aguarde o término.",
+      totalRows: 0,
+      imported: 0,
+      updated: 0,
+      skipped: 0,
+      errors: 0,
+      snapshotsInserted: 0,
+      unmatched: 0,
+      batchId: running.id,
+    };
+  }
+
+  const csv = await fetchMirrorCsv();
+  const { headers, rows } = parseCsv(csv);
+  if (!rows.length) {
+    return {
+      ok: false,
+      error: "Espelho sem linhas úteis.",
+      totalRows: 0,
+      imported: 0,
+      updated: 0,
+      skipped: 0,
+      errors: 0,
+      snapshotsInserted: 0,
+      unmatched: 0,
+      headers,
+    };
+  }
+
+  const fileHash = createHash("sha256").update(csv).digest("hex");
+  const [batch] = await db
+    .insert(importBatches)
+    .values({
+      sourceName: `mirror-aso:${mirrorSheetId()}`,
+      status: "RUNNING",
+      totalRows: rows.length,
+      reportSummary: `sourceHash=${fileHash};mode=ASO_SNAPSHOTS_ONLY`,
+      createdBy: options?.user?.id,
+      updatedBy: options?.user?.id,
+    })
+    .returning();
+
+  const empRows = await db
+    .select({
+      id: employees.id,
+      registration: employees.registration,
+      regionId: employees.regionId,
+      unitId: employees.unitId,
+    })
+    .from(employees)
+    .where(isNull(employees.deletedAt));
+
+  const byReg = new Map<
+    string,
+    {
+      id: string;
+      registration: string;
+      regionId: string | null;
+      unitId: string | null;
+    }
+  >();
+  for (const emp of empRows) {
+    const reg = emp.registration.trim();
+    byReg.set(reg, emp);
+    if (/^\d+$/.test(reg)) {
+      byReg.set(reg.padStart(5, "0"), emp);
+      const unpadded = reg.replace(/^0+/, "") || "0";
+      byReg.set(unpadded, emp);
+    }
+  }
+
+  const latestRaw = await db.execute(sql`
+    SELECT DISTINCT ON (employee_id)
+      employee_id,
+      next_aso_date,
+      status_aso
+    FROM occupational.aso_alterdata_snapshots
+    ORDER BY employee_id, synced_at DESC
+  `);
+  const latestList = (
+    Array.isArray(latestRaw)
+      ? latestRaw
+      : ((latestRaw as { rows?: unknown[] }).rows ?? [])
+  ) as Array<{
+    employee_id: string;
+    next_aso_date: string | null;
+    status_aso: string | null;
+  }>;
+
+  const latestByEmployee = new Map<
+    string,
+    { nextAsoDate: string | null; statusAso: string | null }
+  >();
+  for (const row of latestList) {
+    latestByEmployee.set(row.employee_id, {
+      nextAsoDate: row.next_aso_date,
+      statusAso: row.status_aso,
+    });
+  }
+
+  const syncedAt = new Date();
+  let skipped = 0;
+  let unmatched = 0;
+  let errors = 0;
+  const pendingInserts: (typeof asoAlterdataSnapshots.$inferInsert)[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    try {
+      const registration = cell(
+        row,
+        "CdChamada",
+        "Matrícula",
+        "Funcionário",
+      ).trim();
+      if (!registration) {
+        skipped += 1;
+        continue;
+      }
+
+      const emp = byReg.get(registration)
+        ?? (/^\d+$/.test(registration)
+          ? byReg.get(registration.padStart(5, "0"))
+            ?? byReg.get(registration.replace(/^0+/, "") || "0")
+          : undefined);
+
+      if (!emp) {
+        unmatched += 1;
+        continue;
+      }
+
+      const nextAsoDate = toDate(
+        cell(row, "Proximo_aso", "Data Proximo ASO", "Proximo ASO"),
+      );
+      const lastAsoDate = toDate(
+        cell(row, "Data_Atestado", "Data_Atestado_(2026)", "Data Atestado"),
+      );
+      const statusAso = cell(row, "Status_ASO") || null;
+      const periodicityMonths = parsePeriodicityMonths(
+        cell(row, "Periodicidade"),
+      );
+
+      const latest = latestByEmployee.get(emp.id);
+      if (
+        latest &&
+        latest.nextAsoDate === nextAsoDate &&
+        (latest.statusAso || null) === statusAso
+      ) {
+        skipped += 1;
+        continue;
+      }
+
+      pendingInserts.push({
+        employeeId: emp.id,
+        registration: emp.registration,
+        nextAsoDate,
+        lastAsoDate,
+        statusAso,
+        periodicityMonths,
+        regionId: emp.regionId,
+        unitId: emp.unitId,
+        syncedAt,
+        batchId: batch.id,
+        sourceHash: fileHash,
+        sourceRef: "ALTERDATA_MIRROR:Proximo_aso",
+      });
+      latestByEmployee.set(emp.id, { nextAsoDate, statusAso });
+    } catch (err) {
+      errors += 1;
+      await db.insert(importErrors).values({
+        batchId: batch.id,
+        rowNumber: i + 2,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  const CHUNK = 250;
+  for (let i = 0; i < pendingInserts.length; i += CHUNK) {
+    const chunk = pendingInserts.slice(i, i + CHUNK);
+    await db.insert(asoAlterdataSnapshots).values(chunk);
+  }
+
+  const snapshotsInserted = pendingInserts.length;
+  const finishedAt = new Date().toISOString();
+  await db
+    .update(importBatches)
+    .set({
+      status: errors ? "COMPLETED_WITH_ERRORS" : "COMPLETED",
+      importedRows: snapshotsInserted,
+      updatedRows: 0,
+      skippedRows: skipped,
+      errorRows: errors,
+      reportSummary: JSON.stringify({
+        fileHash,
+        sheetId: mirrorSheetId(),
+        mode: "ASO_SNAPSHOTS_ONLY",
+        finishedAt,
+        headers,
+        snapshotsInserted,
+        skipped,
+        unmatched,
+        errors,
+        origin: "ALTERDATA_MIRROR",
+      }),
+      updatedBy: options?.user?.id ?? null,
+    })
+    .where(eq(importBatches.id, batch.id));
+
+  await writeAuditLog({
+    user: options?.user,
+    action: "SYNC_MIRROR",
+    entityType: "aso_alterdata_snapshots",
+    entityId: batch.id,
+    metadata: {
+      mode: "ASO_SNAPSHOTS_ONLY",
+      snapshotsInserted,
+      skipped,
+      unmatched,
+      errors,
+      source: "aso_panel",
+    },
+  });
+
+  return {
+    ok: true,
+    totalRows: rows.length,
+    imported: snapshotsInserted,
+    updated: 0,
+    skipped,
+    errors,
+    snapshotsInserted,
+    unmatched,
     batchId: batch.id,
     headers,
   };
