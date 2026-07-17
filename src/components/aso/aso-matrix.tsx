@@ -33,18 +33,8 @@ type Selection = {
   unitId: string | null;
 };
 
-/** Dados normais neutros; cor só em atenção/abaixo da meta. */
-const TONE_CLASSES: Record<AsoMatrixCell["tone"], string> = {
-  ok: "bg-transparent text-foreground hover:bg-muted/60",
-  near: "bg-transparent text-[color:var(--warning)] hover:bg-amber-500/10",
-  below: "bg-transparent text-[color:var(--danger)] hover:bg-red-500/10",
-  empty: "bg-transparent text-muted-foreground hover:bg-muted/50",
-  future: "bg-muted/40 text-muted-foreground hover:bg-muted/60",
-  neutral: "bg-transparent text-foreground/80 hover:bg-muted/50",
-};
-
 function cellLabel(cell: AsoMatrixCell): string {
-  if (cell.tone === "future") return "Planejado";
+  if (cell.tone === "future") return "—";
   if (!cell.elegiveis) return "—";
   if (cell.percent == null) return "—";
   return formatAdherencePercent(cell.percent, {
@@ -54,7 +44,7 @@ function cellLabel(cell: AsoMatrixCell): string {
 }
 
 function cellSub(cell: AsoMatrixCell): string {
-  if (cell.tone === "future") return "·";
+  if (cell.tone === "future") return "Planejado";
   if (!cell.elegiveis) return "sem prev.";
   return `${cell.realizados}/${cell.elegiveis}`;
 }
@@ -91,6 +81,20 @@ function resolveInitialSelection(
   };
 }
 
+function toneText(tone: AsoMatrixCell["tone"]) {
+  switch (tone) {
+    case "near":
+      return "text-amber-700";
+    case "below":
+      return "text-red-700";
+    case "future":
+    case "empty":
+      return "text-slate-400";
+    default:
+      return "text-slate-800";
+  }
+}
+
 export function AsoMatrix({
   rows,
   activeMonth,
@@ -103,7 +107,6 @@ export function AsoMatrix({
   activeMonth: number;
   activeKey?: string;
   current: Record<string, string | number | undefined>;
-  /** Unidades disponíveis no filtro (quando regional sem unidade). */
   unitCount?: number;
   unitSelected?: boolean;
 }) {
@@ -120,7 +123,7 @@ export function AsoMatrix({
 
   if (!rows.length) {
     return (
-      <div className="flex min-h-[120px] items-center justify-center rounded-lg border border-dashed border-border bg-card text-[13px] text-muted-foreground">
+      <div className="flex min-h-[140px] items-center justify-center rounded-xl border border-dashed border-border bg-card text-[13px] text-muted-foreground">
         Sem dados de planejamento para o período. Gere o planejamento anual.
       </div>
     );
@@ -147,139 +150,166 @@ export function AsoMatrix({
     selection.month === activeMonth &&
     selection.rowKey === (activeKey ?? rows[0]?.key);
 
+  const selectedPct =
+    selectedCell && selectedCell.elegiveis > 0 && selectedCell.percent != null
+      ? formatAdherencePercent(selectedCell.percent, {
+          realizados: selectedCell.realizados,
+          elegiveis: selectedCell.elegiveis,
+        })
+      : null;
+
   return (
-    <div className="app-surface mb-3 w-full overflow-hidden">
-      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border-subtle px-3 py-2">
+    <section className="app-surface mb-4 overflow-hidden">
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
         <div className="min-w-0">
-          <h3 className="text-[13px] font-semibold text-foreground">
+          <h3 className="text-[15px] font-semibold tracking-tight text-slate-900">
             Matriz anual
           </h3>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="mt-1 max-w-xl text-[12.5px] leading-relaxed text-slate-500">
             {unitSelected
-              ? "Detalhe da unidade selecionada. Clique na célula e use Abrir competência."
+              ? "Detalhe da unidade. Clique numa célula e abra a competência."
               : unitCount > 1
-                ? `Consolidado da regional · ${unitCount} unidades. Selecione uma unidade no filtro para ver o detalhe.`
-                : "Clique para selecionar. Use Abrir competência para filtrar a página."}
+                ? `Consolidado da regional · ${unitCount} unidades. Filtre por unidade para o detalhe.`
+                : "Clique numa célula para selecionar a competência."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setCollapsed((v) => !v)}
-            className="rounded-md border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
+            className="h-8 rounded-lg border border-border bg-white px-3 text-[12px] font-medium text-slate-600 transition-colors hover:bg-slate-50"
           >
-            {collapsed ? "Expandir matriz" : "Recolher matriz"}
+            {collapsed ? "Expandir" : "Recolher"}
           </button>
           {openHref && selection ? (
             <Link
               href={openHref}
               className={cn(
-                "rounded-md px-2.5 py-1 text-[12px] font-semibold transition-colors",
+                "inline-flex h-8 items-center rounded-lg px-3.5 text-[12px] font-semibold transition-colors",
                 appliedMatches
-                  ? "border border-border bg-card text-foreground"
+                  ? "border border-emerald-200 bg-emerald-50 text-emerald-800"
                   : "bg-primary text-primary-foreground hover:bg-primary-hover",
               )}
             >
               {appliedMatches
-                ? `Competência aberta · ${MONTH_LABELS[selection.month - 1]}`
-                : `Abrir ${MONTH_NAMES[selection.month - 1]} · ${selection.label}`}
+                ? `Aberta · ${MONTH_LABELS[selection.month - 1]}`
+                : `Abrir ${MONTH_NAMES[selection.month - 1]}`}
             </Link>
           ) : null}
         </div>
       </div>
 
+      {/* Selection summary */}
       {selection && selectedCell ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border-subtle bg-muted/80 px-3 py-1.5 text-[11px] text-muted-foreground">
-          <span>
-            Selecionado:{" "}
-            <strong className="font-semibold text-foreground">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-border-subtle bg-gradient-to-r from-slate-50 to-white px-5 py-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold tracking-[0.08em] text-slate-400 uppercase">
+              Seleção
+            </p>
+            <p className="mt-0.5 text-[13px] font-semibold text-slate-900">
               {selection.label}
-            </strong>{" "}
-            · {MONTH_NAMES[selection.month - 1]}
-          </span>
-          <span className="tabular-nums text-muted-foreground">
-            {cellTitle(selectedCell)}
-          </span>
+              <span className="font-normal text-slate-400"> · </span>
+              {MONTH_NAMES[selection.month - 1]}
+            </p>
+          </div>
+          {selectedPct ? (
+            <div className="flex items-baseline gap-3">
+              <span
+                className={cn(
+                  "text-[22px] font-semibold tracking-tight tabular-nums",
+                  toneText(selectedCell.tone),
+                )}
+              >
+                {selectedPct}
+              </span>
+              <span className="text-[12px] tabular-nums text-slate-500">
+                {selectedCell.realizados}
+                <span className="text-slate-300"> / </span>
+                {selectedCell.elegiveis}
+                {selectedCell.meta != null ? (
+                  <span className="ml-2 text-slate-400">
+                    meta {selectedCell.meta}%
+                  </span>
+                ) : null}
+              </span>
+            </div>
+          ) : (
+            <p className="text-[12.5px] text-slate-500">
+              {cellTitle(selectedCell)}
+            </p>
+          )}
         </div>
       ) : null}
 
       {!unitSelected && unitCount > 1 ? (
-        <div className="border-b border-border bg-muted/60 px-3 py-1.5 text-[11px] text-muted-foreground">
-          Para ver a matriz por unidade, escolha a <strong className="text-foreground">Unidade</strong> no
-          filtro acima. Aqui fica só o consolidado da regional — sem lista
-          interminável.
+        <div className="border-b border-border-subtle bg-amber-50/60 px-5 py-2.5 text-[12px] text-amber-900/80">
+          Para ver por unidade, escolha a{" "}
+          <strong className="font-semibold">Unidade</strong> no filtro. Aqui
+          fica só o consolidado da regional.
         </div>
       ) : null}
 
       {!collapsed ? (
-        <table className="app-data-table">
-          <colgroup>
-            <col className="w-[148px]" />
-            {MONTH_LABELS.map((label) => (
-              <col key={label} />
-            ))}
-          </colgroup>
-          <thead>
-            <tr>
-              <th className="sticky left-0 z-10 bg-[#f8fafc] text-left">
-                Escopo
-              </th>
-              {MONTH_LABELS.map((label, idx) => {
-                const month = idx + 1;
-                const headerSelected = selection?.month === month;
-                return (
-                  <th
-                    key={label}
-                    className={cn(
-                      "text-center",
-                      headerSelected ? "bg-muted text-foreground" : "",
-                    )}
-                  >
-                    <button
-                      type="button"
-                      className="w-full !px-0.5 !py-0.5 !text-[10px] !font-semibold hover:text-foreground"
-                      title={`Selecionar ${MONTH_NAMES[idx]} no escopo atual`}
-                      onClick={() => {
-                        const base =
-                          rows.find((r) => r.key === selection?.rowKey) ??
-                          rows.find((r) => r.key === activeKey) ??
-                          rows[0];
-                        setSelection({
-                          rowKey: base.key,
-                          label: base.label,
-                          month,
-                          regionId: base.regionId,
-                          unitId: base.unitId,
-                        });
-                      }}
-                    >
-                      {label}
-                    </button>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
+        <div className="overflow-x-auto p-3 sm:p-4">
+          <div
+            className="min-w-[760px]"
+            style={{
+              display: "grid",
+              gridTemplateColumns: `132px repeat(${MONTH_LABELS.length}, minmax(52px, 1fr))`,
+              gap: "4px",
+            }}
+          >
+            {/* Column headers */}
+            <div className="flex h-9 items-end px-2 pb-1 text-[10px] font-semibold tracking-[0.08em] text-slate-400 uppercase">
+              Escopo
+            </div>
+            {MONTH_LABELS.map((label, idx) => {
+              const month = idx + 1;
+              const headerSelected = selection?.month === month;
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  title={`Selecionar ${MONTH_NAMES[idx]}`}
+                  onClick={() => {
+                    const base =
+                      rows.find((r) => r.key === selection?.rowKey) ??
+                      rows.find((r) => r.key === activeKey) ??
+                      rows[0];
+                    setSelection({
+                      rowKey: base.key,
+                      label: base.label,
+                      month,
+                      regionId: base.regionId,
+                      unitId: base.unitId,
+                    });
+                  }}
+                  className={cn(
+                    "flex h-9 items-end justify-center rounded-t-md pb-1.5 text-[11px] font-semibold tracking-wide transition-colors",
+                    headerSelected
+                      ? "bg-emerald-50 text-emerald-800"
+                      : "text-slate-400 hover:bg-slate-50 hover:text-slate-700",
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
+
+            {/* Rows */}
             {rows.map((row) => {
               const rowSelected = selection?.rowKey === row.key;
               return (
-                <tr
-                  key={row.key}
-                  className={cn(
-                    row.cadastralAlert
-                      ? "bg-amber-50/40"
-                      : "",
-                  )}
-                >
-                  <td
+                <div key={row.key} className="contents">
+                  <div
                     className={cn(
-                      "sticky left-0 z-10 max-w-[148px] truncate bg-card",
-                      "app-table-emphasis text-foreground/80",
-                      rowSelected ? "bg-muted" : "",
+                      "flex items-center rounded-lg px-3 text-[12.5px] font-semibold tracking-tight",
                       row.cadastralAlert
-                        ? "text-[color:var(--warning)]"
-                        : "",
+                        ? "bg-amber-50 text-amber-800"
+                        : rowSelected
+                          ? "bg-emerald-50/80 text-emerald-900"
+                          : "bg-slate-50 text-slate-700",
                     )}
                     title={
                       row.cadastralAlert
@@ -287,8 +317,9 @@ export function AsoMatrix({
                         : row.label
                     }
                   >
-                    {row.label}
-                  </td>
+                    <span className="truncate">{row.label}</span>
+                  </div>
+
                   {row.cells.map((cell) => {
                     const isSelected =
                       selection?.rowKey === row.key &&
@@ -296,54 +327,73 @@ export function AsoMatrix({
                     const isApplied =
                       activeMonth === cell.month &&
                       (activeKey ?? rows[0]?.key) === row.key;
+                    const isFuture = cell.tone === "future";
+                    const colSelected = selection?.month === cell.month;
+
                     return (
-                      <td key={cell.month} className="!p-0.5 text-center">
-                        <button
-                          type="button"
-                          title={cellTitle(cell)}
-                          onClick={() =>
-                            setSelection({
-                              rowKey: row.key,
-                              label: row.label,
-                              month: cell.month,
-                              regionId: row.regionId,
-                              unitId: row.unitId,
-                            })
-                          }
+                      <button
+                        key={cell.month}
+                        type="button"
+                        title={cellTitle(cell)}
+                        onClick={() =>
+                          setSelection({
+                            rowKey: row.key,
+                            label: row.label,
+                            month: cell.month,
+                            regionId: row.regionId,
+                            unitId: row.unitId,
+                          })
+                        }
+                        className={cn(
+                          "group relative flex h-[52px] flex-col items-center justify-center rounded-lg px-1 transition-all duration-150",
+                          isFuture
+                            ? "bg-slate-50/80 text-slate-400"
+                            : colSelected && !isSelected
+                              ? "bg-emerald-50/40"
+                              : "bg-white hover:bg-slate-50",
+                          isSelected &&
+                            "bg-emerald-50 ring-2 ring-emerald-500/35 ring-offset-1 ring-offset-white",
+                          isApplied &&
+                            !isSelected &&
+                            "ring-1 ring-emerald-400/40",
+                        )}
+                      >
+                        <span
                           className={cn(
-                            "flex h-[40px] w-full flex-col items-center justify-center rounded !px-0.5 leading-none transition-colors",
-                            TONE_CLASSES[cell.tone],
-                            isSelected
-                              ? "bg-primary-soft/80 outline outline-1 outline-primary/50"
-                              : isApplied
-                                ? "outline outline-1 outline-primary/35"
-                                : "",
+                            "text-[12.5px] font-semibold tabular-nums leading-none tracking-tight",
+                            isFuture
+                              ? "text-slate-300"
+                              : toneText(cell.tone),
                           )}
                         >
-                          <span className="app-table-num text-[11px] font-semibold">
-                            {cellLabel(cell)}
-                          </span>
-                          <span className="app-table-meta mt-0.5 opacity-75">
-                            {cellSub(cell)}
-                          </span>
-                        </button>
-                      </td>
+                          {cellLabel(cell)}
+                        </span>
+                        <span
+                          className={cn(
+                            "mt-1 text-[9.5px] leading-none tabular-nums",
+                            isFuture
+                              ? "font-medium tracking-wide text-slate-300 uppercase"
+                              : "text-slate-400",
+                          )}
+                        >
+                          {cellSub(cell)}
+                        </span>
+                      </button>
                     );
                   })}
-                </tr>
+                </div>
               );
             })}
-          </tbody>
-        </table>
+          </div>
+        </div>
       ) : (
-        <div className="px-3 py-2 text-[12px] text-muted-foreground">
+        <div className="px-5 py-4 text-[13px] text-slate-500">
           Matriz recolhida
           {selection
-            ? ` · seleção: ${selection.label} · ${MONTH_NAMES[selection.month - 1]}`
+            ? ` · ${selection.label} · ${MONTH_NAMES[selection.month - 1]}`
             : ""}
-          .
         </div>
       )}
-    </div>
+    </section>
   );
 }

@@ -18,7 +18,7 @@ export async function syncAlterdataMirrorAction(): Promise<MirrorSyncState> {
       return { error: result.error ?? "Falha na sincronização." };
     }
     revalidatePath("/colaboradores");
-    revalidatePath("/importacoes");
+    revalidatePath("/administracao");
     revalidatePath("/dashboard");
     return {
       ok: true,
