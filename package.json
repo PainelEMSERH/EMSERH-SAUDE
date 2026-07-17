@@ -14,6 +14,7 @@
     "import:employees": "tsx scripts/import-employees.ts",
     "import:occupational": "tsx scripts/import-occupational-data.ts",
     "import:indicators": "tsx scripts/import-indicator-definitions.ts",
+    "sync:mirror": "tsx scripts/sync-alterdata-mirror.ts",
     "create:admin": "tsx scripts/create-admin.ts"
   },
   "dependencies": {
