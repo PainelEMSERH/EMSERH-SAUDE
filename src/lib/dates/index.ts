@@ -56,6 +56,11 @@ export function formatDateBR(
   value: Date | string | null | undefined,
 ): string {
   if (!value) return "—";
+  // Date-only ISO: formata calendário sem deslocar fuso (evita dia-1 em BRT).
+  if (typeof value === "string") {
+    const m = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  }
   const date = typeof value === "string" ? parseISO(value) : value;
   if (Number.isNaN(date.getTime())) return "—";
   return format(date, "dd/MM/yyyy", { locale: ptBR });

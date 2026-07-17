@@ -12,6 +12,7 @@ import {
 import { getDb } from "@/db";
 import {
   appointments,
+  asoAlterdataSnapshots,
   asoRecords,
   biologicalAccidents,
   employeeVaccinations,
@@ -29,6 +30,7 @@ import {
   resolveLeaveTab,
   type LeaveTabValue,
 } from "@/lib/leaves/constants";
+import { resolveLeaveReturnInfo } from "@/lib/leaves/status";
 import {
   employeeScopeCondition,
   parsePage,
@@ -194,7 +196,10 @@ export type LeaveListRow = {
   startDate: string;
   endDate: string | null;
   daysCount: number | null;
+  /** Status persistido no banco. */
   status: string;
+  /** Status operacional (período encerrado / retorno ASO). */
+  displayStatus: "ATIVO" | "ENCERRADO";
   cidCode: string | null;
   reasonSimplified: string | null;
   reason: string | null;
@@ -202,6 +207,10 @@ export type LeaveListRow = {
   actualReturnDate: string | null;
   requiresReturnAso: boolean;
   notes: string | null;
+  lastAsoDate: string | null;
+  returnLabel: string;
+  returnTone: "ok" | "warn" | "danger" | "muted";
+  returnDone: boolean;
 };
 
 export type LeavesMetrics = {
@@ -261,9 +270,21 @@ export async function listLeaves(
 
   const listWhere = and(
     baseWhere,
-    params.status && params.status !== "ALL"
-      ? eq(leaveRecords.status, params.status)
-      : undefined,
+    params.status === "ATIVO"
+      ? and(
+          eq(leaveRecords.status, "ATIVO"),
+          sql`(${leaveRecords.endDate} is null or ${leaveRecords.endDate}::date >= current_date)`,
+          isNull(leaveRecords.actualReturnDate),
+        )
+      : params.status === "ENCERRADO"
+        ? or(
+            eq(leaveRecords.status, "ENCERRADO"),
+            sql`${leaveRecords.endDate} is not null and ${leaveRecords.endDate}::date < current_date`,
+            sql`${leaveRecords.actualReturnDate} is not null`,
+          )
+        : params.status && params.status !== "ALL"
+          ? eq(leaveRecords.status, params.status)
+          : undefined,
     params.returnPending === "1"
       ? and(
           or(
@@ -271,7 +292,7 @@ export async function listLeaves(
             sql`${leaveRecords.leaveType} like '01%'`,
           ),
           isNull(leaveRecords.actualReturnDate),
-          eq(leaveRecords.status, "ATIVO"),
+          sql`${leaveRecords.endDate} is not null and ${leaveRecords.endDate}::date < current_date`,
         )
       : undefined,
   );
@@ -285,19 +306,24 @@ export async function listLeaves(
   const [metricsRow] = await db
     .select({
       total: count(),
-      ativos: sql<number>`count(*) filter (where ${leaveRecords.status} = 'ATIVO')`.mapWith(
-        Number,
-      ),
-      encerrados: sql<number>`count(*) filter (where ${leaveRecords.status} = 'ENCERRADO')`.mapWith(
-        Number,
-      ),
+      ativos: sql<number>`count(*) filter (
+        where ${leaveRecords.status} = 'ATIVO'
+          and (${leaveRecords.endDate} is null or ${leaveRecords.endDate}::date >= current_date)
+          and ${leaveRecords.actualReturnDate} is null
+      )`.mapWith(Number),
+      encerrados: sql<number>`count(*) filter (
+        where ${leaveRecords.status} = 'ENCERRADO'
+          or (${leaveRecords.endDate} is not null and ${leaveRecords.endDate}::date < current_date)
+          or ${leaveRecords.actualReturnDate} is not null
+      )`.mapWith(Number),
       retornoPendente: sql<number>`count(*) filter (
         where (
           ${leaveRecords.requiresReturnAso} = true
           or ${leaveRecords.leaveType} like '01%'
         )
           and ${leaveRecords.actualReturnDate} is null
-          and ${leaveRecords.status} = 'ATIVO'
+          and ${leaveRecords.endDate} is not null
+          and ${leaveRecords.endDate}::date < current_date
       )`.mapWith(Number),
       doenca: sql<number>`count(*) filter (
         where ${leaveRecords.leaveType} = '01 - Afast. por motivo de doen'
@@ -314,9 +340,14 @@ export async function listLeaves(
       diasAtivos: sql<number>`coalesce(
         sum(
           case
-            when ${leaveRecords.status} = 'ATIVO' and ${leaveRecords.daysCount} is not null
+            when ${leaveRecords.status} = 'ATIVO'
+              and (${leaveRecords.endDate} is null or ${leaveRecords.endDate}::date >= current_date)
+              and ${leaveRecords.actualReturnDate} is null
+              and ${leaveRecords.daysCount} is not null
               then ${leaveRecords.daysCount}
             when ${leaveRecords.status} = 'ATIVO'
+              and (${leaveRecords.endDate} is null or ${leaveRecords.endDate}::date >= current_date)
+              and ${leaveRecords.actualReturnDate} is null
               and ${leaveRecords.startDate} is not null
               and ${leaveRecords.endDate} is not null
               then (${leaveRecords.endDate}::date - ${leaveRecords.startDate}::date) + 1
@@ -400,14 +431,50 @@ export async function listLeaves(
     ALL: tabCountsRow?.ALL ?? 0,
   };
 
+  const regs = [...new Set(rows.map((r) => r.registration))];
+  const snapByReg = new Map<string, string | null>();
+  if (regs.length) {
+    const snapRows = await db
+      .select({
+        registration: asoAlterdataSnapshots.registration,
+        lastAsoDate: asoAlterdataSnapshots.lastAsoDate,
+        syncedAt: asoAlterdataSnapshots.syncedAt,
+      })
+      .from(asoAlterdataSnapshots)
+      .where(inArray(asoAlterdataSnapshots.registration, regs))
+      .orderBy(desc(asoAlterdataSnapshots.syncedAt));
+    for (const s of snapRows) {
+      if (snapByReg.has(s.registration)) continue;
+      snapByReg.set(
+        s.registration,
+        s.lastAsoDate ? String(s.lastAsoDate).slice(0, 10) : null,
+      );
+    }
+  }
+
   return {
     rows: rows.map((r) => {
       const startDate = r.startDate ? String(r.startDate).slice(0, 10) : "";
       const endDate = r.endDate ? String(r.endDate).slice(0, 10) : null;
       let daysCount = r.daysCount;
       if (daysCount == null && startDate && endDate) {
-        daysCount = calcLeaveDays(new Date(startDate), new Date(endDate));
+        daysCount = calcLeaveDays(
+          new Date(`${startDate}T12:00:00`),
+          new Date(`${endDate}T12:00:00`),
+        );
       }
+      const lastAsoDate = snapByReg.get(r.registration) ?? null;
+      const info = resolveLeaveReturnInfo({
+        leaveType: r.leaveType,
+        status: r.status,
+        startDate,
+        endDate,
+        actualReturnDate: r.actualReturnDate
+          ? String(r.actualReturnDate).slice(0, 10)
+          : null,
+        requiresReturnAso: r.requiresReturnAso,
+        lastAsoDate,
+      });
       return {
         ...r,
         cidCode: includeClinical ? r.cidCode : null,
@@ -420,6 +487,11 @@ export async function listLeaves(
         actualReturnDate: r.actualReturnDate
           ? String(r.actualReturnDate).slice(0, 10)
           : null,
+        displayStatus: info.displayStatus,
+        lastAsoDate: info.lastAsoDate,
+        returnLabel: info.returnLabel,
+        returnTone: info.returnTone,
+        returnDone: info.returnDone,
       };
     }) satisfies LeaveListRow[],
     metrics,

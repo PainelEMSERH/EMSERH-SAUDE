@@ -22,7 +22,7 @@ import {
   humanizeLabel,
   initialsFromName,
 } from "@/lib/labels";
-import { leaveRequiresReturnAso, leaveTypeLabel } from "@/lib/leaves/constants";
+import { leaveTypeLabel } from "@/lib/leaves/constants";
 import { cn } from "@/lib/utils";
 
 function toneForLeaveStatus(status: string): "ok" | "warn" | "muted" {
@@ -165,11 +165,7 @@ export function LeavesTable({
 
   const returnHint = useMemo(() => {
     if (!selected) return "—";
-    const needs =
-      selected.requiresReturnAso || leaveRequiresReturnAso(selected.leaveType);
-    if (!needs) return "Não exigido";
-    if (selected.actualReturnDate) return "Retorno registrado";
-    return "Pendente";
+    return selected.returnLabel === "—" ? "Não exigido" : selected.returnLabel;
   }, [selected]);
 
   return (
@@ -183,22 +179,18 @@ export function LeavesTable({
           <table className="w-full min-w-[860px] border-collapse text-left text-[13px]">
             <thead className="sticky top-0 z-[1] bg-slate-50 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
               <tr className="border-b border-slate-200">
-                <th className="px-3 py-2.5 font-semibold">Colaborador</th>
-                <th className="px-3 py-2.5 font-semibold">Tipo</th>
-                <th className="px-3 py-2.5 font-semibold">Período</th>
-                <th className="px-3 py-2.5 font-semibold">Dias</th>
-                <th className="px-3 py-2.5 font-semibold">Unidade</th>
-                <th className="px-3 py-2.5 font-semibold">Status</th>
-                <th className="px-3 py-2.5 font-semibold">Retorno</th>
+                <th className="px-3 py-2.5 text-left font-semibold">Colaborador</th>
+                <th className="px-3 py-2.5 text-center font-semibold">Tipo</th>
+                <th className="px-3 py-2.5 text-center font-semibold">Período</th>
+                <th className="px-3 py-2.5 text-center font-semibold">Dias</th>
+                <th className="px-3 py-2.5 text-left font-semibold">Unidade</th>
+                <th className="px-3 py-2.5 text-center font-semibold">Status</th>
+                <th className="px-3 py-2.5 text-center font-semibold">Retorno</th>
                 <th className="w-8 px-2 py-2.5" aria-hidden />
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => {
-                const needsReturn =
-                  r.requiresReturnAso || leaveRequiresReturnAso(r.leaveType);
-                const pendingReturn =
-                  needsReturn && !r.actualReturnDate && r.status === "ATIVO";
                 return (
                   <tr
                     key={r.id}
@@ -214,7 +206,7 @@ export function LeavesTable({
                       }
                     }}
                   >
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-left">
                       <p className="font-medium text-slate-900 capitalize">
                         {r.fullName.toLocaleLowerCase("pt-BR")}
                       </p>
@@ -222,36 +214,43 @@ export function LeavesTable({
                         {formatRegistrationDisplay(r.registration)}
                       </p>
                     </td>
-                    <td className="px-3 py-2.5">
-                      <StatusBadge
-                        label={leaveTypeLabel(r.leaveType)}
-                        tone={toneForLeaveType(r.leaveType)}
-                      />
+                    <td className="px-3 py-2.5 text-center">
+                      <div className="flex justify-center">
+                        <StatusBadge
+                          label={leaveTypeLabel(r.leaveType)}
+                          tone={toneForLeaveType(r.leaveType)}
+                        />
+                      </div>
                     </td>
-                    <td className="px-3 py-2.5 tabular-nums text-slate-700">
+                    <td className="px-3 py-2.5 text-center tabular-nums text-slate-700">
                       {formatDateBR(r.startDate)}
                       <span className="mx-1 text-slate-300">→</span>
                       {formatDateBR(r.endDate)}
                     </td>
-                    <td className="px-3 py-2.5 tabular-nums text-slate-700">
+                    <td className="px-3 py-2.5 text-center tabular-nums text-slate-700">
                       {r.daysCount ?? "—"}
                     </td>
-                    <td className="max-w-[200px] truncate px-3 py-2.5 text-slate-600">
+                    <td className="max-w-[200px] truncate px-3 py-2.5 text-left text-slate-600">
                       {formatUnitDisplayName(r.unitName)}
                     </td>
-                    <td className="px-3 py-2.5">
-                      <StatusBadge
-                        label={humanizeLabel(r.status)}
-                        tone={toneForLeaveStatus(r.status)}
-                      />
+                    <td className="px-3 py-2.5 text-center">
+                      <div className="flex justify-center">
+                        <StatusBadge
+                          label={humanizeLabel(r.displayStatus)}
+                          tone={toneForLeaveStatus(r.displayStatus)}
+                        />
+                      </div>
                     </td>
-                    <td className="px-3 py-2.5">
-                      {pendingReturn ? (
-                        <StatusBadge label="ASO pendente" tone="danger" />
-                      ) : needsReturn ? (
-                        <span className="text-[12px] text-slate-500">Ok</span>
-                      ) : (
+                    <td className="px-3 py-2.5 text-center">
+                      {r.returnLabel === "—" ? (
                         <span className="text-[12px] text-slate-400">—</span>
+                      ) : (
+                        <div className="flex justify-center">
+                          <StatusBadge
+                            label={r.returnLabel}
+                            tone={r.returnTone}
+                          />
+                        </div>
                       )}
                     </td>
                     <td className="px-2 py-2.5 text-slate-400">
@@ -295,17 +294,18 @@ export function LeavesTable({
                     </SheetDescription>
                     <div className="mt-2.5 flex flex-wrap gap-1.5">
                       <StatusBadge
-                        label={humanizeLabel(selected.status)}
-                        tone={toneForLeaveStatus(selected.status)}
+                        label={humanizeLabel(selected.displayStatus)}
+                        tone={toneForLeaveStatus(selected.displayStatus)}
                       />
                       <StatusBadge
                         label={leaveTypeLabel(selected.leaveType)}
                         tone={toneForLeaveType(selected.leaveType)}
                       />
-                      {leaveRequiresReturnAso(selected.leaveType) &&
-                      !selected.actualReturnDate &&
-                      selected.status === "ATIVO" ? (
-                        <StatusBadge label="Retorno ASO pendente" tone="danger" />
+                      {selected.returnLabel !== "—" ? (
+                        <StatusBadge
+                          label={selected.returnLabel}
+                          tone={selected.returnTone}
+                        />
                       ) : null}
                     </div>
                   </div>
@@ -355,7 +355,12 @@ export function LeavesTable({
                 </DetailSection>
 
                 <DetailSection title="Retorno ao trabalho">
-                  <DetailRow label="Exige ASO de retorno" value={returnHint} />
+                  <DetailRow label="Situação" value={returnHint} />
+                  <DetailRow
+                    label="Último ASO (Alterdata)"
+                    value={formatDateBR(selected.lastAsoDate)}
+                    mono
+                  />
                   <DetailRow
                     label="Retorno previsto"
                     value={formatDateBR(selected.expectedReturnDate)}
@@ -368,7 +373,7 @@ export function LeavesTable({
                   />
                 </DetailSection>
 
-                {canUpdate && selected.status === "ATIVO" ? (
+                {canUpdate && selected.displayStatus === "ATIVO" ? (
                   <CloseLeaveForm
                     leaveId={selected.id}
                     defaultEnd={selected.endDate}
