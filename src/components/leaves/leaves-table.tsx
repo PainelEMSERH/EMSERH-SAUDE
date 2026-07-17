@@ -176,7 +176,17 @@ export function LeavesTable({
       </div>
       <div className="rounded-lg border border-slate-200 bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] border-collapse text-left text-[13px]">
+          <table className="w-full min-w-[960px] table-fixed border-collapse text-left text-[11px]">
+            <colgroup>
+              <col className="w-[22%]" />
+              <col className="w-[13%]" />
+              <col className="w-[18%]" />
+              <col className="w-[7%]" />
+              <col className="w-[18%]" />
+              <col className="w-[10%]" />
+              <col className="w-[9%]" />
+              <col className="w-[3%]" />
+            </colgroup>
             <thead className="sticky top-0 z-[1] bg-slate-50 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
               <tr className="border-b border-slate-200">
                 <th className="px-3 py-2.5 text-left font-semibold">Colaborador</th>
@@ -186,7 +196,7 @@ export function LeavesTable({
                 <th className="px-3 py-2.5 text-left font-semibold">Unidade</th>
                 <th className="px-3 py-2.5 text-center font-semibold">Status</th>
                 <th className="px-3 py-2.5 text-center font-semibold">Retorno</th>
-                <th className="w-8 px-2 py-2.5" aria-hidden />
+                <th className="px-2 py-2.5" aria-hidden />
               </tr>
             </thead>
             <tbody>
@@ -207,7 +217,7 @@ export function LeavesTable({
                     }}
                   >
                     <td className="px-3 py-2.5 text-left">
-                      <p className="font-medium text-slate-900 capitalize">
+                      <p className="truncate font-medium text-slate-900 capitalize">
                         {r.fullName.toLocaleLowerCase("pt-BR")}
                       </p>
                       <p className="text-[11px] tabular-nums text-teal-800">
@@ -230,7 +240,7 @@ export function LeavesTable({
                     <td className="px-3 py-2.5 text-center tabular-nums text-slate-700">
                       {r.daysCount ?? "—"}
                     </td>
-                    <td className="max-w-[200px] truncate px-3 py-2.5 text-left text-slate-600">
+                    <td className="truncate px-3 py-2.5 text-left text-slate-600">
                       {formatUnitDisplayName(r.unitName)}
                     </td>
                     <td className="px-3 py-2.5 text-center">
@@ -243,7 +253,7 @@ export function LeavesTable({
                     </td>
                     <td className="px-3 py-2.5 text-center">
                       {r.returnLabel === "—" ? (
-                        <span className="text-[12px] text-slate-400">—</span>
+                        <span className="text-slate-400">—</span>
                       ) : (
                         <div className="flex justify-center">
                           <StatusBadge
