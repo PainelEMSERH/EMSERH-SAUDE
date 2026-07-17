@@ -23,14 +23,12 @@ function Kpi({
   hint,
   tone = "default",
   href,
-  compactValue,
 }: {
   label: string;
   value: string;
   hint?: string;
   tone?: "default" | "danger" | "warn" | "ok";
   href?: string;
-  compactValue?: boolean;
 }) {
   const toneClasses = {
     default: "text-slate-900",
@@ -42,17 +40,16 @@ function Kpi({
   const body = (
     <div
       className={cn(
-        "flex h-full min-w-0 flex-col justify-center px-3 py-2.5",
+        "flex h-full min-w-0 flex-col justify-center px-2.5 py-2.5 sm:px-3",
         href ? "transition-colors hover:bg-teal-50/40" : "",
       )}
     >
-      <p className="text-[10px] font-semibold tracking-[0.06em] text-slate-500 uppercase">
+      <p className="text-[10px] font-semibold tracking-[0.05em] text-slate-500 uppercase">
         {label}
       </p>
       <p
         className={cn(
-          "mt-0.5 leading-none font-semibold tracking-tight tabular-nums",
-          compactValue ? "text-[16px]" : "text-[22px]",
+          "mt-0.5 text-[20px] leading-none font-semibold tracking-tight tabular-nums sm:text-[22px]",
           toneClasses[tone],
         )}
       >
@@ -153,17 +150,19 @@ export function AsoSummaryCards({
       ) : null}
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-        <div className="grid grid-cols-2 divide-x divide-y divide-slate-100 lg:grid-cols-4 lg:divide-y-0">
+        <div className="grid grid-cols-2 divide-x divide-y divide-slate-100 sm:grid-cols-3 lg:grid-cols-6 lg:divide-y-0">
           <Kpi
-            label="Elegíveis"
-            value={String(metrics.previstosElegiveis)}
-            hint={`${metrics.previstosBrutos} previstos brutos`}
-            href={buildAsoUrl("/asos", current, { pendingOnly: "1", page: undefined })}
+            label="Planejado"
+            value={String(metrics.previstosBrutos)}
+            hint={
+              metrics.justificados > 0
+                ? `${metrics.justificados} justificados na competência`
+                : "Previstos na competência"
+            }
           />
           <Kpi
-            label="Realizados"
+            label="Executado"
             value={String(metrics.realizados)}
-            hint={`${metrics.confirmadosAlterdata} confirmados no Alterdata`}
             tone="ok"
             href={buildAsoUrl("/asos", current, { execution: "REALIZADO", page: undefined })}
           />
@@ -173,54 +172,21 @@ export function AsoSummaryCards({
             hint={adherenceHint}
             tone={pctTone}
           />
-          {metaDefined ? (
-            <Kpi
-              label="Faltam para a meta"
-              value={String(metrics.faltamParaMeta ?? 0)}
-              hint={`Meta: ${metrics.metaPercent}%`}
-              tone={
-                metrics.faltamParaMeta != null && metrics.faltamParaMeta > 0 ? "warn" : "ok"
-              }
-            />
-          ) : (
-            <Kpi
-              label="Meta"
-              value="Não cadastrada"
-              hint="Cadastro institucional pendente"
-              compactValue
-            />
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 bg-slate-50/90 px-3 py-1.5 text-[11px]">
-          <StripItem label="Previstos brutos" value={metrics.previstosBrutos} />
-          <span className="text-slate-300" aria-hidden>
-            ·
-          </span>
-          <StripItem label="Justificados" value={metrics.justificados} tone="warn" />
-          <span className="text-slate-300" aria-hidden>
-            ·
-          </span>
-          <StripItem
+          <Kpi
             label="Não realizados"
-            value={metrics.naoRealizados}
+            value={String(metrics.naoRealizados)}
+            tone={metrics.naoRealizados > 0 ? "warn" : "default"}
             href={buildAsoUrl("/asos", current, { pendingOnly: "1", page: undefined })}
           />
-          <span className="text-slate-300" aria-hidden>
-            ·
-          </span>
-          <StripItem
-            label="Confirmados no Alterdata"
-            value={metrics.confirmadosAlterdata}
+          <Kpi
+            label="Confirmados Alterdata"
+            value={String(metrics.confirmadosAlterdata)}
             tone="ok"
           />
-          <span className="text-slate-300" aria-hidden>
-            ·
-          </span>
-          <StripItem
-            label="Pendentes no Alterdata"
-            value={metrics.pendentesAlterdata}
-            tone={metrics.pendentesAlterdata > 0 ? "warn" : "muted"}
+          <Kpi
+            label="Pendentes Alterdata"
+            value={String(metrics.pendentesAlterdata)}
+            tone={metrics.pendentesAlterdata > 0 ? "warn" : "default"}
             href={buildAsoUrl("/asos", current, {
               priority: "pendentesAlterdata",
               page: undefined,

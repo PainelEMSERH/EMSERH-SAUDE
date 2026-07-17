@@ -66,11 +66,11 @@ function cellTitle(cell: AsoMatrixCell): string {
       elegiveis: cell.elegiveis,
     });
     if (cell.meta != null) {
-      return `${cell.realizados} realizados de ${cell.elegiveis} elegíveis · ${pct} · meta ${cell.meta}%`;
+      return `${cell.realizados} executados de ${cell.elegiveis} planejados · ${pct} · meta ${cell.meta}%`;
     }
-    return `${cell.realizados} realizados de ${cell.elegiveis} elegíveis · ${pct} de execução · meta não cadastrada`;
+    return `${cell.realizados} executados de ${cell.elegiveis} planejados · ${pct} de execução · meta não cadastrada`;
   }
-  return "Sem previstos elegíveis";
+  return "Sem planejados na competência";
 }
 
 function resolveInitialSelection(
