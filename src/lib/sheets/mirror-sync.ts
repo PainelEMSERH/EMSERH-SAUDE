@@ -4,7 +4,7 @@
  * Sheet ID: somente via ALTERDATA_MIRROR_SHEET_ID (nunca hardcode em produção).
  */
 import { createHash } from "node:crypto";
-import { and, desc, eq, isNull, like, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, like, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   asoAlterdataSnapshots,
@@ -203,6 +203,20 @@ function keepDate(
 ): string | null {
   if (incoming) return incoming;
   return existing ?? null;
+}
+
+/** Variantes de matrícula (com/sem zeros à esquerda) para match entre planilha e Alterdata. */
+function registrationLookupKeys(registration: string): string[] {
+  const raw = registration.trim();
+  const digits = raw.replace(/\D/g, "");
+  const keys = new Set<string>([raw]);
+  if (digits) {
+    keys.add(digits);
+    for (const pad of [5, 6, 7, 8]) {
+      keys.add(digits.padStart(pad, "0"));
+    }
+  }
+  return [...keys];
 }
 
 export async function syncAlterdataMirror(options?: {
@@ -497,7 +511,7 @@ export async function syncAlterdataMirror(options?: {
         .from(employees)
         .where(
           and(
-            eq(employees.registration, registration),
+            inArray(employees.registration, registrationLookupKeys(registration)),
             isNull(employees.deletedAt),
           ),
         )

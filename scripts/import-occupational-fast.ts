@@ -59,27 +59,207 @@ function rememberEmp(map: Map<string, string>, registration: string, id: string)
   }
 }
 
+function normalizeRegionCode(value: string) {
+  const n = normalizeText(value);
+  if (n === "CENTRO" || n === "CENTRAL") return "CENTRO";
+  if (n === "OESTE") return "SUL";
+  return n || "NAO_INFORMADA";
+}
+
+type LotacaoInput = {
+  department?: string;
+  roleName?: string;
+  regionRaw?: string;
+  admission?: string | null;
+  city?: string;
+};
+
+async function resolveUnitRegion(
+  client: Client,
+  cache: Map<string, { unitId: string; regionId: string }>,
+  department: string,
+  regionRaw: string,
+  city: string,
+): Promise<{ unitId: string | null; regionId: string | null }> {
+  if (!department && !regionRaw) return { unitId: null, regionId: null };
+  const key = `${normalizeText(department)}::${normalizeRegionCode(regionRaw)}`;
+  if (cache.has(key)) {
+    const hit = cache.get(key)!;
+    return { unitId: hit.unitId, regionId: hit.regionId };
+  }
+
+  let regionId: string | null = null;
+  if (regionRaw) {
+    const code = normalizeRegionCode(regionRaw);
+    const existing = await client.query<{ id: string }>(
+      `select id from core.regions where code = $1 and deleted_at is null limit 1`,
+      [code],
+    );
+    regionId = existing.rows[0]?.id ?? null;
+    if (!regionId) {
+      const created = await client.query<{ id: string }>(
+        `insert into core.regions (code, name) values ($1, $2) returning id`,
+        [code, regionRaw || code],
+      );
+      regionId = created.rows[0]?.id ?? null;
+    }
+  }
+
+  let unitId: string | null = null;
+  if (department) {
+    const byName = await client.query<{ id: string; region_id: string }>(
+      `select id, region_id from core.units
+       where deleted_at is null
+         and upper(translate(name,'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇáàâãäéèêëíìîïóòôõöúùûüç','AAAAAEEEEIIIIOOOOOUUUUCAAAAAEEEEIIIIOOOOOUUUUC'))
+           = upper(translate($1,'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇáàâãäéèêëíìîïóòôõöúùûüç','AAAAAEEEEIIIIOOOOOUUUUCAAAAAEEEEIIIIOOOOOUUUUC'))
+       limit 1`,
+      [department],
+    );
+    if (byName.rows[0]) {
+      unitId = byName.rows[0].id;
+      regionId = regionId || byName.rows[0].region_id;
+    } else if (regionId) {
+      const created = await client.query<{ id: string }>(
+        `insert into core.units (region_id, name, city)
+         values ($1, $2, $3) returning id`,
+        [regionId, department, city || null],
+      );
+      unitId = created.rows[0]?.id ?? null;
+    }
+  }
+
+  if (unitId && regionId) cache.set(key, { unitId, regionId });
+  return { unitId, regionId };
+}
+
+async function ensureRoleId(
+  client: Client,
+  cache: Map<string, string>,
+  roleName: string,
+): Promise<string | null> {
+  if (!roleName) return null;
+  const normalized = normalizeText(roleName);
+  if (cache.has(normalized)) return cache.get(normalized)!;
+  const existing = await client.query<{ id: string }>(
+    `select id from core.job_roles where normalized_name = $1 limit 1`,
+    [normalized],
+  );
+  if (existing.rows[0]) {
+    cache.set(normalized, existing.rows[0].id);
+    return existing.rows[0].id;
+  }
+  const created = await client.query<{ id: string }>(
+    `insert into core.job_roles (name, normalized_name) values ($1, $2) returning id`,
+    [roleName, normalized],
+  );
+  const id = created.rows[0]?.id ?? null;
+  if (id) cache.set(normalized, id);
+  return id;
+}
+
+async function enrichEmployeeLotacao(
+  client: Client,
+  employeeId: string,
+  lotacao: LotacaoInput,
+  unitCache: Map<string, { unitId: string; regionId: string }>,
+  roleCache: Map<string, string>,
+) {
+  const { unitId, regionId } = await resolveUnitRegion(
+    client,
+    unitCache,
+    lotacao.department || "",
+    lotacao.regionRaw || "",
+    lotacao.city || "",
+  );
+  const jobRoleId = await ensureRoleId(
+    client,
+    roleCache,
+    lotacao.roleName || "",
+  );
+  if (!unitId && !regionId && !jobRoleId && !lotacao.admission) return;
+  await client.query(
+    `update core.employees
+     set unit_id = coalesce(unit_id, $2),
+         region_id = coalesce(region_id, $3),
+         job_role_id = coalesce(job_role_id, $4),
+         admission_date = coalesce(admission_date, $5::date),
+         updated_at = now()
+     where id = $1
+       and (
+         unit_id is null
+         or region_id is null
+         or job_role_id is null
+         or admission_date is null
+       )`,
+    [employeeId, unitId, regionId, jobRoleId, lotacao.admission ?? null],
+  );
+}
+
 async function ensureEmployee(
   client: Client,
   map: Map<string, string>,
   registration: string,
   fullName: string,
+  lotacao?: LotacaoInput,
+  unitCache?: Map<string, { unitId: string; regionId: string }>,
+  roleCache?: Map<string, string>,
 ): Promise<string | null> {
   const existing = resolveEmp(map, registration);
-  if (existing) return existing;
+  if (existing) {
+    if (lotacao && unitCache && roleCache) {
+      await enrichEmployeeLotacao(
+        client,
+        existing,
+        lotacao,
+        unitCache,
+        roleCache,
+      );
+    }
+    return existing;
+  }
   const reg = registration.trim();
   if (!reg) return null;
   const name = (fullName || `COLABORADOR ${reg}`).trim().slice(0, 200);
+
+  let unitId: string | null = null;
+  let regionId: string | null = null;
+  let jobRoleId: string | null = null;
+  if (lotacao && unitCache && roleCache) {
+    const resolved = await resolveUnitRegion(
+      client,
+      unitCache,
+      lotacao.department || "",
+      lotacao.regionRaw || "",
+      lotacao.city || "",
+    );
+    unitId = resolved.unitId;
+    regionId = resolved.regionId;
+    jobRoleId = await ensureRoleId(client, roleCache, lotacao.roleName || "");
+  }
+
   const ins = await client.query<{ id: string }>(
     `insert into core.employees
-      (registration, full_name, normalized_name, functional_status, source_system)
-     values ($1, $2, $3, 'ATIVO', 'PLANILHA_OCUPACIONAL')
+      (registration, full_name, normalized_name, functional_status, source_system,
+       unit_id, region_id, job_role_id, admission_date)
+     values ($1, $2, $3, 'ATIVO', 'PLANILHA_OCUPACIONAL', $4, $5, $6, $7::date)
      on conflict (registration) do update
        set full_name = excluded.full_name,
+           unit_id = coalesce(core.employees.unit_id, excluded.unit_id),
+           region_id = coalesce(core.employees.region_id, excluded.region_id),
+           job_role_id = coalesce(core.employees.job_role_id, excluded.job_role_id),
+           admission_date = coalesce(core.employees.admission_date, excluded.admission_date),
            updated_at = now(),
            deleted_at = null
      returning id`,
-    [reg, name, normalizeText(name)],
+    [
+      reg,
+      name,
+      normalizeText(name),
+      unitId,
+      regionId,
+      jobRoleId,
+      lotacao?.admission ?? null,
+    ],
   );
   const id = ins.rows[0]?.id;
   if (!id) return null;
@@ -178,6 +358,8 @@ async function main() {
   for (const r of empRes.rows) {
     rememberEmp(empMap, r.registration, r.id);
   }
+  const unitCache = new Map<string, { unitId: string; regionId: string }>();
+  const roleCache = new Map<string, string>();
   console.log("Colaboradores em memória:", empRes.rows.length);
 
   await client.query(
@@ -242,16 +424,24 @@ async function main() {
         stats.skipped += 1;
         continue;
       }
-      let employeeId = resolveEmp(empMap, registration);
-      if (!employeeId) {
-        employeeId = await ensureEmployee(
-          client,
-          empMap,
-          registration,
-          cell(row, "Nome do Funcionário", "Nome", "FUNCIONÁRIO"),
-        );
-        if (employeeId) stubs += 1;
-      }
+      const lotacao: LotacaoInput = {
+        department: cell(row, "Departamento", "UNIDADE"),
+        roleName: cell(row, "Função", "FUNÇÃO"),
+        regionRaw: cell(row, "Regional"),
+        admission: excelDate(cell(row, "Admissão", "Admissao")),
+        city: cell(row, "cidade", "Cidade"),
+      };
+      const existed = Boolean(resolveEmp(empMap, registration));
+      const employeeId = await ensureEmployee(
+        client,
+        empMap,
+        registration,
+        cell(row, "Nome do Funcionário", "Nome", "FUNCIONÁRIO"),
+        lotacao,
+        unitCache,
+        roleCache,
+      );
+      if (!existed && employeeId) stubs += 1;
       if (!employeeId) {
         stats.skipped += 1;
         continue;
