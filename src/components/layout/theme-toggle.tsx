@@ -19,7 +19,7 @@ export function ThemeToggle() {
 
   return (
     <div
-      className="inline-flex items-center rounded-lg border border-slate-200 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-900"
+      className="inline-flex items-center rounded-lg border border-border bg-card p-0.5"
       role="group"
       aria-label="Tema"
     >
@@ -34,10 +34,10 @@ export function ThemeToggle() {
             aria-pressed={active}
             onClick={() => setTheme(value)}
             className={cn(
-              "inline-flex size-7 items-center justify-center rounded-md text-slate-500 transition-colors",
+              "inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors",
               active
-                ? "border border-slate-300 bg-slate-50 text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                : "hover:text-slate-800 dark:hover:text-slate-200",
+                ? "border border-border bg-muted text-foreground shadow-sm"
+                : "hover:text-foreground",
             )}
           >
             <Icon className="size-3.5" strokeWidth={1.75} />

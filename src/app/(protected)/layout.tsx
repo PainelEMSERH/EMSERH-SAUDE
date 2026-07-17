@@ -18,7 +18,7 @@ export default async function ProtectedLayout({
 
   if (!configured) {
     return (
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-background">
         <SetupBanner />
         <div className="mx-auto max-w-3xl px-4 py-10">{children}</div>
       </div>
@@ -30,7 +30,7 @@ export default async function ProtectedLayout({
   }
 
   return (
-    <div className="flex h-svh overflow-hidden bg-slate-50 dark:bg-slate-950">
+    <div className="flex h-svh overflow-hidden bg-background">
       <AppSidebar user={user} />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <MobileNav user={user} />

@@ -38,7 +38,7 @@ function NavLinks({
 
         return (
           <div key={section.id}>
-            <p className="mb-1.5 px-2.5 text-[10px] font-semibold tracking-[0.08em] text-slate-400 uppercase">
+            <p className="mb-1.5 px-2.5 text-[10px] font-semibold tracking-[0.08em] text-sidebar-foreground/70 uppercase">
               {section.label}
             </p>
             <div className="flex flex-col gap-0.5">
@@ -55,16 +55,16 @@ function NavLinks({
                     className={cn(
                       "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors",
                       active
-                        ? "border border-slate-300 bg-white font-medium text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                        : "border border-transparent text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100",
+                        ? "border border-sidebar-border bg-sidebar-primary font-medium text-sidebar-primary-foreground shadow-sm"
+                        : "border border-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                     )}
                   >
                     <Icon
                       className={cn(
                         "size-4 shrink-0",
                         active
-                          ? "text-slate-800 dark:text-slate-100"
-                          : "text-slate-500",
+                          ? "text-sidebar-primary-foreground"
+                          : "text-sidebar-foreground",
                       )}
                       strokeWidth={1.75}
                     />
@@ -86,26 +86,28 @@ function UserMenu({ user }: { user: SessionUser }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="inline-flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-teal-800 text-[11px] font-semibold tracking-wide text-white outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-teal-600/40 dark:border-slate-700"
+        className="inline-flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-primary text-[11px] font-semibold tracking-wide text-primary-foreground outline-none transition hover:brightness-105 focus-visible:ring-2 focus-visible:ring-ring/50"
         aria-label="Conta"
       >
         {initials}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56 p-1.5">
         <div className="px-2 py-1.5">
-          <p className="truncate text-[13px] font-medium text-slate-900 dark:text-slate-100">
+          <p className="truncate text-[13px] font-medium text-foreground">
             {user.name}
           </p>
-          <p className="truncate text-[11px] text-slate-500">{user.email}</p>
-          <p className="mt-1 text-[10px] font-semibold tracking-wide text-teal-700 uppercase dark:text-teal-400">
+          <p className="truncate text-[11px] text-muted-foreground">
+            {user.email}
+          </p>
+          <p className="mt-1 text-[10px] font-semibold tracking-wide text-primary uppercase dark:text-ring">
             {user.role.replaceAll("_", " ")}
           </p>
         </div>
-        <div className="my-1 h-px bg-slate-100 dark:bg-slate-800" />
+        <div className="my-1 h-px bg-border" />
         <form action={logoutAction}>
           <button
             type="submit"
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-red-700 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-destructive transition-colors hover:bg-destructive/10"
           >
             <LogOut className="size-3.5" />
             Sair
@@ -118,12 +120,12 @@ function UserMenu({ user }: { user: SessionUser }) {
 
 export function AppSidebar({ user }: { user: SessionUser }) {
   return (
-    <aside className="hidden h-svh w-[220px] shrink-0 flex-col border-r border-slate-200/90 bg-[#f7f8fa] dark:border-slate-800 dark:bg-slate-950 lg:flex">
+    <aside className="hidden h-svh w-[220px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
       <div className="px-4 pt-5 pb-2">
-        <p className="text-[15px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+        <p className="text-[15px] font-semibold tracking-tight text-foreground">
           Menu
         </p>
-        <p className="mt-0.5 truncate text-[10px] font-medium tracking-[0.12em] text-teal-700 uppercase dark:text-teal-400">
+        <p className="mt-0.5 truncate text-[10px] font-medium tracking-[0.12em] text-primary uppercase dark:text-ring">
           EMSERH · Saúde
         </p>
       </div>
@@ -136,7 +138,7 @@ export function AppSidebar({ user }: { user: SessionUser }) {
 
 export function AppTopbar({ user }: { user: SessionUser }) {
   return (
-    <header className="hidden h-12 shrink-0 items-center justify-end gap-2.5 border-b border-slate-200/80 bg-slate-50/80 px-4 dark:border-slate-800 dark:bg-slate-950/50 md:px-5 lg:flex">
+    <header className="hidden h-12 shrink-0 items-center justify-end gap-2.5 border-b border-border bg-background px-4 md:px-5 lg:flex">
       <ThemeToggle />
       <UserMenu user={user} />
     </header>
@@ -146,7 +148,7 @@ export function AppTopbar({ user }: { user: SessionUser }) {
 export function MobileNav({ user }: { user: SessionUser }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="flex items-center gap-2 border-b border-slate-200 bg-white px-3 py-2 lg:hidden dark:border-slate-800 dark:bg-slate-950">
+    <div className="flex items-center gap-2 border-b border-border bg-background px-3 py-2 lg:hidden">
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger
           render={
@@ -155,15 +157,12 @@ export function MobileNav({ user }: { user: SessionUser }) {
         >
           <Menu className="size-4" />
         </SheetTrigger>
-        <SheetContent
-          side="left"
-          className="w-[240px] bg-[#f7f8fa] p-0 dark:bg-slate-950"
-        >
+        <SheetContent side="left" className="w-[240px] bg-sidebar p-0">
           <div className="px-4 pt-5 pb-2">
-            <p className="text-[15px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+            <p className="text-[15px] font-semibold tracking-tight text-foreground">
               Menu
             </p>
-            <p className="mt-0.5 text-[10px] font-medium tracking-[0.12em] text-teal-700 uppercase">
+            <p className="mt-0.5 text-[10px] font-medium tracking-[0.12em] text-primary uppercase dark:text-ring">
               {APP_NAME}
             </p>
           </div>
@@ -171,7 +170,7 @@ export function MobileNav({ user }: { user: SessionUser }) {
         </SheetContent>
       </Sheet>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-semibold text-slate-900 dark:text-slate-100">
+        <p className="truncate text-[13px] font-semibold text-foreground">
           Saúde Ocupacional
         </p>
       </div>
