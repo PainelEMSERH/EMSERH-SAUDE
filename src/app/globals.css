@@ -116,10 +116,13 @@
   html {
     @apply font-sans;
     zoom: 0.9;
+    overflow: hidden;
   }
   body {
     @apply bg-background text-foreground antialiased;
     letter-spacing: var(--letter-spacing);
+    margin: 0;
+    overflow: hidden;
   }
 }
 
@@ -340,7 +343,7 @@
   }
 
   .aso-matrix-table thead th {
-    height: 44px;
+    height: 40px;
     padding: 0 6px;
     border-bottom: 1px solid var(--aso-mx-divider);
     background: var(--card);
@@ -377,7 +380,7 @@
     display: block;
     width: 100%;
     height: 100%;
-    min-height: 44px;
+    min-height: 40px;
     padding: 0;
     border: 0;
     background: transparent;
@@ -401,7 +404,7 @@
   }
 
   .aso-matrix-table tbody td {
-    height: 54px;
+    height: 46px;
     padding: 0;
     border-bottom: 1px solid var(--aso-mx-divider);
     border-right: 1px solid var(--aso-mx-divider);
@@ -448,11 +451,11 @@
     position: relative;
     display: flex;
     width: 100%;
-    height: 54px;
+    height: 46px;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: 2px;
     padding: 8px 6px;
     border: 0;
     border-radius: 0;
@@ -478,8 +481,8 @@
   }
 
   .aso-matrix-table .aso-mx-cell[data-tone="near"] {
-    background: var(--aso-mx-near-bg);
-    color: var(--aso-mx-near-fg);
+    background: var(--aso-mx-below-bg);
+    color: var(--aso-mx-below-fg);
   }
 
   .aso-matrix-table .aso-mx-cell[data-tone="below"] {

@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 import {
+  Building2,
+  ClipboardCheck,
   KeyRound,
   RefreshCw,
   ScrollText,
-  Building2,
 } from "lucide-react";
+import { AdminAsoOpsPanel } from "@/components/admin/aso-ops-panel";
 import { AdminAuditPanel } from "@/components/admin/audit-panel";
 import { AdminUsersPanel } from "@/components/admin/users-panel";
+import type { LastSyncInfo } from "@/components/aso/aso-panel-header";
 import { MirrorSyncForm } from "@/components/forms/mirror-sync-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +38,10 @@ export function AdminShell({
   sheetConfigured,
   canManageOrg,
   regions,
+  asoLastSync,
+  asoYear,
+  canManageAsoPlanning,
+  canExportAso,
 }: {
   tabs: TabId[];
   users: AdminUserRow[];
@@ -48,6 +55,10 @@ export function AdminShell({
   sheetConfigured: boolean;
   canManageOrg: boolean;
   regions: { id: string; code: string; name: string }[];
+  asoLastSync: LastSyncInfo;
+  asoYear: number;
+  canManageAsoPlanning: boolean;
+  canExportAso: boolean;
 }) {
   const [tab, setTab] = useState<TabId>(tabs[0] ?? "access");
 
@@ -100,30 +111,58 @@ export function AdminShell({
       ) : null}
 
       {tab === "import" ? (
-        <section className="app-surface overflow-hidden">
-          <div className="flex items-start gap-3 border-b border-border-subtle px-5 py-4">
-            <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700">
-              <RefreshCw className="size-4" aria-hidden />
+        <div className="space-y-4">
+          <section className="app-surface overflow-hidden">
+            <div className="flex items-start gap-3 border-b border-border-subtle px-5 py-4">
+              <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700">
+                <RefreshCw className="size-4" aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-[15px] font-semibold tracking-tight text-slate-900">
+                  Espelho Alterdata
+                </h3>
+                <p className="mt-0.5 text-[12.5px] leading-relaxed text-slate-500">
+                  Sincronização global dos cadastros (somente leitura).
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <h3 className="text-[15px] font-semibold tracking-tight text-slate-900">
-                Espelho Alterdata
-              </h3>
-              <p className="mt-0.5 text-[12.5px] leading-relaxed text-slate-500">
-                Sincronização global dos cadastros (somente leitura).
-              </p>
+            <div className="px-5 py-4">
+              {canSync ? (
+                <MirrorSyncForm sheetConfigured={sheetConfigured} />
+              ) : (
+                <p className="text-[13px] text-slate-500">
+                  Seu perfil não executa sincronização global.
+                </p>
+              )}
             </div>
-          </div>
-          <div className="px-5 py-4">
-            {canSync ? (
-              <MirrorSyncForm sheetConfigured={sheetConfigured} />
-            ) : (
-              <p className="text-[13px] text-slate-500">
-                Seu perfil não executa sincronização global.
-              </p>
-            )}
-          </div>
-        </section>
+          </section>
+
+          <section className="app-surface overflow-hidden">
+            <div className="flex items-start gap-3 border-b border-border-subtle px-5 py-4">
+              <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700">
+                <ClipboardCheck className="size-4" aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-[15px] font-semibold tracking-tight text-slate-900">
+                  Operações de ASO
+                </h3>
+                <p className="mt-0.5 text-[12.5px] leading-relaxed text-slate-500">
+                  Sincronizar espelho de ASO, gerar planejamento e exportar.
+                  Cadastro manual não é usado — dados vêm do Alterdata.
+                </p>
+              </div>
+            </div>
+            <div className="px-5 py-4">
+              <AdminAsoOpsPanel
+                lastSync={asoLastSync}
+                year={asoYear}
+                canSync={canSync}
+                canManagePlanning={canManageAsoPlanning}
+                canExport={canExportAso}
+              />
+            </div>
+          </section>
+        </div>
       ) : null}
 
       {tab === "org" && canManageOrg ? (

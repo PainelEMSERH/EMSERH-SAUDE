@@ -48,6 +48,7 @@ export async function generatePlanningAction(
       metadata: { ...result, migration },
     });
     revalidatePath("/asos");
+    revalidatePath("/administracao");
     return {
       ok: true,
       message: `Planejamento ${year}: ${result.upserted} itens · ${result.skipped} ignorados (fechados/congelados) · ${result.cleaned ?? 0} previsões inconsistentes removidas. Migração de registros existentes: ${migration.linked} vinculados.`,
@@ -80,6 +81,7 @@ export async function syncAlterdataAsoAction(): Promise<AsoActionState> {
       },
     });
     revalidatePath("/asos");
+    revalidatePath("/administracao");
     return {
       ok: true,
       message: `Sincronização ASO concluída: ${sync.snapshotsInserted} snapshots novos/atualizados · ${sync.skipped} sem alteração · ${sync.unmatched} matrículas sem cadastro · ${refreshed.updated} planos reconciliados.`,
@@ -134,6 +136,7 @@ export async function cancelStaleMirrorSyncAction(): Promise<AsoActionState> {
       metadata: { previousStatus: "RUNNING" },
     });
     revalidatePath("/asos");
+    revalidatePath("/administracao");
     return { ok: true, message: "Lote de sincronização cancelado." };
   } catch (e) {
     return {

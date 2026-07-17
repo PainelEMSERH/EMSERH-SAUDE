@@ -130,21 +130,24 @@ describe("matrixCellTone", () => {
     ).toBe("future");
   });
 
-  it("classifica ok/near/below de acordo com a meta", () => {
+  it("só 100% é verde; qualquer débito é vermelho", () => {
     expect(
-      matrixCellTone({ percent: 85, metaPercent: 80, hasDenominator: true, isFuture: false }),
+      matrixCellTone({ percent: 100, metaPercent: 80, hasDenominator: true, isFuture: false }),
     ).toBe("ok");
     expect(
-      matrixCellTone({ percent: 75, metaPercent: 80, hasDenominator: true, isFuture: false }),
-    ).toBe("near");
+      matrixCellTone({ percent: 99.4, metaPercent: 80, hasDenominator: true, isFuture: false }),
+    ).toBe("below");
     expect(
-      matrixCellTone({ percent: 50, metaPercent: 80, hasDenominator: true, isFuture: false }),
+      matrixCellTone({ percent: 72.2, metaPercent: 80, hasDenominator: true, isFuture: false }),
+    ).toBe("below");
+    expect(
+      matrixCellTone({ percent: 50, metaPercent: null, hasDenominator: true, isFuture: false }),
     ).toBe("below");
   });
 
-  it("usa tom neutro quando não há meta definida", () => {
+  it("marca vazio quando não há denominador", () => {
     expect(
-      matrixCellTone({ percent: 90, metaPercent: null, hasDenominator: true, isFuture: false }),
-    ).toBe("neutral");
+      matrixCellTone({ percent: null, metaPercent: null, hasDenominator: false, isFuture: false }),
+    ).toBe("empty");
   });
 });

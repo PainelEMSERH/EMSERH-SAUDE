@@ -106,7 +106,6 @@ function resolveInitialSelection(
 function toneText(tone: AsoMatrixCell["tone"]) {
   switch (tone) {
     case "near":
-      return "text-amber-800";
     case "below":
       return "text-red-800";
     case "ok":

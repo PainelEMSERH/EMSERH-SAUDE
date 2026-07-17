@@ -8,6 +8,7 @@ import {
   listAuditLogs,
   listRecentLoginAttempts,
 } from "@/db/queries/admin";
+import { getLastMirrorSync } from "@/db/queries/aso-panel";
 import {
   ensureOrgDefaults,
   listRegions,
@@ -21,6 +22,9 @@ export default async function AdministracaoPage() {
   const canAdmin = can(user, "admin", "view");
   const canAudit = can(user, "audit", "view");
   const canSync = userCan(user, "imports", "sync_global");
+  const canManageAsoPlanning = userCan(user, "asos", "update");
+  const canExportAso =
+    userCan(user, "reports", "export") || userCan(user, "asos", "export");
 
   if (!canAdmin && !canAudit) {
     redirect("/dashboard");
@@ -37,7 +41,9 @@ export default async function AdministracaoPage() {
   const tabs = [
     ...(canCreateUsers || canAdmin ? (["access"] as const) : []),
     ...(canAudit ? (["audit"] as const) : []),
-    ...(canSync || canAdmin ? (["import"] as const) : []),
+    ...(canSync || canAdmin || canManageAsoPlanning || canExportAso
+      ? (["import"] as const)
+      : []),
     ...(canManageOrg ? (["org"] as const) : []),
   ];
 
@@ -52,6 +58,7 @@ export default async function AdministracaoPage() {
     activeCount,
     audit24h,
     regions,
+    asoLastSync,
   ] = await Promise.all([
     canAdmin ? listAdminUsers() : Promise.resolve([]),
     canAudit ? listAuditLogs({ limit: 80 }) : Promise.resolve([]),
@@ -59,6 +66,7 @@ export default async function AdministracaoPage() {
     canAdmin ? countActiveUsers() : Promise.resolve(0),
     canAudit ? countAuditLast24h() : Promise.resolve(0),
     canManageOrg ? listRegions() : Promise.resolve([]),
+    getLastMirrorSync(),
   ]);
 
   const sheetConfigured = Boolean(
@@ -116,6 +124,10 @@ export default async function AdministracaoPage() {
           code: r.code,
           name: r.name,
         }))}
+        asoLastSync={asoLastSync}
+        asoYear={new Date().getFullYear()}
+        canManageAsoPlanning={canManageAsoPlanning}
+        canExportAso={canExportAso}
       />
     </div>
   );

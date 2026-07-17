@@ -788,6 +788,8 @@ export async function syncAlterdataAsoSnapshots(options?: {
       registration: employees.registration,
       regionId: employees.regionId,
       unitId: employees.unitId,
+      admissionDate: employees.admissionDate,
+      dismissalDate: employees.dismissalDate,
     })
     .from(employees)
     .where(isNull(employees.deletedAt));
@@ -799,6 +801,8 @@ export async function syncAlterdataAsoSnapshots(options?: {
       registration: string;
       regionId: string | null;
       unitId: string | null;
+      admissionDate: string | null;
+      dismissalDate: string | null;
     }
   >();
   for (const emp of empRows) {
@@ -869,6 +873,35 @@ export async function syncAlterdataAsoSnapshots(options?: {
       if (!emp) {
         unmatched += 1;
         continue;
+      }
+
+      // Mantém DtAdmissao/DtDemissao alinhados ao espelho (corrige inversão DD/MM antiga).
+      const admissionParsed = toDate(cell(row, "DtAdmissao"));
+      const dismissalParsed = toDate(cell(row, "DtDemissao", "Data Demissão"));
+      const admIso = emp.admissionDate
+        ? String(emp.admissionDate).slice(0, 10)
+        : null;
+      const demIso = emp.dismissalDate
+        ? String(emp.dismissalDate).slice(0, 10)
+        : null;
+      if (
+        (admissionParsed && admissionParsed !== admIso) ||
+        (dismissalParsed && dismissalParsed !== demIso)
+      ) {
+        await db
+          .update(employees)
+          .set({
+            ...(admissionParsed && admissionParsed !== admIso
+              ? { admissionDate: admissionParsed }
+              : {}),
+            ...(dismissalParsed && dismissalParsed !== demIso
+              ? { dismissalDate: dismissalParsed }
+              : {}),
+            updatedBy: options?.user?.id ?? null,
+          })
+          .where(eq(employees.id, emp.id));
+        if (admissionParsed) emp.admissionDate = admissionParsed;
+        if (dismissalParsed) emp.dismissalDate = dismissalParsed;
       }
 
       const nextAsoDate = toDate(

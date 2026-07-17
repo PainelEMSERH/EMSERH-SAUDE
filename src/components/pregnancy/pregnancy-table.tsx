@@ -23,6 +23,7 @@ import type { PregnancyListRow } from "@/db/queries/occupational";
 import { formatDateBR } from "@/lib/dates";
 import {
   formatRegistrationDisplay,
+  formatSectorDisplayName,
   formatUnitDisplayName,
   humanizeLabel,
   initialsFromName,
@@ -188,13 +189,6 @@ function UpdatePregnancyForm({
   );
 }
 
-function sectorFlow(origin: string | null, dest: string | null): string {
-  const a = (origin ?? "").trim() || "—";
-  const b = (dest ?? "").trim() || "—";
-  if (a === "—" && b === "—") return "—";
-  return `${a} → ${b}`;
-}
-
 export function PregnancyTable({
   rows,
   canUpdate,
@@ -213,23 +207,21 @@ export function PregnancyTable({
       <div className="app-surface">
         <table className="app-data-table">
           <colgroup>
-            <col className="w-[20%]" />
-            <col className="w-[14%]" />
-            <col className="w-[11%]" />
-            <col className="w-[13%]" />
+            <col className="w-[22%]" />
+            <col className="w-[16%]" />
+            <col className="w-[12%]" />
+            <col className="w-[18%]" />
             <col className="w-[18%]" />
             <col className="w-[11%]" />
-            <col className="w-[10%]" />
             <col className="w-[3%]" />
           </colgroup>
           <thead>
             <tr>
               <th className="text-left">Colaboradora</th>
               <th className="text-left">Unidade</th>
-              <th className="text-center">Comunicação</th>
               <th className="text-center">Insalubridade</th>
-              <th className="text-left">Setores</th>
-              <th className="text-center">Prev. parto</th>
+              <th className="text-left">Origem</th>
+              <th className="text-left">Destino</th>
               <th className="text-center">Status</th>
               <th className="w-8" aria-hidden />
             </tr>
@@ -238,6 +230,8 @@ export function PregnancyTable({
             {rows.map((r) => {
               const haz = hazardousLabel(r);
               const alert = isInsalubreSemRealocacao(r);
+              const origin = formatSectorDisplayName(r.originSector);
+              const destination = formatSectorDisplayName(r.destinationSector);
               return (
                 <tr
                   key={r.id}
@@ -269,22 +263,24 @@ export function PregnancyTable({
                       {formatUnitDisplayName(r.unitName)}
                     </span>
                   </td>
-                  <td className="app-table-num">
-                    {formatDateBR(r.communicationDate)}
-                  </td>
                   <td className="text-center">
                     <StatusBadge label={haz.label} tone={haz.tone} />
                   </td>
                   <td className="text-left">
                     <span
                       className="line-clamp-2 leading-snug text-foreground"
-                      title={sectorFlow(r.originSector, r.destinationSector)}
+                      title={origin === "—" ? undefined : origin}
                     >
-                      {sectorFlow(r.originSector, r.destinationSector)}
+                      {origin}
                     </span>
                   </td>
-                  <td className="app-table-num">
-                    {formatDateBR(r.dueDate)}
+                  <td className="text-left">
+                    <span
+                      className="line-clamp-2 leading-snug text-foreground"
+                      title={destination === "—" ? undefined : destination}
+                    >
+                      {destination}
+                    </span>
                   </td>
                   <td className="text-center">
                     <StatusBadge
@@ -301,7 +297,7 @@ export function PregnancyTable({
             {!rows.length ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={7}
                   className="py-10 text-center text-muted-foreground"
                 >
                   Nenhuma gestante com os filtros atuais.
@@ -409,11 +405,11 @@ export function PregnancyTable({
                   />
                   <DetailRow
                     label="Setor origem"
-                    value={selected.originSector}
+                    value={formatSectorDisplayName(selected.originSector)}
                   />
                   <DetailRow
                     label="Setor destino"
-                    value={selected.destinationSector}
+                    value={formatSectorDisplayName(selected.destinationSector)}
                   />
                   <DetailRow
                     label="Data realocação"

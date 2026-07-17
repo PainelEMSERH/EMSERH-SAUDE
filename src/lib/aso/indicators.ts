@@ -202,10 +202,9 @@ export function matrixCellTone(input: {
 }): "ok" | "near" | "below" | "empty" | "future" | "neutral" {
   if (input.isFuture) return "future";
   if (!input.hasDenominator || input.percent == null) return "empty";
-  // Sem meta cadastrada: tom neutro — nunca usar 80% silencioso
-  if (input.metaPercent == null) return "neutral";
-  const meta = input.metaPercent;
-  if (input.percent >= meta) return "ok";
-  if (input.percent >= meta - 10) return "near";
+  // Regra operacional: só 100% é verde; qualquer ASO em aberto = vermelho.
+  // metaPercent permanece nos dados/tooltips, mas não define a cor da célula.
+  void input.metaPercent;
+  if (input.percent >= 100) return "ok";
   return "below";
 }

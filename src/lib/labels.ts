@@ -192,3 +192,120 @@ export function formatUnitDisplayName(
   }
   return humanizeLabel(raw, fallback);
 }
+
+/** Preposições/artigos que ficam minúsculos no meio do nome. */
+const SECTOR_SMALL_WORDS = new Set([
+  "a",
+  "ao",
+  "aos",
+  "as",
+  "à",
+  "às",
+  "da",
+  "das",
+  "de",
+  "do",
+  "dos",
+  "e",
+  "em",
+  "na",
+  "nas",
+  "no",
+  "nos",
+  "o",
+  "ou",
+  "para",
+  "por",
+]);
+
+/** Siglas mantidas em maiúsculas na UI. */
+const SECTOR_ACRONYMS = new Set([
+  "CCIH",
+  "CME",
+  "INSS",
+  "NSP",
+  "SAME",
+  "UCINCA",
+  "UCINCO",
+  "UTI",
+  "UTIN",
+  "UTINEO",
+]);
+
+/** Correções leves só para exibição (não altera o banco). */
+const SECTOR_DISPLAY_FIXES: Array<[RegExp, string]> = [
+  [/\bINTERNÇÃO\b/gi, "INTERNAÇÃO"],
+  [/\bCLINICA\b/gi, "CLÍNICA"],
+  [/\bCIRURGICA\b/gi, "CIRÚRGICA"],
+  [/\bOBSERVACAO\b/gi, "OBSERVAÇÃO"],
+  [/\bNUCLEO\b/gi, "NÚCLEO"],
+  [/\bDIRECAO\b/gi, "DIREÇÃO"],
+  [/\bCOORDENACAO\b/gi, "COORDENAÇÃO"],
+  [/\bADMINISTRACAO\b/gi, "ADMINISTRAÇÃO"],
+];
+
+/**
+ * Padroniza nome de setor na UI: title case em pt-BR, siglas e abreviações
+ * estáveis (Adm., Coord.), sem o “CAPS LOCK” do espelho.
+ */
+export function formatSectorDisplayName(
+  value: string | null | undefined,
+  fallback = "—",
+): string {
+  if (value == null || String(value).trim() === "") return fallback;
+
+  let raw = String(value).trim().replace(/\s+/g, " ");
+  for (const [pattern, replacement] of SECTOR_DISPLAY_FIXES) {
+    raw = raw.replace(pattern, replacement);
+  }
+
+  const parts = raw.split(/(\s+|\/|,|\s*[-–—]\s*)/);
+  let wordIndex = 0;
+
+  return parts
+    .map((part) => {
+      if (!part || /^\s+$/.test(part)) return part;
+      if (/^[\/,]$/.test(part)) return part;
+      if (/^\s*[-–—]\s*$/.test(part)) return " - ";
+
+      const isFirst = wordIndex === 0;
+      wordIndex += 1;
+
+      const hasDot = part.endsWith(".");
+      const core = hasDot ? part.slice(0, -1) : part;
+      const upper = core.toLocaleUpperCase("pt-BR");
+      const lower = core.toLocaleLowerCase("pt-BR");
+
+      if (SECTOR_ACRONYMS.has(upper)) {
+        return `${upper}${hasDot ? "." : ""}`;
+      }
+
+      // Abreviações curtas: ADM. / COORD. → Adm. / Coord.
+      if (/^(adm|coord|nuc|set|dir)$/i.test(core)) {
+        const short =
+          lower.charAt(0).toLocaleUpperCase("pt-BR") + lower.slice(1);
+        return `${short}${hasDot || /^(adm|coord)$/i.test(core) ? "." : ""}`;
+      }
+
+      if (!isFirst && SECTOR_SMALL_WORDS.has(lower)) {
+        return lower;
+      }
+
+      // Mantém números e tokens mistos (ex.: B, 3) sem forçar artefato
+      if (/^\d+[ªº]?$/i.test(core) || /^[A-Z]$/i.test(core)) {
+        return upper.length === 1 ? upper : core;
+      }
+
+      return (
+        lower.charAt(0).toLocaleUpperCase("pt-BR") +
+        lower.slice(1) +
+        (hasDot ? "." : "")
+      );
+    })
+    .join("")
+    .replace(/\s+-\s+/g, " - ")
+    .replace(/\s*,\s*/g, ", ")
+    .replace(/\s*\/\s*/g, "/")
+    .trim();
+}
+

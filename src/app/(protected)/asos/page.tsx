@@ -19,11 +19,7 @@ export default async function AsosPage({
   const params = await searchParams;
   const data = await getAsoPanelData(user, params);
 
-  const canCreate = userCan(user, "asos", "create");
   const canUpdate = userCan(user, "asos", "update");
-  const canSync = userCan(user, "imports", "sync_global") || canUpdate;
-  const canExport =
-    userCan(user, "reports", "export") || userCan(user, "asos", "export");
 
   const hideRegion = user.scopeLevel === "UNIT";
   const lockRegion = user.scopeLevel === "REGION";
@@ -45,14 +41,6 @@ export default async function AsosPage({
     priority: params.priority,
   };
 
-  const exportParams = new URLSearchParams();
-  for (const [k, v] of Object.entries(current)) {
-    if (v !== undefined && String(v).trim() && String(v) !== "ALL") {
-      exportParams.set(k, String(v));
-    }
-  }
-  const exportHref = `/api/asos/export?${exportParams.toString()}`;
-
   const activeMatrixKey =
     data.unitId ??
     data.regionId ??
@@ -60,15 +48,7 @@ export default async function AsosPage({
 
   return (
     <div>
-      <AsoPanelHeader
-        lastSync={data.lastSync}
-        canSync={canSync}
-        canCreate={canCreate}
-        canManagePlanning={canUpdate}
-        year={data.year}
-        exportHref={exportHref}
-        canExport={canExport}
-      />
+      <AsoPanelHeader lastSync={data.lastSync} />
 
       <AsoFilters
         years={data.years}
@@ -117,7 +97,7 @@ export default async function AsosPage({
 
       <AsoNominalTable
         rows={data.nominal.rows}
-        canCreate={canCreate}
+        canCreate={false}
         canUpdate={canUpdate}
       />
 

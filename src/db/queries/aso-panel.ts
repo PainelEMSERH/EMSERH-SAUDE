@@ -784,6 +784,8 @@ export async function generateAsoPlanningForYear(
     /** Quando true, marca admissional como realizado por evidência Alterdata. */
     markRealizedFromAlterdata?: boolean;
     alterdataPerformedDate?: string | null;
+    /** Ultimo_aso do espelho — usado para não preservar REALIZADO fantasma. */
+    alterdataLastAsoDate?: string | null;
   }) {
     if (closedMonths.has(input.month) && input.asoType === "PERIODICO") {
       skipped += 1;
@@ -832,10 +834,31 @@ export async function generateAsoPlanningForYear(
       existing?.executionStatus === "JUSTIFICADO" &&
       existing?.justificationReason === "DEMITIDO";
 
+    // Periódico "REALIZADO" sem atestado na competência (ex.: planilha ASO_2026
+    // marcou performed em linha futura) não deve ser preservado.
+    const lastAsoIso = input.alterdataLastAsoDate
+      ? String(input.alterdataLastAsoDate).slice(0, 10)
+      : null;
+    const expectedIso = input.expectedDate
+      ? String(input.expectedDate).slice(0, 10)
+      : null;
+    const lastYm = yearMonthFromDate(lastAsoIso);
+    const periodicoRealizedSupported =
+      Boolean(lastAsoIso) &&
+      ((expectedIso != null && lastAsoIso! >= expectedIso) ||
+        Boolean(
+          lastYm && lastYm.year === input.year && lastYm.month === input.month,
+        ));
+    const spuriousPeriodicoRealized =
+      input.asoType === "PERIODICO" &&
+      existing?.executionStatus === "REALIZADO" &&
+      !periodicoRealizedSupported;
+
     const preserveManual =
       !forceLeaveOutOfMeta &&
       !returningFromLeave &&
       !spuriousDemissionalJustify &&
+      !spuriousPeriodicoRealized &&
       (existing?.executionStatus === "REALIZADO" ||
         existing?.executionStatus === "JUSTIFICADO" ||
         existing?.executionStatus === "DISPENSADO" ||
@@ -845,6 +868,8 @@ export async function generateAsoPlanningForYear(
     let executionStatus: string;
     if (forceLeaveOutOfMeta) {
       executionStatus = "JUSTIFICADO";
+    } else if (spuriousPeriodicoRealized) {
+      executionStatus = "PREVISTO";
     } else if (preserveManual) {
       executionStatus = existing!.executionStatus;
     } else if (returningFromLeave || spuriousDemissionalJustify) {
@@ -856,6 +881,11 @@ export async function generateAsoPlanningForYear(
 
     let alterdataStatus = existing?.alterdataStatus ?? "NAO_APLICAVEL";
     let asoRecordId = existing?.asoRecordId ?? null;
+
+    if (spuriousPeriodicoRealized) {
+      alterdataStatus = "NAO_APLICAVEL";
+      asoRecordId = null;
+    }
 
     if (
       input.markRealizedFromAlterdata &&
@@ -1019,6 +1049,9 @@ export async function generateAsoPlanningForYear(
             : trusted.trust === "RECOMPUTED_FROM_LAST"
               ? "RECOMPUTED_FROM_LAST_ASO"
               : "RECOMPUTED_FROM_ADMISSION",
+        alterdataLastAsoDate: snap?.lastAsoDate
+          ? String(snap.lastAsoDate).slice(0, 10)
+          : null,
       });
     }
 
@@ -1131,6 +1164,53 @@ export async function generateAsoPlanningForYear(
         markRealizedFromAlterdata: trusted.admissionAsoEvidence,
         alterdataPerformedDate: performedFromAlterdata,
       });
+
+      // Competência do admissional = mês da admissão. Remove duplicatas
+      // (ex.: migração pelo Data_Atestado em outro mês).
+      const wrongAdm = await db
+        .select({
+          id: asoMonthlyPlans.id,
+          month: asoMonthlyPlans.month,
+        })
+        .from(asoMonthlyPlans)
+        .where(
+          and(
+            eq(asoMonthlyPlans.employeeId, emp.id),
+            eq(asoMonthlyPlans.asoType, "ADMISSIONAL"),
+            eq(asoMonthlyPlans.year, year),
+            isNull(asoMonthlyPlans.deletedAt),
+            eq(asoMonthlyPlans.frozen, false),
+          ),
+        );
+      for (const row of wrongAdm) {
+        if (row.month === adm.month) continue;
+        await db
+          .update(asoMonthlyPlans)
+          .set({ deletedAt: new Date(), updatedBy: user.id })
+          .where(eq(asoMonthlyPlans.id, row.id));
+        cleaned += 1;
+      }
+    } else {
+      // Sem admissão neste ano: não deve haver admissional na competência.
+      const strayAdm = await db
+        .select({ id: asoMonthlyPlans.id })
+        .from(asoMonthlyPlans)
+        .where(
+          and(
+            eq(asoMonthlyPlans.employeeId, emp.id),
+            eq(asoMonthlyPlans.asoType, "ADMISSIONAL"),
+            eq(asoMonthlyPlans.year, year),
+            isNull(asoMonthlyPlans.deletedAt),
+            eq(asoMonthlyPlans.frozen, false),
+          ),
+        );
+      for (const row of strayAdm) {
+        await db
+          .update(asoMonthlyPlans)
+          .set({ deletedAt: new Date(), updatedBy: user.id })
+          .where(eq(asoMonthlyPlans.id, row.id));
+        cleaned += 1;
+      }
     }
 
     const dem = yearMonthFromDate(emp.dismissalDate);
