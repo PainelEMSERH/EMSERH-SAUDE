@@ -436,11 +436,24 @@ export async function syncAlterdataMirror(options?: {
         "Situação",
         "SituacaoFuncional",
       );
+      const leaveStartRaw = cell(
+        row,
+        "Início Afastamento",
+        "Inicio Afastamento",
+        "Inicio_Afastamento",
+      );
+      const leaveEndRaw = cell(
+        row,
+        "Fim Afastamento",
+        "Fim_Afastamento",
+      );
       const functionalStatus = mapAlterdataFunctionalStatus({
         dismissalRaw: demissaoRaw,
         statusAso,
         afastamentoRaw,
         statusFerias,
+        leaveStartRaw,
+        leaveEndRaw,
       });
 
       const regionId = await ensureRegion(regionName);

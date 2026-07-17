@@ -54,6 +54,9 @@ function mapAlterdataFunctionalStatus(input: {
   statusAso?: string;
   afastamentoRaw?: string;
   statusFerias?: string;
+  leaveStartRaw?: string | number | null;
+  leaveEndRaw?: string | number | null;
+  todayIso?: string;
 }): string {
   const demissao = (input.dismissalRaw || "").trim();
   if (demissao) return "DEMITIDO";
@@ -72,6 +75,13 @@ function mapAlterdataFunctionalStatus(input: {
     return "FERIAS";
   }
 
+  const leaveStart = parseSheetDateLocal(input.leaveStartRaw ?? null);
+  const leaveEnd = parseSheetDateLocal(input.leaveEndRaw ?? null);
+  const today = input.todayIso ?? new Date().toISOString().slice(0, 10);
+  if (leaveStart && leaveStart <= today && (!leaveEnd || leaveEnd >= today)) {
+    return "AFASTADO";
+  }
+
   const afast = normalizeText(
     `${input.afastamentoRaw || ""} ${input.statusAso || ""}`,
   );
@@ -84,6 +94,30 @@ function mapAlterdataFunctionalStatus(input: {
   }
 
   return "ATIVO";
+}
+
+function parseSheetDateLocal(
+  value: string | number | null | undefined,
+): string | null {
+  if (value == null || value === "") return null;
+  if (typeof value === "number") {
+    if (value >= 20000 && value <= 60000) {
+      const utc = new Date(
+        Date.UTC(1899, 11, 30) + Math.round(value) * 86_400_000,
+      );
+      return utc.toISOString().slice(0, 10);
+    }
+    return null;
+  }
+  const raw = String(value).trim();
+  if (/^\d+(\.\d+)?$/.test(raw)) return parseSheetDateLocal(Number(raw));
+  const br = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (br) {
+    return `${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+  }
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  return null;
 }
 
 function mapAlterdataSex(raw: string): string | null {
@@ -325,11 +359,20 @@ async function main() {
         "Situação",
         "SituacaoFuncional",
       );
+      const leaveStartRaw = cell(
+        row,
+        "Início Afastamento",
+        "Inicio Afastamento",
+        "Inicio_Afastamento",
+      );
+      const leaveEndRaw = cell(row, "Fim Afastamento", "Fim_Afastamento");
       const functionalStatus = mapAlterdataFunctionalStatus({
         dismissalRaw: demissao,
         statusAso,
         afastamentoRaw,
         statusFerias,
+        leaveStartRaw,
+        leaveEndRaw,
       });
 
       const regionId = await ensureRegion(

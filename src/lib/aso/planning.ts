@@ -42,9 +42,8 @@ export function eligibilityFromFunctionalStatus(
   status: string | null | undefined,
 ): { eligibility: Eligibility; reason: string | null } {
   const s = (status || "").toUpperCase();
-  if (s === "DEMITIDO") {
-    return { eligibility: "JUSTIFICADO", reason: "DEMITIDO" };
-  }
+  // DEMITIDO não vira "justificado" de periódico: quem já saiu da empresa
+  // simplesmente não entra no planejamento do ano/mês (ver dismissedBeforeCompetence).
   if (s === "AFASTADO") {
     return { eligibility: "JUSTIFICADO", reason: "AFASTADO" };
   }
@@ -52,6 +51,32 @@ export function eligibilityFromFunctionalStatus(
     return { eligibility: "JUSTIFICADO", reason: "FERIAS" };
   }
   return { eligibility: "ELEGIVEL", reason: null };
+}
+
+/**
+ * Demitido antes do 1º dia da competência → não pertence ao mês/ano.
+ * Ex.: demissão 2025-01-06 → fora de qualquer competência de 2026.
+ */
+export function dismissedBeforeCompetence(
+  dismissalDate: string | null | undefined,
+  year: number,
+  month: number,
+): boolean {
+  if (!dismissalDate) return false;
+  const dem = yearMonthFromDate(dismissalDate);
+  if (!dem) return false;
+  if (dem.year < year) return true;
+  if (dem.year > year) return false;
+  return dem.month < month;
+}
+
+/** Demitido antes do início do ano de planejamento. */
+export function dismissedBeforeYear(
+  dismissalDate: string | null | undefined,
+  year: number,
+): boolean {
+  if (!dismissalDate) return false;
+  return dismissalDate.slice(0, 10) < `${year}-01-01`;
 }
 
 export function competenceIsFuture(year: number, month: number, now = new Date()): boolean {

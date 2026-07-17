@@ -26,6 +26,8 @@ import {
   matrixCellTone,
 } from "@/lib/aso/indicators";
 import {
+  dismissedBeforeCompetence,
+  dismissedBeforeYear,
   eligibilityFromFunctionalStatus,
   yearMonthFromDate,
 } from "@/lib/aso/planning";
@@ -788,24 +790,51 @@ export async function generateAsoPlanningForYear(
       return;
     }
 
-    const preserveManual =
-      existing?.executionStatus === "REALIZADO" ||
-      existing?.executionStatus === "JUSTIFICADO" ||
-      existing?.executionStatus === "DISPENSADO" ||
-      existing?.executionStatus === "REPROGRAMADO" ||
-      existing?.executionStatus === "AGENDADO";
+    const leaveReason =
+      elig.reason === "AFASTADO" || elig.reason === "FERIAS"
+        ? elig.reason
+        : null;
 
-    let executionStatus: string = preserveManual
-      ? existing!.executionStatus
-      : elig.eligibility === "JUSTIFICADO"
-        ? "JUSTIFICADO"
-        : "PREVISTO";
+    // Afastado/férias: plano permanece no mês, mas sai da meta (JUSTIFICADO),
+    // exceto se já estiver REALIZADO (cumprimento histórico da competência).
+    // Demitido NÃO usa justificativa: quem saiu antes da competência some do plano.
+    const returningFromLeave =
+      elig.eligibility === "ELEGIVEL" &&
+      existing?.executionStatus === "JUSTIFICADO" &&
+      (existing.justificationReason === "AFASTADO" ||
+        existing.justificationReason === "FERIAS");
+
+    const alreadyRealized = existing?.executionStatus === "REALIZADO";
+    const forceLeaveOutOfMeta = Boolean(leaveReason) && !alreadyRealized;
+
+    const preserveManual =
+      !forceLeaveOutOfMeta &&
+      !returningFromLeave &&
+      (existing?.executionStatus === "REALIZADO" ||
+        existing?.executionStatus === "JUSTIFICADO" ||
+        existing?.executionStatus === "DISPENSADO" ||
+        existing?.executionStatus === "REPROGRAMADO" ||
+        existing?.executionStatus === "AGENDADO");
+
+    let executionStatus: string;
+    if (forceLeaveOutOfMeta) {
+      executionStatus = "JUSTIFICADO";
+    } else if (preserveManual) {
+      executionStatus = existing!.executionStatus;
+    } else if (returningFromLeave) {
+      executionStatus = "PREVISTO";
+    } else {
+      executionStatus =
+        elig.eligibility === "JUSTIFICADO" ? "JUSTIFICADO" : "PREVISTO";
+    }
+
     let alterdataStatus = existing?.alterdataStatus ?? "NAO_APLICAVEL";
     let asoRecordId = existing?.asoRecordId ?? null;
 
     if (
       input.markRealizedFromAlterdata &&
       !preserveManual &&
+      !forceLeaveOutOfMeta &&
       input.alterdataPerformedDate
     ) {
       executionStatus = "REALIZADO";
@@ -832,6 +861,24 @@ export async function generateAsoPlanningForYear(
       }
     }
 
+    const eligibility = forceLeaveOutOfMeta
+      ? "JUSTIFICADO"
+      : returningFromLeave
+        ? "ELEGIVEL"
+        : existing?.justificationReason && !leaveReason
+          ? existing.eligibility
+          : leaveReason && alreadyRealized
+            ? existing?.eligibility || "ELEGIVEL"
+            : elig.eligibility;
+
+    const justificationReason = forceLeaveOutOfMeta
+      ? leaveReason
+      : returningFromLeave
+        ? null
+        : leaveReason && alreadyRealized
+          ? leaveReason
+          : existing?.justificationReason || elig.reason || null;
+
     const payload = {
       registration: input.registration,
       employeeName: input.employeeName,
@@ -842,11 +889,8 @@ export async function generateAsoPlanningForYear(
       unitNameSnapshot: input.unitName,
       functionalStatusSnapshot: input.functionalStatus,
       predictionOrigin: input.origin,
-      eligibility: existing?.justificationReason
-        ? existing.eligibility
-        : elig.eligibility,
-      justificationReason:
-        existing?.justificationReason || elig.reason || null,
+      eligibility,
+      justificationReason,
       executionStatus,
       alterdataStatus,
       asoRecordId,
@@ -887,6 +931,29 @@ export async function generateAsoPlanningForYear(
   }
 
   for (const emp of empRows) {
+    // Demitido antes do ano: não gera nada e remove fantasmas do ano.
+    if (dismissedBeforeYear(emp.dismissalDate, year)) {
+      const ghosts = await db
+        .select({ id: asoMonthlyPlans.id })
+        .from(asoMonthlyPlans)
+        .where(
+          and(
+            eq(asoMonthlyPlans.employeeId, emp.id),
+            eq(asoMonthlyPlans.year, year),
+            isNull(asoMonthlyPlans.deletedAt),
+            eq(asoMonthlyPlans.frozen, false),
+          ),
+        );
+      for (const g of ghosts) {
+        await db
+          .update(asoMonthlyPlans)
+          .set({ deletedAt: new Date(), updatedBy: user.id })
+          .where(eq(asoMonthlyPlans.id, g.id));
+        cleaned += 1;
+      }
+      continue;
+    }
+
     const snap = snapMap.get(emp.id);
     const trusted = resolveTrustedPeriodicNext({
       admissionDate: emp.admissionDate,
@@ -897,7 +964,16 @@ export async function generateAsoPlanningForYear(
 
     const next = trusted.nextPeriodicDate;
     const ym = yearMonthFromDate(next);
-    if (ym && ym.year === year) {
+    const demYm = yearMonthFromDate(emp.dismissalDate);
+    const periodicAllowed =
+      Boolean(ym) &&
+      ym!.year === year &&
+      !dismissedBeforeCompetence(emp.dismissalDate, ym!.year, ym!.month) &&
+      !(emp.dismissalDate && next && next > emp.dismissalDate) &&
+      // No mês da demissão o ASO é DEMISSIONAL, não periódico.
+      !(demYm && demYm.year === ym!.year && demYm.month === ym!.month);
+
+    if (periodicAllowed && ym) {
       await upsertPlan({
         employeeId: emp.id,
         registration: emp.registration,
@@ -920,10 +996,15 @@ export async function generateAsoPlanningForYear(
       });
     }
 
-    // Remove periódicos órfãos do ano gerados por Proximo_aso inválido
-    // (mantém realizados/justificados/agendados/reprogramados).
+    // Remove periódicos órfãos / fantasmas de demissão.
     const obsolete = await db
-      .select({ id: asoMonthlyPlans.id, month: asoMonthlyPlans.month })
+      .select({
+        id: asoMonthlyPlans.id,
+        month: asoMonthlyPlans.month,
+        executionStatus: asoMonthlyPlans.executionStatus,
+        justificationReason: asoMonthlyPlans.justificationReason,
+        predictionOrigin: asoMonthlyPlans.predictionOrigin,
+      })
       .from(asoMonthlyPlans)
       .where(
         and(
@@ -932,31 +1013,40 @@ export async function generateAsoPlanningForYear(
           eq(asoMonthlyPlans.year, year),
           isNull(asoMonthlyPlans.deletedAt),
           eq(asoMonthlyPlans.frozen, false),
-          inArray(asoMonthlyPlans.executionStatus, [
-            "PREVISTO",
-            "VENCIDO",
-            "NAO_REALIZADO",
-          ]),
           sql`${asoMonthlyPlans.asoRecordId} is null`,
         ),
       );
     for (const row of obsolete) {
-      const keepMonth = ym && ym.year === year ? ym.month : null;
-      if (keepMonth != null && row.month === keepMonth) continue;
-      // Só limpa origens derivadas do espelho / recálculo automático
+      const keepMonth =
+        periodicAllowed && ym && ym.year === year ? ym.month : null;
+      const isGhostDismissed =
+        row.justificationReason === "DEMITIDO" ||
+        dismissedBeforeCompetence(emp.dismissalDate, year, row.month);
+      const isOpenStatus = [
+        "PREVISTO",
+        "VENCIDO",
+        "NAO_REALIZADO",
+        "JUSTIFICADO",
+      ].includes(String(row.executionStatus || ""));
+      if (keepMonth != null && row.month === keepMonth && !isGhostDismissed) {
+        continue;
+      }
+      if (!isOpenStatus && !isGhostDismissed) continue;
+      if (
+        !isGhostDismissed &&
+        ![
+          "ALTERDATA_NEXT_ASO",
+          "RECOMPUTED_FROM_LAST_ASO",
+          "RECOMPUTED_FROM_ADMISSION",
+          "MIGRATION",
+        ].includes(String(row.predictionOrigin || ""))
+      ) {
+        continue;
+      }
       await db
         .update(asoMonthlyPlans)
         .set({ deletedAt: new Date(), updatedBy: user.id })
-        .where(
-          and(
-            eq(asoMonthlyPlans.id, row.id),
-            inArray(asoMonthlyPlans.predictionOrigin, [
-              "ALTERDATA_NEXT_ASO",
-              "RECOMPUTED_FROM_LAST_ASO",
-              "RECOMPUTED_FROM_ADMISSION",
-            ]),
-          ),
-        );
+        .where(eq(asoMonthlyPlans.id, row.id));
       cleaned += 1;
     }
 
