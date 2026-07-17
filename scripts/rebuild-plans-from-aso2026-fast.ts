@@ -8,7 +8,7 @@ import { resolve } from "node:path";
 import * as XLSX from "xlsx";
 import { Client } from "pg";
 import { parseSheetDate } from "../src/lib/dates";
-import { mapAlterdataFunctionalStatus } from "../src/lib/employees/alterdata-status";
+import { functionalStatusForCompetence } from "../src/lib/employees/alterdata-status";
 import { eligibilityFromFunctionalStatus } from "../src/lib/aso/planning";
 
 config({ path: resolve(process.cwd(), ".env.local") });
@@ -86,13 +86,14 @@ async function main() {
       continue;
     }
 
-    const functional = mapAlterdataFunctionalStatus({
+    const functional = functionalStatusForCompetence({
       dismissalRaw: demissao || "",
-      statusFerias: String(cell(row, "Status_Férias") || ""),
-      afastamentoRaw: String(cell(row, "Afastamento") || ""),
+      feriasStartRaw: cell(row, "Data Inicio Férias") as string | number,
+      feriasEndRaw: cell(row, "Data Fim Férias") as string | number,
       leaveStartRaw: cell(row, "Início Afastamento") as string | number,
       leaveEndRaw: cell(row, "Fim Afastamento") as string | number,
-      todayIso: "2026-07-17",
+      year: 2026,
+      month,
     });
 
     const reg = regKey(cell(row, "Funcionário"));
