@@ -277,9 +277,14 @@ export function LeavesTable({
         </table>
       </div>
 
-      <Sheet open={Boolean(selected)} onOpenChange={(o) => !o && setSelected(null)}>
-        <SheetContent side="right" className="w-full gap-0 overflow-hidden p-0 sm:max-w-lg">
-          {selected ? (
+      {selected ? (
+        <Sheet
+          open
+          onOpenChange={(o) => {
+            if (!o) setSelected(null);
+          }}
+        >
+          <SheetContent side="right" className="w-full gap-0 overflow-hidden p-0 sm:max-w-lg">
             <div className="flex h-full min-h-0 flex-col">
               <SheetHeader className="shrink-0 space-y-0 border-b border-border bg-card px-5 pt-5 pb-4 pr-12 text-left">
                 <div className="flex items-start gap-3">
@@ -404,9 +409,9 @@ export function LeavesTable({
                 </Link>
               </div>
             </div>
-          ) : null}
-        </SheetContent>
-      </Sheet>
+          </SheetContent>
+        </Sheet>
+      ) : null}
     </>
   );
 }

@@ -114,11 +114,10 @@
     @apply border-border outline-ring/50;
   }
   html {
-    @apply font-sans;
-    zoom: 0.9;
+    @apply h-full font-sans;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply min-h-full bg-background text-foreground antialiased;
     letter-spacing: var(--letter-spacing);
   }
 }

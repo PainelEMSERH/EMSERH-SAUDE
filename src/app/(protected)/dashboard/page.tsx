@@ -1,85 +1,55 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   EmptyState,
   PageHeader,
 } from "@/components/feedback/setup-banner";
-import { getCurrentUser } from "@/lib/auth/session";
+import { DashboardView } from "@/components/dashboard/dashboard-view";
+import { getDashboardBundle } from "@/db/queries/dashboard-bundle";
+import { requirePermission } from "@/lib/auth/guard";
+import { parseDashboardFilters } from "@/lib/dashboard/params";
 import { isDatabaseConfigured } from "@/lib/env";
-import { getDashboardMetrics } from "@/db/queries/dashboard";
+import type { DashboardFilterParams } from "@/lib/dashboard/params";
 
-function MetricCard({
-  label,
-  value,
-  tone = "default",
+export default async function DashboardPage({
+  searchParams,
 }: {
-  label: string;
-  value: number;
-  tone?: "default" | "danger" | "warn" | "ok";
+  searchParams: Promise<DashboardFilterParams>;
 }) {
-  const toneClass =
-    tone === "danger"
-      ? "text-red-700"
-      : tone === "warn"
-        ? "text-amber-700"
-        : tone === "ok"
-          ? "text-primary"
-          : "text-foreground";
-
-  return (
-    <Card className="border-border shadow-none">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {label}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className={`text-3xl font-semibold tabular-nums ${toneClass}`}>
-          {value}
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-export default async function DashboardPage() {
   const configured = isDatabaseConfigured();
-  const user = configured ? await getCurrentUser() : null;
-  const metrics = await getDashboardMetrics(user);
+  const user = await requirePermission("dashboard", "view");
+  const params = await searchParams;
 
-  return (
-    <div>
-      <PageHeader
-        title="Dashboard"
-        description="Visão operacional da saúde ocupacional no escopo do seu perfil."
-      />
-
-      {!configured ? (
+  if (!configured) {
+    return (
+      <div>
+        <PageHeader
+          title="Dashboard"
+          description="Visão consolidada da saúde ocupacional, pendências e indicadores da EMSERH."
+        />
         <EmptyState
           title="Banco ainda não conectado"
           description="Configure o Neon (DATABASE_URL) e rode as migrações para popular os indicadores reais. Nenhuma métrica fictícia é exibida."
         />
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard label="Colaboradores ativos" value={metrics.activeEmployees} />
-          <MetricCard label="ASOs vencidos" value={metrics.asoOverdue} tone="danger" />
-          <MetricCard label="ASOs a vencer (30 dias)" value={metrics.asoDueSoon} tone="warn" />
-          <MetricCard label="ASOs previstos no período" value={metrics.asoExpectedPeriod} />
-          <MetricCard label="ASOs realizados (mês)" value={metrics.asoPerformed} tone="ok" />
-          <MetricCard label="Afastamentos ativos" value={metrics.activeLeaves} />
-          <MetricCard label="Gestantes em acompanhamento" value={metrics.pregnancies} />
-          <MetricCard
-            label="Gestantes insalubres s/ realocação"
-            value={metrics.hazardousWithoutRelocation}
-            tone="danger"
-          />
-          <MetricCard label="Acidentes material biológico" value={metrics.bioAccidents} />
-          <MetricCard
-            label="Acompanhamentos 30/60/90 pendentes"
-            value={metrics.pendingFollowups}
-            tone="warn"
-          />
-        </div>
-      )}
-    </div>
-  );
+      </div>
+    );
+  }
+
+  const filters = parseDashboardFilters(user, params);
+  const data = await getDashboardBundle(user, filters);
+
+  if (!data.configured) {
+    return (
+      <div>
+        <PageHeader
+          title="Dashboard"
+          description="Visão consolidada da saúde ocupacional, pendências e indicadores da EMSERH."
+        />
+        <EmptyState
+          title="Banco ainda não conectado"
+          description="Configure o Neon e rode as migrações."
+        />
+      </div>
+    );
+  }
+
+  return <DashboardView data={data} user={user} />;
 }

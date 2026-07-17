@@ -32,7 +32,7 @@ export default async function ProtectedLayout({
 
   return (
     <SidebarUiProvider>
-      <div className="flex h-svh overflow-hidden bg-background">
+      <div className="flex h-dvh overflow-hidden bg-background">
         <AppSidebar user={user} />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <MobileNav user={user} />
