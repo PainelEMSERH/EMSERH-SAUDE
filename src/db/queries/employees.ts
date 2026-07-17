@@ -8,6 +8,7 @@ import {
 } from "@/db/schemas";
 import { can } from "@/lib/permissions";
 import { resolveCpfDisplayResult } from "@/lib/employees/cpf-display";
+import { humanizeLabel } from "@/lib/labels";
 import {
   employeeScopeCondition,
   parsePage,
@@ -78,6 +79,22 @@ export async function listEmployees(
     if (!u || u.regionId !== regionId) unitId = "";
   }
 
+  // Regional inativa (ex.: NAO_INFORMADA) não entra no filtro operacional
+  if (regionId) {
+    const [reg] = await db
+      .select({
+        name: regions.name,
+        code: regions.code,
+        isActive: regions.isActive,
+      })
+      .from(regions)
+      .where(and(eq(regions.id, regionId), isNull(regions.deletedAt)))
+      .limit(1);
+    if (!reg || !reg.isActive || reg.code === "NAO_INFORMADA") {
+      regionId = "";
+    }
+  }
+
   const filters = [
     isNull(employees.deletedAt),
     scope,
@@ -128,11 +145,13 @@ export async function listEmployees(
   let filterLabel: string | undefined;
   if (regionId) {
     const [r] = await db
-      .select({ name: regions.name })
+      .select({ name: regions.name, code: regions.code })
       .from(regions)
       .where(eq(regions.id, regionId))
       .limit(1);
-    if (r?.name) filterLabel = `na Regional ${r.name}`;
+    if (r?.name && r.code !== "NAO_INFORMADA") {
+      filterLabel = `na Regional ${humanizeLabel(r.name)}`;
+    }
   }
 
   const total = totalRow?.value ?? 0;

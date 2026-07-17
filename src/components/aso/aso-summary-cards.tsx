@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Info } from "lucide-react";
 import { StatusBadge } from "@/components/feedback/status-badge";
 import type { CompetenceMetrics } from "@/lib/aso/indicators";
 import { buildAsoUrl } from "@/lib/aso/planning";
@@ -79,11 +78,6 @@ export function AsoSummaryCards({
         : pct >= metrics.metaPercent! - 10
           ? "warn"
           : "danger";
-
-  const formulaSentence =
-    metrics.denominador > 0 && pct != null
-      ? `${metrics.realizados} realizados de ${metrics.previstosElegiveis} previstos elegíveis — aderência de ${pct.toFixed(1)}%.`
-      : "Sem denominador elegível nesta competência.";
 
   return (
     <div className="mb-3 space-y-2">
@@ -179,26 +173,6 @@ export function AsoSummaryCards({
           <StatusBadge label={humanizeLabel(closureStatus)} tone={toneForClosure(closureStatus)} />
         </div>
       ) : null}
-
-      <div className="flex items-start gap-2 rounded-md border border-slate-100 bg-slate-50/80 px-3 py-2 text-[12px] text-slate-600">
-        <Info className="mt-0.5 size-3.5 shrink-0 text-slate-400" aria-hidden />
-        <div>
-          <p>{formulaSentence}</p>
-          <details className="mt-1">
-            <summary className="cursor-pointer text-[11px] font-medium text-teal-800">
-              Memória de cálculo
-            </summary>
-            <ul className="mt-1 list-inside list-disc text-[11px] text-slate-500">
-              <li>Previstos brutos: {metrics.previstosBrutos}</li>
-              <li>Justificados (fora do denominador): {metrics.justificados}</li>
-              <li>Elegíveis (denominador): {metrics.denominador}</li>
-              <li>Realizados (numerador): {metrics.numerador}</li>
-              <li>Fórmula: realizados ÷ elegíveis × 100</li>
-              <li>Validação institucional: pendente</li>
-            </ul>
-          </details>
-        </div>
-      </div>
     </div>
   );
 }

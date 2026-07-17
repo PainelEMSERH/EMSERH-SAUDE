@@ -198,7 +198,7 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
   const month = Math.min(12, Math.max(1, Number(params.month) || now.getMonth() + 1));
   const asoType = params.type && params.type !== "ALL" ? params.type : "ALL";
   const mode = params.mode === "accumulated" ? "accumulated" : "monthly";
-  const { regionId, unitId } = clampScope(
+  let { regionId, unitId } = clampScope(
     user,
     params.regionId || "",
     params.unitId || "",
@@ -237,6 +237,11 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
       .limit(1)
       .then((r) => r[0] ?? null),
   ]);
+
+  // URL com regional inativa (ex.: NAO_INFORMADA) → ignora o filtro
+  if (regionId && !regionRows.some((r) => r.id === regionId)) {
+    regionId = "";
+  }
 
   const whereParts = planScopeFilters(
     user,
