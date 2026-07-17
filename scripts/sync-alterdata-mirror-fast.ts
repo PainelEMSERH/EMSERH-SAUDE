@@ -157,7 +157,7 @@ async function main() {
 
   async function ensureRegion(name: string) {
     const code = normalizeText(name || "NAO_INFORMADA");
-    const fixed = code === "CENTRO" ? "CENTRAL" : code;
+    const fixed = code === "CENTRAL" ? "CENTRO" : code === "OESTE" ? "SUL" : code;
     if (regionCache.has(fixed)) return regionCache.get(fixed)!;
     const found = await c.query(`select id from core.regions where code=$1 limit 1`, [fixed]);
     if (found.rows[0]) {

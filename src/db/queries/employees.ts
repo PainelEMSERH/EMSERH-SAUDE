@@ -142,8 +142,16 @@ export async function listRegions() {
 export async function listUnits(regionId?: string) {
   const db = getDb();
   return db
-    .select()
+    .select({
+      id: units.id,
+      name: units.name,
+      city: units.city,
+      regionId: units.regionId,
+      regionCode: regions.code,
+      regionName: regions.name,
+    })
     .from(units)
+    .leftJoin(regions, eq(units.regionId, regions.id))
     .where(
       and(
         isNull(units.deletedAt),
@@ -151,7 +159,7 @@ export async function listUnits(regionId?: string) {
         regionId ? eq(units.regionId, regionId) : undefined,
       ),
     )
-    .orderBy(units.name);
+    .orderBy(regions.code, units.name);
 }
 
 export async function listJobRoles() {
@@ -172,8 +180,7 @@ export async function ensureOrgDefaults(userId: string) {
     { code: "NORTE", name: "Norte" },
     { code: "SUL", name: "Sul" },
     { code: "LESTE", name: "Leste" },
-    { code: "OESTE", name: "Oeste" },
-    { code: "CENTRAL", name: "Central" },
+    { code: "CENTRO", name: "Centro" },
   ];
 
   for (const r of defaults) {

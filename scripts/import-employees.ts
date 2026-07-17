@@ -40,7 +40,8 @@ function normalizeText(value: string) {
 
 function normalizeRegion(value: string) {
   const n = normalizeText(value);
-  if (n === "CENTRO" || n === "CENTRAL") return "CENTRAL";
+  if (n === "CENTRO" || n === "CENTRAL") return "CENTRO";
+  if (n === "OESTE") return "SUL";
   return n;
 }
 

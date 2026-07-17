@@ -13,9 +13,11 @@
     "db:studio": "drizzle-kit studio",
     "import:employees": "tsx scripts/import-employees.ts",
     "import:occupational": "tsx scripts/import-occupational-data.ts",
+    "import:occupational:fast": "tsx scripts/import-occupational-fast.ts",
     "import:indicators": "tsx scripts/import-indicator-definitions.ts",
     "sync:mirror": "tsx scripts/sync-alterdata-mirror.ts",
     "sync:mirror:fast": "tsx scripts/sync-alterdata-mirror-fast.ts",
+    "org:link-regions": "tsx scripts/link-units-to-regions.ts",
     "create:admin": "tsx scripts/create-admin.ts"
   },
   "dependencies": {
