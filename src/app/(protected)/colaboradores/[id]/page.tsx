@@ -27,6 +27,7 @@ import {
 import { getEmployeeById } from "@/db/queries/employees";
 import { requirePermission, userCan } from "@/lib/auth/guard";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dates";
+import { formatPhoneBR } from "@/lib/employees/cpf-display";
 import {
   formatRegistrationDisplay,
   humanizeLabel,
@@ -34,6 +35,7 @@ import {
   toneForDeadlineStatus,
   toneForFunctionalStatus,
 } from "@/lib/labels";
+import { cn } from "@/lib/utils";
 
 export default async function ColaboradorDetailPage({
   params,
@@ -208,11 +210,16 @@ export default async function ColaboradorDetailPage({
                 <span className="mx-1.5 text-slate-300">·</span>
                 {humanizeLabel(data.regionName)}
               </p>
-              <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12px] lg:grid-cols-4">
-                <Meta label="Função" value={data.jobRoleName ?? "—"} />
+              <dl className="mt-2 grid grid-cols-2 gap-x-5 gap-y-1.5 text-[12px] lg:grid-cols-4">
+                <Meta
+                  label="Função"
+                  value={data.jobRoleName ?? "—"}
+                  clamp={2}
+                  className="lg:col-span-1 min-w-0"
+                />
                 <Meta label="Admissão" value={formatDateBR(emp.admissionDate)} />
-                <Meta label="CPF" value={data.cpfDisplay} />
                 <Meta label="Cidade" value={emp.city ?? "—"} />
+                <Meta label="Telefone" value={formatPhoneBR(emp.phone)} />
               </dl>
             </div>
           </div>
@@ -277,17 +284,22 @@ export default async function ColaboradorDetailPage({
             title="Dados cadastrais"
             description="Espelho oficial Alterdata — consulta completa."
           >
-            <div className="space-y-4">
+            <div className="space-y-2.5">
               <FieldGroup title="Identificação">
                 <Meta
                   label="Matrícula"
                   value={formatRegistrationDisplay(emp.registration)}
                 />
-                <Meta label="Nome completo" value={emp.fullName} />
+                <Meta
+                  label="Nome completo"
+                  value={emp.fullName}
+                  className="md:col-span-2"
+                  clamp={2}
+                />
                 <Meta label="CPF" value={data.cpfDisplay} />
                 <Meta label="Sexo" value={sexLabel} />
                 <Meta
-                  label="Data de nascimento"
+                  label="Nascimento"
                   value={formatDateBR(emp.birthDate)}
                 />
               </FieldGroup>
@@ -297,46 +309,62 @@ export default async function ColaboradorDetailPage({
                   label="Situação funcional"
                   value={humanizeLabel(emp.functionalStatus)}
                 />
-                <Meta label="Função" value={data.jobRoleName ?? "—"} />
                 <Meta
-                  label="Data de admissão"
+                  label="Função"
+                  value={data.jobRoleName ?? "—"}
+                  className="md:col-span-2"
+                  clamp={2}
+                />
+                <Meta
+                  label="Admissão"
                   value={formatDateBR(emp.admissionDate)}
                 />
                 {emp.dismissalDate ? (
                   <Meta
-                    label="Data de demissão"
+                    label="Demissão"
                     value={formatDateBR(emp.dismissalDate)}
                   />
                 ) : null}
               </FieldGroup>
 
-              <FieldGroup title="Lotação">
+              <FieldGroup title="Lotação e contato">
                 <Meta
                   label="Regional"
                   value={humanizeLabel(data.regionName)}
                 />
-                <Meta label="Unidade" value={humanizeLabel(data.unitName)} />
+                <Meta
+                  label="Unidade"
+                  value={humanizeLabel(data.unitName)}
+                  className="md:col-span-2"
+                  clamp={2}
+                />
                 <Meta label="Cidade" value={emp.city ?? "—"} />
+                <Meta label="Telefone" value={formatPhoneBR(emp.phone)} />
               </FieldGroup>
 
-              <FieldGroup title="Contato">
-                <Meta label="Telefone" value={emp.phone ?? "—"} />
-              </FieldGroup>
-
-              <FieldGroup title="Origem dos dados">
-                <Meta
-                  label="Sistema de origem"
-                  value={humanizeLabel(emp.sourceSystem) || "Alterdata"}
-                />
-                <Meta
-                  label="Última atualização do registro"
-                  value={formatDateTimeBR(emp.updatedAt)}
-                />
-                <Meta
-                  label="ID Alterdata"
-                  value={emp.alterdataId ?? emp.registration}
-                />
-              </FieldGroup>
+              <div className="rounded-md border border-slate-100 bg-slate-50/70 px-3 py-2">
+                <h4 className="mb-1.5 text-[10px] font-semibold tracking-wide text-teal-800 uppercase">
+                  Origem dos dados
+                </h4>
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 md:grid-cols-4">
+                  <Meta
+                    label="Sistema de origem"
+                    value={humanizeLabel(emp.sourceSystem) || "Alterdata"}
+                  />
+                  <Meta
+                    label={
+                      emp.sourceSystem?.includes("ALTERDATA")
+                        ? "Última sincronização do Alterdata"
+                        : "Última atualização do registro"
+                    }
+                    value={formatDateTimeBR(emp.updatedAt)}
+                  />
+                  <Meta
+                    label="ID Alterdata"
+                    value={emp.alterdataId ?? emp.registration}
+                  />
+                </dl>
+              </div>
             </div>
           </ModuleCard>
         </TabsContent>
@@ -603,13 +631,30 @@ function TabTrigger({
   );
 }
 
-function Meta({ label, value }: { label: string; value: string }) {
+function Meta({
+  label,
+  value,
+  clamp = 1,
+  className,
+}: {
+  label: string;
+  value: string;
+  clamp?: 1 | 2;
+  className?: string;
+}) {
   return (
-    <div className="min-w-0">
+    <div className={cn("min-w-0", className)}>
       <dt className="text-[10px] font-medium tracking-wide text-slate-500 uppercase">
         {label}
       </dt>
-      <dd className="truncate text-[13px] font-medium text-slate-900" title={value}>
+      <dd
+        className={
+          clamp === 2
+            ? "line-clamp-2 text-[13px] font-medium break-words text-slate-900"
+            : "truncate text-[13px] font-medium text-slate-900"
+        }
+        title={value}
+      >
         {value}
       </dd>
     </div>
@@ -625,10 +670,10 @@ function FieldGroup({
 }) {
   return (
     <div>
-      <h4 className="mb-2 text-[11px] font-semibold tracking-wide text-teal-800 uppercase">
+      <h4 className="mb-1.5 text-[10px] font-semibold tracking-wide text-teal-800 uppercase">
         {title}
       </h4>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 md:grid-cols-3 lg:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 md:grid-cols-3 lg:grid-cols-6">
         {children}
       </dl>
     </div>

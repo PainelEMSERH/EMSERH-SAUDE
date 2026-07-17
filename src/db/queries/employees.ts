@@ -7,7 +7,7 @@ import {
   units,
 } from "@/db/schemas";
 import { can } from "@/lib/permissions";
-import { resolveCpfDisplay } from "@/lib/employees/cpf-display";
+import { resolveCpfDisplayResult } from "@/lib/employees/cpf-display";
 import {
   employeeScopeCondition,
   parsePage,
@@ -168,14 +168,31 @@ export async function getEmployeeById(user: SessionUser, id: string) {
   if (!row) return null;
 
   const showSensitive = can(user, "employees", "view_sensitive_identifiers");
-  const cpfDisplay = resolveCpfDisplay(
+  const cpfResult = resolveCpfDisplayResult(
     row.employee.cpfEncrypted,
+    row.employee.cpfHash,
     showSensitive,
   );
 
+  if (
+    cpfResult.diagnostic === "CPF_DECRYPTION_ERROR" ||
+    cpfResult.diagnostic === "CPF_HASH_ONLY"
+  ) {
+    // Diagnóstico seguro no servidor — sem CPF/plaintext.
+    console.info("[cpf-display]", {
+      diagnostic: cpfResult.diagnostic,
+      employeeId: row.employee.id,
+      hasEncrypted: Boolean(row.employee.cpfEncrypted),
+      hasHash: Boolean(row.employee.cpfHash),
+      canViewSensitive: showSensitive,
+    });
+  }
+
   return {
     ...row,
-    cpfDisplay,
+    cpfDisplay: cpfResult.display,
+    cpfStatus: cpfResult.status,
+    cpfDiagnostic: cpfResult.diagnostic,
     canViewSensitive: showSensitive,
   };
 }

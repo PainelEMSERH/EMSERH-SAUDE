@@ -14,33 +14,56 @@ export function DataTable<T extends { id: string }>({
   emptyTitle = "Nenhum registro",
   emptyDescription = "Não há dados para exibir com os filtros atuais.",
   stickyHeader = false,
+  /**
+   * page — cabeçalho sticky na rolagem do contêiner pai (sem scroll interno).
+   * container — caixa interna com max-height + overflow (comportamento legado).
+   */
+  stickyHeaderMode = "page",
   maxHeightClassName = "max-h-[calc(100vh-240px)]",
+  tableLayout = "auto",
+  containerClassName,
+  tableClassName,
+  cellClassName,
 }: {
   columns: Column<T>[];
   rows: T[];
   emptyTitle?: string;
   emptyDescription?: string;
   stickyHeader?: boolean;
+  stickyHeaderMode?: "page" | "container";
   maxHeightClassName?: string;
+  tableLayout?: "auto" | "fixed";
+  containerClassName?: string;
+  tableClassName?: string;
+  cellClassName?: string;
 }) {
   if (!rows.length) {
     return <EmptyState title={emptyTitle} description={emptyDescription} />;
   }
 
+  const useInnerScroll = stickyHeader && stickyHeaderMode === "container";
+
   return (
     <div
       className={cn(
         "rounded-lg border border-slate-200 bg-white",
-        stickyHeader
+        useInnerScroll
           ? cn("overflow-auto", maxHeightClassName)
           : "overflow-hidden",
+        containerClassName,
       )}
     >
-      <table className="w-full caption-bottom text-sm">
+      <table
+        className={cn(
+          "w-full caption-bottom text-sm",
+          tableLayout === "fixed" && "table-fixed",
+          tableClassName,
+        )}
+      >
         <thead
           className={cn(
             stickyHeader &&
-              "sticky top-0 z-10 bg-slate-50 shadow-[0_1px_0_0_rgb(226_232_240)]",
+              "sticky top-0 z-20 border-b border-slate-200 bg-slate-50 shadow-[0_1px_0_0_rgb(226_232_240)]",
           )}
         >
           <tr className="border-b border-slate-200 bg-slate-50 hover:bg-slate-50">
@@ -48,7 +71,7 @@ export function DataTable<T extends { id: string }>({
               <th
                 key={col.key}
                 className={cn(
-                  "h-8 px-2.5 text-center align-middle text-[11px] font-semibold tracking-wide whitespace-nowrap text-slate-500 uppercase",
+                  "h-8 px-2.5 text-center align-middle text-[11px] font-semibold tracking-wide text-slate-500 uppercase",
                   stickyHeader && "bg-slate-50",
                   col.className,
                 )}
@@ -68,7 +91,8 @@ export function DataTable<T extends { id: string }>({
                 <td
                   key={col.key}
                   className={cn(
-                    "h-9 px-2.5 py-1.5 align-middle text-[10px] whitespace-nowrap",
+                    "h-9 px-2.5 py-1.5 align-middle text-[12px]",
+                    cellClassName,
                     col.className,
                   )}
                 >

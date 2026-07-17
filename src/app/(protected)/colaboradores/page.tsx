@@ -113,7 +113,8 @@ export default async function ColaboradoresPage({
 
       <DataTable
         stickyHeader
-        maxHeightClassName="max-h-[calc(100vh-240px)]"
+        stickyHeaderMode="page"
+        tableLayout="fixed"
         rows={data.rows}
         emptyTitle="Nenhum colaborador encontrado"
         emptyDescription="Ajuste os filtros ou sincronize o espelho Alterdata."
@@ -121,7 +122,7 @@ export default async function ColaboradoresPage({
           {
             key: "registration",
             header: "Matrícula",
-            className: "w-[88px] text-center",
+            className: "w-[7%] text-center whitespace-nowrap",
             cell: (r) => (
               <Link
                 href={`/colaboradores/${r.id}`}
@@ -135,9 +136,12 @@ export default async function ColaboradoresPage({
           {
             key: "name",
             header: "Nome",
-            className: "min-w-[220px] w-[28%]",
+            className: "w-[26%] text-left",
             cell: (r) => (
-              <p className="truncate font-medium text-slate-900" title={r.fullName}>
+              <p
+                className="truncate font-medium text-slate-900"
+                title={r.fullName}
+              >
                 {r.fullName}
               </p>
             ),
@@ -145,7 +149,7 @@ export default async function ColaboradoresPage({
           {
             key: "unit",
             header: "Unidade",
-            className: "min-w-[180px] w-[18%]",
+            className: "w-[20%] text-left",
             cell: (r) => (
               <span
                 className="block truncate text-slate-600"
@@ -158,7 +162,7 @@ export default async function ColaboradoresPage({
           {
             key: "role",
             header: "Função",
-            className: "min-w-[150px] w-[16%]",
+            className: "w-[18%] text-left",
             cell: (r) => (
               <span
                 className="block truncate text-slate-600"
@@ -171,7 +175,7 @@ export default async function ColaboradoresPage({
           {
             key: "region",
             header: "Regional",
-            className: "w-[72px]",
+            className: "w-[8%] text-left",
             cell: (r) => (
               <span
                 className="block truncate text-slate-600"
@@ -184,7 +188,7 @@ export default async function ColaboradoresPage({
           {
             key: "status",
             header: "Situação",
-            className: "w-[88px] text-center",
+            className: "w-[8%] text-center",
             cell: (r) => (
               <div className="flex justify-center">
                 <StatusBadge
@@ -197,7 +201,7 @@ export default async function ColaboradoresPage({
           {
             key: "admission",
             header: "Admissão",
-            className: "w-[84px] text-center",
+            className: "w-[7%] text-center whitespace-nowrap",
             cell: (r) => (
               <span className="tabular-nums text-slate-600">
                 {formatDateBR(r.admissionDate)}
@@ -207,13 +211,13 @@ export default async function ColaboradoresPage({
           {
             key: "actions",
             header: "",
-            className: "w-[96px]",
+            className: "w-[6%] text-center",
             cell: (r) => (
               <Link
                 href={`/colaboradores/${r.id}`}
                 className={cn(
                   buttonVariants({ variant: "outline", size: "sm" }),
-                  "h-7 gap-1 px-2 text-[12px] text-teal-800",
+                  "h-7 gap-1 px-1.5 text-[11px] text-teal-800",
                 )}
                 title="Ver prontuário"
               >

@@ -21,8 +21,14 @@ import {
   mapAlterdataFunctionalStatus,
   mapAlterdataSex,
 } from "@/lib/employees/alterdata-status";
-import { hashCpf, normalizeCpf, encryptField } from "@/lib/encryption";
+import { hashCpf, normalizeCpf } from "@/lib/encryption";
 import { getEnv } from "@/lib/env";
+import {
+  decideCpfSyncFields,
+  emptyCpfSyncStats,
+  mergeCpfFields,
+  tallyCpfDiagnostic,
+} from "@/lib/employees/cpf-sync";
 import { normalizeRegionName, normalizeText } from "@/lib/validation";
 import type { SessionUser } from "@/types";
 
@@ -261,8 +267,10 @@ export async function syncAlterdataMirror(options?: {
   let updated = 0;
   let skipped = 0;
   let errors = 0;
-  const seenCpfHashes = new Set<string>();
+  const seenCpfHashes = new Map<string, string>(); // hash → registration
   const syncedAt = new Date();
+  const cpfStats = emptyCpfSyncStats();
+  const encryptionEnabled = Boolean(getEnv().FIELD_ENCRYPTION_KEY);
 
   const regionCache = new Map<string, string>();
   const unitCache = new Map<string, string>();
@@ -434,42 +442,48 @@ export async function syncAlterdataMirror(options?: {
       const jobRoleId = await ensureRole(roleName);
 
       const cpfRaw = cell(row, "NrCPF", "CPF");
-      let cpfHash: string | null = null;
-      let cpfEncrypted: string | null = null;
-      if (cpfRaw) {
-        const digits = normalizeCpf(cpfRaw);
-        if (digits.length === 11) {
-          cpfHash = hashCpf(digits);
-          if (getEnv().FIELD_ENCRYPTION_KEY) {
-            try {
-              cpfEncrypted = encryptField(digits);
-            } catch {
-              cpfEncrypted = null;
-            }
-          }
-        }
+      let hashOwnerInDb: string | null = null;
+      const digitsPreview = cpfRaw ? normalizeCpf(cpfRaw) : "";
+      if (digitsPreview.length === 11) {
+        const previewHash = hashCpf(digitsPreview);
+        const [cpfOwner] = await db
+          .select({ registration: employees.registration })
+          .from(employees)
+          .where(
+            and(
+              eq(employees.cpfHash, previewHash),
+              isNull(employees.deletedAt),
+            ),
+          )
+          .limit(1);
+        hashOwnerInDb = cpfOwner?.registration ?? null;
       }
 
-      // Matrícula é a chave. CPF duplicado no Alterdata não pode bloquear o cadastro.
-      if (cpfHash) {
-        if (seenCpfHashes.has(cpfHash)) {
-          cpfHash = null;
-          cpfEncrypted = null;
-        } else {
-          const [cpfOwner] = await db
-            .select({ id: employees.id, registration: employees.registration })
-            .from(employees)
-            .where(
-              and(eq(employees.cpfHash, cpfHash), isNull(employees.deletedAt)),
-            )
-            .limit(1);
-          if (cpfOwner && cpfOwner.registration !== registration) {
-            cpfHash = null;
-            cpfEncrypted = null;
-          } else {
-            seenCpfHashes.add(cpfHash);
-          }
-        }
+      const decision = decideCpfSyncFields({
+        cpfRaw,
+        registration,
+        hashOwnerInBatch:
+          digitsPreview.length === 11
+            ? seenCpfHashes.get(hashCpf(digitsPreview))
+            : undefined,
+        hashOwnerInDb,
+        encryptionEnabled,
+      });
+      tallyCpfDiagnostic(cpfStats, decision.diagnostic);
+
+      if (
+        decision.diagnostic === "CPF_DUPLICATE_HASH" &&
+        decision.conflictRegistration
+      ) {
+        await db.insert(importErrors).values({
+          batchId: batch.id,
+          rowNumber: i + 2,
+          message: `CPF duplicado no Alterdata entre as matrículas ${decision.conflictRegistration} e ${registration}. Matrícula preservada como chave; hash não duplicado.`,
+        });
+      }
+
+      if (decision.cpfHash) {
+        seenCpfHashes.set(decision.cpfHash, registration);
       }
 
       const phoneRaw = cell(row, "NrTelefone", "NrCelular");
@@ -490,23 +504,34 @@ export async function syncAlterdataMirror(options?: {
         .limit(1);
 
       if (existing) {
-        let nextCpfHash = cpfHash ?? existing.cpfHash;
-        let nextCpfEncrypted = cpfEncrypted ?? existing.cpfEncrypted;
+        const merged = mergeCpfFields({
+          decision,
+          existingHash: existing.cpfHash,
+          existingEncrypted: existing.cpfEncrypted,
+        });
 
-        if (cpfHash && existing.cpfHash && cpfHash !== existing.cpfHash) {
+        // Se o hash novo conflita com outro registro, não troca o hash desta matrícula
+        let nextCpfHash = merged.cpfHash;
+        let nextCpfEncrypted = merged.cpfEncrypted;
+        if (
+          decision.cpfHash &&
+          existing.cpfHash &&
+          decision.cpfHash !== existing.cpfHash
+        ) {
           const [other] = await db
             .select({ id: employees.id })
             .from(employees)
             .where(
               and(
-                eq(employees.cpfHash, cpfHash),
+                eq(employees.cpfHash, decision.cpfHash),
                 isNull(employees.deletedAt),
               ),
             )
             .limit(1);
           if (other && other.id !== existing.id) {
             nextCpfHash = existing.cpfHash;
-            nextCpfEncrypted = existing.cpfEncrypted;
+            nextCpfEncrypted =
+              decision.cpfEncrypted ?? existing.cpfEncrypted ?? null;
           }
         }
 
@@ -560,8 +585,8 @@ export async function syncAlterdataMirror(options?: {
           regionId,
           unitId,
           jobRoleId,
-          cpfHash,
-          cpfEncrypted,
+          cpfHash: decision.cpfHash,
+          cpfEncrypted: decision.cpfEncrypted,
           sourceSystem: "ALTERDATA_MIRROR",
           alterdataId: registration,
           updatedBy: options?.user?.id ?? null,
@@ -576,12 +601,13 @@ export async function syncAlterdataMirror(options?: {
           employeeId = created.id;
           imported += 1;
         } catch {
+          // Unique de hash: grava sem hash, preserva encrypted
           const [created] = await db
             .insert(employees)
             .values({
               ...payload,
               cpfHash: null,
-              cpfEncrypted: null,
+              cpfEncrypted: decision.cpfEncrypted,
             })
             .returning({ id: employees.id });
           employeeId = created.id;
@@ -630,6 +656,7 @@ export async function syncAlterdataMirror(options?: {
         skipped,
         errors,
         origin: "ALTERDATA_MIRROR",
+        cpf: cpfStats,
       }),
       updatedBy: options?.user?.id ?? null,
     })
@@ -647,6 +674,7 @@ export async function syncAlterdataMirror(options?: {
       errors,
       source: "alterdata_mirror_readonly",
       headerCount: headers.length,
+      cpf: cpfStats,
     },
   });
 

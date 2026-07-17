@@ -7,8 +7,14 @@
 import { config } from "dotenv";
 import { resolve } from "node:path";
 import { createHash } from "node:crypto";
-import { createCipheriv, createHash as cryptoHash, randomBytes } from "node:crypto";
+import { createHash as cryptoHash } from "node:crypto";
 import { Client } from "pg";
+import {
+  decideCpfSyncFields,
+  emptyCpfSyncStats,
+  mergeCpfFields,
+  tallyCpfDiagnostic,
+} from "../src/lib/employees/cpf-sync";
 
 config({ path: resolve(process.cwd(), ".env.local") });
 
@@ -41,20 +47,6 @@ function normalizeCpf(cpf: string) {
 
 function hashCpf(cpf: string) {
   return cryptoHash("sha256").update(normalizeCpf(cpf)).digest("hex");
-}
-
-function encryptField(plain: string): string | null {
-  const keyEnv = process.env.FIELD_ENCRYPTION_KEY;
-  if (!keyEnv) return null;
-  const key = cryptoHash("sha256").update(keyEnv).digest();
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const encrypted = Buffer.concat([
-    cipher.update(plain, "utf8"),
-    cipher.final(),
-  ]);
-  const tag = cipher.getAuthTag();
-  return `v1:${iv.toString("base64url")}:${tag.toString("base64url")}:${encrypted.toString("base64url")}`;
 }
 
 function mapAlterdataFunctionalStatus(input: {
@@ -201,8 +193,9 @@ async function main() {
     id: string;
     registration: string;
     cpf_hash: string | null;
+    cpf_encrypted: string | null;
   }>(
-    `select id, registration, cpf_hash from core.employees where deleted_at is null`,
+    `select id, registration, cpf_hash, cpf_encrypted from core.employees where deleted_at is null`,
   );
   const byReg = new Map(existingRegs.rows.map((r) => [r.registration, r]));
 
@@ -284,7 +277,9 @@ async function main() {
   let updated = 0;
   let skipped = 0;
   let errors = 0;
-  const seenCpf = new Set<string>();
+  const seenCpf = new Map<string, string>(); // hash → registration
+  const cpfStats = emptyCpfSyncStats();
+  const encryptionEnabled = Boolean(process.env.FIELD_ENCRYPTION_KEY);
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -326,20 +321,35 @@ async function main() {
       const jobRoleId = await ensureRole(roleName);
 
       const cpfRaw = cell(row, "NrCPF", "CPF");
-      let cpfHash: string | null = null;
-      let cpfEncrypted: string | null = null;
-      if (cpfRaw) {
-        const digits = normalizeCpf(cpfRaw);
-        if (digits.length === 11) {
-          const h = hashCpf(digits);
-          const owner = cpfOwners.get(h);
-          if (!seenCpf.has(h) && (!owner || owner === registration)) {
-            cpfHash = h;
-            seenCpf.add(h);
-            cpfOwners.set(h, registration);
-            cpfEncrypted = encryptField(digits);
-          }
-        }
+      const digitsPreview = cpfRaw ? normalizeCpf(cpfRaw) : "";
+      const previewHash =
+        digitsPreview.length === 11 ? hashCpf(digitsPreview) : "";
+      const decision = decideCpfSyncFields({
+        cpfRaw,
+        registration,
+        hashOwnerInBatch: previewHash ? seenCpf.get(previewHash) : undefined,
+        hashOwnerInDb: previewHash ? cpfOwners.get(previewHash) : undefined,
+        encryptionEnabled,
+      });
+      tallyCpfDiagnostic(cpfStats, decision.diagnostic);
+
+      if (
+        decision.diagnostic === "CPF_DUPLICATE_HASH" &&
+        decision.conflictRegistration
+      ) {
+        await c.query(
+          `insert into files.import_errors (batch_id, row_number, message) values ($1,$2,$3)`,
+          [
+            batchId,
+            i + 2,
+            `CPF duplicado no Alterdata entre as matrículas ${decision.conflictRegistration} e ${registration}. Matrícula preservada como chave; hash não duplicado.`,
+          ],
+        );
+      }
+
+      if (decision.cpfHash) {
+        seenCpf.set(decision.cpfHash, registration);
+        cpfOwners.set(decision.cpfHash, registration);
       }
 
       const phone = cell(row, "NrTelefone", "NrCelular");
@@ -350,6 +360,11 @@ async function main() {
 
       const existing = byReg.get(registration);
       if (existing) {
+        const merged = mergeCpfFields({
+          decision,
+          existingHash: existing.cpf_hash,
+          existingEncrypted: existing.cpf_encrypted,
+        });
         await c.query(
           `update core.employees set
             full_name=$1,
@@ -364,8 +379,8 @@ async function main() {
             job_role_id=coalesce($10::uuid, job_role_id),
             unit_id=coalesce($11::uuid, unit_id),
             region_id=coalesce($12::uuid, region_id),
-            cpf_hash=coalesce($13, cpf_hash),
-            cpf_encrypted=coalesce($14, cpf_encrypted),
+            cpf_hash=$13,
+            cpf_encrypted=$14,
             source_system='ALTERDATA_MIRROR',
             alterdata_id=$15,
             updated_at=now()
@@ -383,46 +398,87 @@ async function main() {
             jobRoleId,
             unitId,
             regionId,
-            cpfHash,
-            cpfEncrypted,
+            merged.cpfHash,
+            merged.cpfEncrypted,
             registration,
             existing.id,
           ],
         );
+        existing.cpf_hash = merged.cpfHash;
+        existing.cpf_encrypted = merged.cpfEncrypted;
         updated++;
       } else {
-        const ins = await c.query(
-          `insert into core.employees (
-            registration, full_name, normalized_name, city, phone, sex,
-            admission_date, dismissal_date, birth_date, functional_status,
-            job_role_id, unit_id, region_id, cpf_hash, cpf_encrypted,
-            source_system, alterdata_id
-          ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'ALTERDATA_MIRROR',$16)
-          returning id`,
-          [
+        const cpfHash = decision.cpfHash;
+        const cpfEncrypted = decision.cpfEncrypted;
+        try {
+          const ins = await c.query(
+            `insert into core.employees (
+              registration, full_name, normalized_name, city, phone, sex,
+              admission_date, dismissal_date, birth_date, functional_status,
+              job_role_id, unit_id, region_id, cpf_hash, cpf_encrypted,
+              source_system, alterdata_id
+            ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'ALTERDATA_MIRROR',$16)
+            returning id`,
+            [
+              registration,
+              fullName,
+              normalizeText(fullName),
+              city || null,
+              phone || null,
+              sex,
+              admissionDate,
+              dismissalDate,
+              birthDate,
+              functionalStatus,
+              jobRoleId,
+              unitId,
+              regionId,
+              cpfHash,
+              cpfEncrypted,
+              registration,
+            ],
+          );
+          byReg.set(registration, {
+            id: ins.rows[0].id,
             registration,
-            fullName,
-            normalizeText(fullName),
-            city || null,
-            phone || null,
-            sex,
-            admissionDate,
-            dismissalDate,
-            birthDate,
-            functionalStatus,
-            jobRoleId,
-            unitId,
-            regionId,
-            cpfHash,
-            cpfEncrypted,
+            cpf_hash: cpfHash,
+            cpf_encrypted: cpfEncrypted,
+          });
+        } catch {
+          const ins = await c.query(
+            `insert into core.employees (
+              registration, full_name, normalized_name, city, phone, sex,
+              admission_date, dismissal_date, birth_date, functional_status,
+              job_role_id, unit_id, region_id, cpf_hash, cpf_encrypted,
+              source_system, alterdata_id
+            ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'ALTERDATA_MIRROR',$16)
+            returning id`,
+            [
+              registration,
+              fullName,
+              normalizeText(fullName),
+              city || null,
+              phone || null,
+              sex,
+              admissionDate,
+              dismissalDate,
+              birthDate,
+              functionalStatus,
+              jobRoleId,
+              unitId,
+              regionId,
+              null,
+              cpfEncrypted,
+              registration,
+            ],
+          );
+          byReg.set(registration, {
+            id: ins.rows[0].id,
             registration,
-          ],
-        );
-        byReg.set(registration, {
-          id: ins.rows[0].id,
-          registration,
-          cpf_hash: cpfHash,
-        });
+            cpf_hash: null,
+            cpf_encrypted: cpfEncrypted,
+          });
+        }
         imported++;
       }
 
@@ -462,6 +518,7 @@ async function main() {
         skipped,
         errors,
         origin: "ALTERDATA_MIRROR",
+        cpf: cpfStats,
       }),
       batchId,
     ],
@@ -478,6 +535,7 @@ async function main() {
     errors,
     finishedAt,
     employeesInDb: total.rows[0].n,
+    cpf: cpfStats,
   });
   await c.end();
 }
