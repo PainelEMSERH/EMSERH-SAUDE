@@ -49,7 +49,7 @@ function NavLinks({
 
 export function AppSidebar({ user }: { user: SessionUser }) {
   return (
-    <aside className="hidden h-screen w-64 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex">
+    <aside className="hidden h-svh w-64 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex">
       <div className="border-b border-slate-200 px-4 py-5">
         <p className="text-xs font-semibold tracking-[0.18em] text-teal-700 uppercase">
           EMSERH

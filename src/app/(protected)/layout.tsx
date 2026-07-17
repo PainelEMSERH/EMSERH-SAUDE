@@ -26,11 +26,13 @@ export default async function ProtectedLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex h-svh overflow-hidden bg-slate-50">
       <AppSidebar user={user} />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <MobileNav user={user} />
-        <main className="flex-1 px-4 py-4 text-[13px] leading-snug md:px-5 md:py-5">{children}</main>
+        <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-[13px] leading-snug md:px-5 md:py-5">
+          {children}
+        </main>
       </div>
     </div>
   );
