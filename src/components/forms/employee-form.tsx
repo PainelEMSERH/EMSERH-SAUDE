@@ -283,7 +283,7 @@ export function EmployeeForm({
       </Section>
 
       {state.error ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border dark:border-[color:var(--danger)] dark:bg-transparent dark:text-[color:var(--danger)]">
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {state.error}
         </p>
       ) : null}
@@ -325,7 +325,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-border bg-card p-4">
+    <section className="app-surface p-4">
       <div className="mb-3 flex items-start gap-2.5 border-b border-border-subtle pb-3">
         <div className="flex size-7 shrink-0 items-center justify-center rounded-md border border-primary-border bg-primary-soft text-primary">
           {icon}

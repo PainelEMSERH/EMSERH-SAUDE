@@ -32,7 +32,7 @@ export function BiologicalFilters({
   }
 
   return (
-    <div className="mb-3 rounded-lg border border-border bg-card p-3">
+    <div className="app-surface mb-3 p-3.5">
       <form
         className={cn(
           "flex flex-col gap-2.5 lg:flex-row lg:flex-wrap lg:items-end",

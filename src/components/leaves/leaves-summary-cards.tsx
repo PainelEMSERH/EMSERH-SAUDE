@@ -65,7 +65,7 @@ export function LeavesSummaryCards({
 }) {
   return (
     <div className="mb-3">
-      <section className="overflow-hidden rounded-lg border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <section className="app-surface overflow-hidden">
         <div className="border-b border-border-subtle bg-muted/70 px-3 py-1.5 text-[11px] text-muted-foreground">
           Indicadores da aba{" "}
           <span className="font-semibold text-foreground/80">{groupLabel}</span>

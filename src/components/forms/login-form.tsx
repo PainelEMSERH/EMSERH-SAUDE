@@ -19,13 +19,15 @@ export function LoginForm() {
   const [state, action, pending] = useActionState(loginAction, initial);
 
   return (
-    <Card className="w-full max-w-md border-border shadow-sm">
-      <CardHeader>
-        <p className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">
+    <Card className="w-full max-w-md border-border shadow-[var(--shadow-card)]">
+      <CardHeader className="space-y-1.5">
+        <p className="text-[11px] font-semibold tracking-[0.16em] text-primary uppercase">
           EMSERH
         </p>
-        <CardTitle className="text-xl">Saúde Ocupacional</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-[22px] tracking-tight">
+          Saúde Ocupacional
+        </CardTitle>
+        <CardDescription className="text-[13px] leading-relaxed">
           Acesso restrito. Usuários são criados por administrador autorizado.
         </CardDescription>
       </CardHeader>
@@ -54,7 +56,7 @@ export function LoginForm() {
             />
           </div>
           {state.error ? (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:border dark:border-[color:var(--danger)] dark:bg-transparent dark:text-[color:var(--danger)]">
+            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
               {state.error}
             </p>
           ) : null}

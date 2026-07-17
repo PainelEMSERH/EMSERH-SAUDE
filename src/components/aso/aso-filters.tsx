@@ -68,7 +68,7 @@ export function AsoFilters({
   };
 
   return (
-    <div className="mb-3 space-y-3 rounded-lg border border-border bg-card p-3">
+    <div className="app-surface mb-3 space-y-3 p-3.5">
       <form
         action="/asos"
         method="get"

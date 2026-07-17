@@ -1,28 +1,12 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-/** Badges institucionais: suave no claro, outline discreto no escuro. */
 const TONES: Record<string, string> = {
-  ok: cn(
-    "border-[color:var(--primary-border)] bg-[color:var(--primary-soft)] text-[color:var(--success)]",
-    "dark:border-[color:var(--primary-border)] dark:bg-[color:var(--primary-soft)] dark:text-[color:var(--accent-foreground)]",
-  ),
-  warn: cn(
-    "border-amber-200/70 bg-amber-50 text-[color:var(--warning)]",
-    "dark:border-amber-700/50 dark:bg-amber-950/40 dark:text-amber-200/90",
-  ),
-  danger: cn(
-    "border-red-200/70 bg-red-50 text-[color:var(--danger)]",
-    "dark:border-red-800/50 dark:bg-red-950/40 dark:text-red-200/90",
-  ),
-  muted: cn(
-    "border-border bg-muted text-muted-foreground",
-    "dark:border-border dark:bg-muted/50 dark:text-muted-foreground",
-  ),
-  info: cn(
-    "border-blue-200/70 bg-blue-50 text-[color:var(--info)]",
-    "dark:border-blue-800/50 dark:bg-blue-950/40 dark:text-blue-200/90",
-  ),
+  ok: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  warn: "border-amber-200 bg-amber-50 text-amber-800",
+  danger: "border-red-200 bg-red-50 text-red-800",
+  muted: "border-slate-200 bg-slate-50 text-slate-600",
+  info: "border-blue-200 bg-blue-50 text-blue-800",
 };
 
 export function StatusBadge({
@@ -36,7 +20,7 @@ export function StatusBadge({
     <Badge
       variant="outline"
       className={cn(
-        "h-auto px-2 py-1 text-[10px] font-medium leading-none whitespace-nowrap",
+        "h-auto rounded-md px-2 py-1 text-[10.5px] font-medium leading-none whitespace-nowrap",
         TONES[tone] ?? TONES.muted,
       )}
     >

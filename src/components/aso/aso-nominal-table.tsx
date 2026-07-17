@@ -131,7 +131,7 @@ function DetailSection({
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card">
+    <section className="app-surface overflow-hidden">
       <div className="border-b border-border-subtle bg-muted/80 px-3.5 py-2">
         <h4 className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
           {title}
@@ -218,7 +218,7 @@ export function AsoNominalFilters({
   }
 
   return (
-    <div className="mb-2 rounded-lg border border-border bg-card p-2.5">
+    <div className="mb-2 app-surface p-2.5">
       <form action="/asos" className="flex flex-wrap items-end gap-2" method="get">
         {Object.entries(current).map(([k, v]) => {
           if (
@@ -349,11 +349,11 @@ export function AsoNominalTable({
 
   return (
     <>
-      <div className="mb-1 flex items-center justify-between">
-        <h3 className="text-[13px] font-semibold text-foreground">Relação nominal</h3>
-        <p className="text-[11px] text-muted-foreground">Clique na linha para ver detalhes</p>
+      <div className="app-section-title">
+        <h3>Relação nominal</h3>
+        <p>Clique na linha para ver detalhes</p>
       </div>
-      <div className="rounded-lg border border-border bg-card">
+      <div className="app-surface">
         <table className="app-data-table">
           <colgroup>
             <col className="w-[21%]" />
@@ -711,7 +711,7 @@ export function AsoNominalTable({
 
       {registerOpen && selected ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4">
-          <div className="w-full max-w-md rounded-lg border border-border bg-card p-4 shadow-lg">
+          <div className="w-full max-w-md app-surface p-4 shadow-lg">
             <h3 className="text-sm font-semibold text-foreground">
               {selected.asoRecordId || selected.executionStatus === "REALIZADO"
                 ? "Realização / correção"
@@ -799,7 +799,7 @@ export function AsoNominalTable({
                 />
               </label>
               {error ? (
-                <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700 dark:border-[color:var(--danger)] dark:bg-transparent dark:text-[color:var(--danger)]">
+                <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
                   {error}
                 </p>
               ) : null}

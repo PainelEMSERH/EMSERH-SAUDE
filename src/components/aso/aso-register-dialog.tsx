@@ -139,7 +139,7 @@ export function AsoRegisterDialog({
             <Textarea id="adminNotes" name="adminNotes" />
           </div>
           {state.error ? (
-            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] text-red-700 dark:border-[color:var(--danger)] dark:bg-transparent dark:text-[color:var(--danger)]">
+            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] text-red-700">
               {state.error}
             </p>
           ) : null}

@@ -6,9 +6,7 @@ import { LogOut, Menu } from "lucide-react";
 import { useState } from "react";
 import { logoutAction } from "@/actions/auth";
 import { useSidebarUi } from "@/components/layout/sidebar-ui";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
 import {
-  ConnectionStatus,
   SidebarCollapseButton,
 } from "@/components/layout/topbar-controls";
 import { Button } from "@/components/ui/button";
@@ -51,7 +49,7 @@ function NavLinks({
         return (
           <div key={section.id}>
             {!collapsed ? (
-              <p className="mb-1 px-[10px] text-[9px] font-semibold tracking-[0.08em] text-sidebar-foreground/70 uppercase">
+              <p className="mb-1.5 px-[10px] text-[10px] font-semibold tracking-[0.1em] text-slate-400 uppercase">
                 {section.label}
               </p>
             ) : (
@@ -73,13 +71,13 @@ function NavLinks({
                     onClick={onNavigate}
                     title={collapsed ? item.title : undefined}
                     className={cn(
-                      "flex h-8 items-center rounded-[6px] text-[12px] leading-none transition-colors",
+                      "flex h-[34px] items-center rounded-lg text-[12.5px] leading-none transition-colors",
                       collapsed
                         ? "justify-center px-0"
-                        : "gap-1.5 px-[10px] py-[6px]",
+                        : "gap-2 px-[10px] py-[6px]",
                       active
-                        ? "border border-primary-border bg-primary-soft font-medium text-primary"
-                        : "border border-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                        ? "border border-primary-border bg-primary-soft font-medium text-primary shadow-[inset_0_0_0_1px_rgba(167,243,208,0.35)]"
+                        : "border border-transparent text-sidebar-foreground hover:bg-white hover:text-foreground",
                     )}
                   >
                     <Icon
@@ -150,23 +148,23 @@ export function AppSidebar({ user }: { user: SessionUser }) {
     <aside
       className={cn(
         "hidden h-svh shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 lg:flex",
-        collapsed ? "w-[64px]" : "w-[230px]",
+        collapsed ? "w-[64px]" : "w-[236px]",
       )}
     >
-      <div className={cn("pb-2 pt-5", collapsed ? "px-2" : "px-3")}>
+      <div className={cn("border-b border-sidebar-border pb-3 pt-5", collapsed ? "px-2" : "px-3.5")}>
         {collapsed ? (
           <p
-            className="text-center text-[11px] font-bold tracking-tight text-primary"
+            className="text-center text-[12px] font-bold tracking-tight text-primary"
             title={APP_NAME}
           >
             ES
           </p>
         ) : (
           <>
-            <p className="text-[14px] font-semibold tracking-tight text-foreground">
+            <p className="text-[15px] font-semibold tracking-tight text-foreground">
               Menu
             </p>
-            <p className="mt-0.5 truncate text-[9px] font-medium tracking-[0.12em] text-primary uppercase">
+            <p className="mt-1 truncate text-[10px] font-semibold tracking-[0.14em] text-primary uppercase">
               EMSERH · Saúde
             </p>
           </>
@@ -181,13 +179,11 @@ export function AppSidebar({ user }: { user: SessionUser }) {
 
 export function AppTopbar({ user }: { user: SessionUser }) {
   return (
-    <header className="hidden h-12 shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-4 md:px-5 lg:flex">
+    <header className="hidden h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-5 lg:flex">
       <div className="flex items-center gap-3">
         <SidebarCollapseButton />
-        <ConnectionStatus />
       </div>
       <div className="flex items-center gap-2.5">
-        <ThemeToggle />
         <UserMenu user={user} />
       </div>
     </header>
@@ -197,7 +193,7 @@ export function AppTopbar({ user }: { user: SessionUser }) {
 export function MobileNav({ user }: { user: SessionUser }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="flex items-center gap-2 border-b border-border bg-background px-3 py-2 lg:hidden">
+    <div className="flex items-center gap-2 border-b border-border bg-card px-3 py-2.5 lg:hidden">
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger
           render={
@@ -206,12 +202,12 @@ export function MobileNav({ user }: { user: SessionUser }) {
         >
           <Menu className="size-4" />
         </SheetTrigger>
-        <SheetContent side="left" className="w-[230px] bg-sidebar p-0">
-          <div className="px-3 pt-5 pb-2">
-            <p className="text-[14px] font-semibold tracking-tight text-foreground">
+        <SheetContent side="left" className="w-[236px] bg-sidebar p-0">
+          <div className="border-b border-sidebar-border px-3.5 pt-5 pb-3">
+            <p className="text-[15px] font-semibold tracking-tight text-foreground">
               Menu
             </p>
-            <p className="mt-0.5 text-[9px] font-medium tracking-[0.12em] text-primary uppercase">
+            <p className="mt-1 text-[10px] font-semibold tracking-[0.14em] text-primary uppercase">
               {APP_NAME}
             </p>
           </div>
@@ -219,12 +215,10 @@ export function MobileNav({ user }: { user: SessionUser }) {
         </SheetContent>
       </Sheet>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-semibold text-foreground">
+        <p className="truncate text-[13px] font-semibold tracking-tight text-foreground">
           Saúde Ocupacional
         </p>
       </div>
-      <ConnectionStatus />
-      <ThemeToggle />
       <UserMenu user={user} />
     </div>
   );

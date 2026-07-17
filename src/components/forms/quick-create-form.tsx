@@ -94,7 +94,7 @@ export function QuickCreateForm({
         ))}
       </div>
       {state.error ? (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:border dark:border-[color:var(--danger)] dark:bg-transparent dark:text-[color:var(--danger)]">
+        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
           {state.error}
         </p>
       ) : state.ok ? (

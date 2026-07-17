@@ -169,7 +169,7 @@ export default async function ColaboradorDetailPage({
         </div>
       ) : null}
 
-      <div className="rounded-lg border border-border bg-card p-3">
+      <div className="app-surface p-3.5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-primary-border bg-primary-soft text-sm font-semibold text-primary">
@@ -634,7 +634,7 @@ function ModuleCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
+    <div className="app-surface p-3.5">
       <div className="mb-3 flex items-start gap-2.5 border-b border-border-subtle pb-2.5">
         <div className="flex size-8 items-center justify-center rounded-md border border-primary-border bg-primary-soft text-primary">
           {icon}

@@ -6,7 +6,7 @@ export default async function NovoColaboradorPage() {
   await requirePermission("employees", "view");
 
   return (
-    <div className="mx-auto max-w-lg space-y-4 rounded-lg border border-border bg-card p-6">
+    <div className="mx-auto max-w-lg space-y-4 app-surface p-6">
       <div className="flex size-10 items-center justify-center rounded-md border border-primary-border bg-primary-soft text-primary">
         <Database className="size-5" aria-hidden />
       </div>

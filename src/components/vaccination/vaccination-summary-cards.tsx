@@ -63,7 +63,7 @@ export function VaccinationSummaryCards({
 }) {
   return (
     <div className="mb-3">
-      <section className="overflow-hidden rounded-lg border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <section className="app-surface overflow-hidden">
         <div className="grid grid-cols-2 divide-x divide-y divide-border-subtle sm:grid-cols-3 lg:grid-cols-5 lg:divide-y-0">
           <Kpi
             label="Colaboradores"

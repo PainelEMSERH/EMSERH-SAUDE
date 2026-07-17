@@ -51,7 +51,7 @@ export function LeavesFilters({
   };
 
   return (
-    <div className="mb-3 overflow-hidden rounded-lg border border-border bg-card">
+    <div className="mb-3 app-surface overflow-hidden">
       <div className="flex flex-wrap gap-0 border-b border-border">
         {LEAVE_TABS.map((tab) => {
           const active = group === tab.value;

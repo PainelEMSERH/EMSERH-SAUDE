@@ -46,10 +46,8 @@ export function DataTable<T extends { id: string }>({
   return (
     <div
       className={cn(
-        "rounded-lg border border-border bg-card",
-        useInnerScroll
-          ? cn("overflow-auto", maxHeightClassName)
-          : "overflow-hidden",
+        "app-surface overflow-hidden",
+        useInnerScroll && cn("overflow-auto", maxHeightClassName),
         containerClassName,
       )}
     >
@@ -68,14 +66,7 @@ export function DataTable<T extends { id: string }>({
         >
           <tr>
             {columns.map((col) => (
-              <th
-                key={col.key}
-                className={cn(
-                  stickyHeader && "bg-muted dark:bg-card",
-                  col.className,
-                  "text-center",
-                )}
-              >
+              <th key={col.key} className={cn("text-left", col.className)}>
                 {col.header}
               </th>
             ))}

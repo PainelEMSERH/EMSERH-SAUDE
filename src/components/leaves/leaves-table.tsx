@@ -46,7 +46,7 @@ function DetailSection({
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card">
+    <section className="app-surface overflow-hidden">
       <div className="border-b border-border-subtle bg-muted/80 px-3.5 py-2">
         <h4 className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
           {title}
@@ -110,7 +110,7 @@ function CloseLeaveForm({
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <form action={action} className="space-y-2 rounded-lg border border-amber-200 bg-amber-50/60 dark:border-[color:var(--warning)] dark:bg-amber-500/10 p-3">
+    <form action={action} className="space-y-2 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
       <input type="hidden" name="leaveId" value={leaveId} />
       <p className="text-[12px] font-medium text-amber-950">Encerrar afastamento</p>
       <div className="grid grid-cols-2 gap-2">
@@ -170,11 +170,11 @@ export function LeavesTable({
 
   return (
     <>
-      <div className="mb-1 flex items-center justify-between">
-        <h3 className="text-[13px] font-semibold text-foreground">Relação nominal</h3>
-        <p className="text-[11px] text-muted-foreground">Clique na linha para ver detalhes</p>
+      <div className="app-section-title">
+        <h3>Relação nominal</h3>
+        <p>Clique na linha para ver detalhes</p>
       </div>
-      <div className="rounded-lg border border-border bg-card">
+      <div className="app-surface">
         <table className="app-data-table">
           <colgroup>
             <col className="w-[22%]" />

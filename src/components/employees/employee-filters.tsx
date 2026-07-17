@@ -53,7 +53,7 @@ export function EmployeeFilters({
     (selectedUnit !== "ALL" && !lockUnit);
 
   return (
-    <div className="mb-3 space-y-2 rounded-lg border border-border bg-card p-3">
+    <div className="app-surface mb-3 space-y-2 p-3.5">
       <form
         action="/colaboradores"
         method="get"

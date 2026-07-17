@@ -34,7 +34,7 @@ function DetailSection({
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card">
+    <section className="app-surface overflow-hidden">
       <div className="border-b border-border-subtle bg-muted/80 px-3.5 py-2">
         <h4 className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
           {title}
@@ -102,15 +102,11 @@ export function VaccinationTable({ rows }: { rows: VaccinationListRow[] }) {
 
   return (
     <>
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <h3 className="text-[13px] font-semibold text-foreground">
-          Carteira vacinal por colaborador
-        </h3>
-        <p className="text-[11px] text-muted-foreground">
-          Clique na linha para ver o kit completo
-        </p>
+      <div className="app-section-title">
+        <h3>Carteira vacinal por colaborador</h3>
+        <p>Clique na linha para ver o kit completo</p>
       </div>
-      <div className="rounded-lg border border-border bg-card">
+      <div className="app-surface">
         <table className="app-data-table">
           <colgroup>
             <col className="w-[18%]" />

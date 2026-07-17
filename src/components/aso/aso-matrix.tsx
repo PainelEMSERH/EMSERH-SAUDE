@@ -35,11 +35,11 @@ type Selection = {
 
 /** Dados normais neutros; cor só em atenção/abaixo da meta. */
 const TONE_CLASSES: Record<AsoMatrixCell["tone"], string> = {
-  ok: "bg-transparent text-foreground hover:bg-muted/60 dark:hover:bg-card-hover",
+  ok: "bg-transparent text-foreground hover:bg-muted/60",
   near: "bg-transparent text-[color:var(--warning)] hover:bg-amber-500/10",
   below: "bg-transparent text-[color:var(--danger)] hover:bg-red-500/10",
   empty: "bg-transparent text-muted-foreground hover:bg-muted/50",
-  future: "bg-muted/40 text-muted-foreground hover:bg-muted/60 dark:bg-card-hover",
+  future: "bg-muted/40 text-muted-foreground hover:bg-muted/60",
   neutral: "bg-transparent text-foreground/80 hover:bg-muted/50",
 };
 
@@ -148,7 +148,7 @@ export function AsoMatrix({
     selection.rowKey === (activeKey ?? rows[0]?.key);
 
   return (
-    <div className="mb-3 w-full overflow-hidden rounded-lg border border-border bg-card">
+    <div className="app-surface mb-3 w-full overflow-hidden">
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border-subtle px-3 py-2">
         <div className="min-w-0">
           <h3 className="text-[13px] font-semibold text-foreground">
@@ -221,7 +221,7 @@ export function AsoMatrix({
           </colgroup>
           <thead>
             <tr>
-              <th className="sticky left-0 z-10 bg-muted text-left dark:bg-card">
+              <th className="sticky left-0 z-10 bg-[#f8fafc] text-left">
                 Escopo
               </th>
               {MONTH_LABELS.map((label, idx) => {
@@ -268,15 +268,15 @@ export function AsoMatrix({
                   key={row.key}
                   className={cn(
                     row.cadastralAlert
-                      ? "bg-amber-50/30 dark:bg-amber-500/5"
+                      ? "bg-amber-50/40"
                       : "",
                   )}
                 >
                   <td
                     className={cn(
-                      "sticky left-0 z-10 max-w-[148px] truncate bg-card dark:bg-background",
+                      "sticky left-0 z-10 max-w-[148px] truncate bg-card",
                       "app-table-emphasis text-foreground/80",
-                      rowSelected ? "bg-muted dark:bg-card-hover" : "",
+                      rowSelected ? "bg-muted" : "",
                       row.cadastralAlert
                         ? "text-[color:var(--warning)]"
                         : "",

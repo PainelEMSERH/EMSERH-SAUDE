@@ -15,7 +15,7 @@ export default async function IndicadoresPage() {
     <div>
       <PageHeader
         title="Indicadores"
-        description="Catálogo institucional com fórmulas rastreáveis e regras pendentes de validação."
+        description="Catálogo institucional de indicadores de saúde ocupacional."
         actions={
           canManage ? (
             <form
@@ -39,15 +39,6 @@ export default async function IndicadoresPage() {
           { key: "code", header: "Código", cell: (r) => r.code },
           { key: "name", header: "Nome", cell: (r) => r.name },
           { key: "cat", header: "Categoria", cell: (r) => r.category },
-          {
-            key: "rule",
-            header: "Regra",
-            cell: (r) => (
-              <span className="line-clamp-2 max-w-md text-xs text-muted-foreground">
-                {r.calculationRule}
-              </span>
-            ),
-          },
           {
             key: "status",
             header: "Validação",

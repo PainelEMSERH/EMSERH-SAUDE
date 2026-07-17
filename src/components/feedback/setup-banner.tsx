@@ -28,8 +28,10 @@ export function EmptyState({
 }) {
   return (
     <div className="rounded-xl border border-dashed border-border bg-card px-6 py-16 text-center">
-      <h3 className="text-base font-semibold text-foreground">{title}</h3>
-      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+      <h3 className="text-[15px] font-semibold tracking-tight text-foreground">
+        {title}
+      </h3>
+      <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-muted-foreground">
         {description}
       </p>
     </div>
@@ -46,16 +48,14 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="mb-3 flex items-center justify-between gap-3">
-      <div>
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">
-          {title}
-        </h2>
-        {description ? (
-          <p className="mt-0.5 text-[12px] text-muted-foreground">{description}</p>
-        ) : null}
+    <div className="app-page-header">
+      <div className="min-w-0">
+        <h2>{title}</h2>
+        {description ? <p>{description}</p> : null}
       </div>
-      {actions}
+      {actions ? (
+        <div className="flex shrink-0 items-center gap-2">{actions}</div>
+      ) : null}
     </div>
   );
 }
