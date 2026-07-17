@@ -692,6 +692,7 @@ export async function generateAsoPlanningForYear(
       employeeId: asoAlterdataSnapshots.employeeId,
       nextAsoDate: asoAlterdataSnapshots.nextAsoDate,
       lastAsoDate: asoAlterdataSnapshots.lastAsoDate,
+      statusAso: asoAlterdataSnapshots.statusAso,
       periodicityMonths: asoAlterdataSnapshots.periodicityMonths,
       syncedAt: asoAlterdataSnapshots.syncedAt,
     })
@@ -703,6 +704,7 @@ export async function generateAsoPlanningForYear(
     {
       nextAsoDate: string | null;
       lastAsoDate: string | null;
+      statusAso: string | null;
       periodicityMonths: number | null;
     }
   >();
@@ -711,6 +713,7 @@ export async function generateAsoPlanningForYear(
       snapMap.set(r.employeeId, {
         nextAsoDate: r.nextAsoDate,
         lastAsoDate: r.lastAsoDate,
+        statusAso: r.statusAso,
         periodicityMonths: r.periodicityMonths,
       });
     }
@@ -734,6 +737,7 @@ export async function generateAsoPlanningForYear(
       snapMap.set(rec.employeeId, {
         nextAsoDate: rec.nextAsoDate,
         lastAsoDate: rec.lastAsoDate ?? rec.performedDate,
+        statusAso: null,
         periodicityMonths: rec.periodicityMonths,
       });
       continue;

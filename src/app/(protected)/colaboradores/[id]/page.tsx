@@ -24,7 +24,7 @@ import {
 } from "@/db/schemas";
 import { getEmployeeById } from "@/db/queries/employees";
 import { requirePermission, userCan } from "@/lib/auth/guard";
-import { formatDateBR } from "@/lib/dates";
+import { formatDateBR, formatDateTimeBR } from "@/lib/dates";
 import { formatPhoneBR } from "@/lib/employees/cpf-display";
 import {
   formatRegistrationDisplay,
