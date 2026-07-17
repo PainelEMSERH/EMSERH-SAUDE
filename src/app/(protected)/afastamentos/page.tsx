@@ -16,7 +16,10 @@ export default async function AfastamentosPage({
 }) {
   const user = await requirePermission("leaves", "view");
   const params = await searchParams;
-  const data = await listLeaves(user, params);
+  const canViewClinical = userCan(user, "leaves", "view_clinical");
+  const data = await listLeaves(user, params, {
+    includeClinical: canViewClinical,
+  });
   const canCreate = userCan(user, "leaves", "create");
 
   return (
@@ -100,7 +103,15 @@ export default async function AfastamentosPage({
             header: "Dias",
             cell: (r) => r.daysCount ?? "—",
           },
-          { key: "cid", header: "CID", cell: (r) => r.cidCode ?? "—" },
+          ...(canViewClinical
+            ? [
+                {
+                  key: "cid",
+                  header: "CID",
+                  cell: (r: (typeof data.rows)[number]) => r.cidCode ?? "—",
+                },
+              ]
+            : []),
           {
             key: "status",
             header: "Status",

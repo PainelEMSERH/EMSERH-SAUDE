@@ -167,11 +167,13 @@ export async function listAppointments(
 export async function listLeaves(
   user: SessionUser,
   params: { q?: string; status?: string; page?: string },
+  options?: { includeClinical?: boolean },
 ) {
   const page = parsePage(params.page);
   const pageSize = parsePageSize(undefined);
   const db = getDb();
   const scope = empJoinScope(user);
+  const includeClinical = options?.includeClinical === true;
   const where = and(
     isNull(leaveRecords.deletedAt),
     isNull(employees.deletedAt),
@@ -203,7 +205,7 @@ export async function listLeaves(
       endDate: leaveRecords.endDate,
       daysCount: leaveRecords.daysCount,
       status: leaveRecords.status,
-      cidCode: leaveRecords.cidCode,
+      cidCode: includeClinical ? leaveRecords.cidCode : sql<string | null>`null`,
       reasonSimplified: leaveRecords.reasonSimplified,
     })
     .from(leaveRecords)
@@ -215,7 +217,10 @@ export async function listLeaves(
 
   const total = totalRow?.value ?? 0;
   return {
-    rows,
+    rows: rows.map((r) => ({
+      ...r,
+      cidCode: includeClinical ? r.cidCode : null,
+    })),
     total,
     page,
     pageSize,
@@ -396,6 +401,7 @@ export async function listBiologicalAccidents(
   };
 }
 
+/** @deprecated Prefer `requireEmployeeInUserScope` — esta função não aplica escopo. */
 export async function findEmployeeIdByRegistration(registration: string) {
   const db = getDb();
   const [row] = await db

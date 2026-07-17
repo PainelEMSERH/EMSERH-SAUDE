@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { PageHeader } from "@/components/feedback/setup-banner";
 import { StatusBadge } from "@/components/feedback/status-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,60 +30,119 @@ export default async function ColaboradorDetailPage({
   if (!data) notFound();
 
   const emp = data.employee;
+  const canUpdate = userCan(user, "employees", "update");
+  const canAsos = userCan(user, "asos", "view");
+  const canAgenda = userCan(user, "agenda", "view");
+  const canLeaves = userCan(user, "leaves", "view");
+  const canVaccination = userCan(user, "vaccination", "view");
+  const canPregnancy = userCan(user, "pregnancy", "view");
+  const canBiological = userCan(user, "biological", "view");
+  const canClinical =
+    userCan(user, "employees", "view_clinical") ||
+    userCan(user, "leaves", "view_clinical");
+
   const db = getDb();
   const [asos, leaves, appts, vaccines, pregnancies, accidents] =
     await Promise.all([
-      db
-        .select()
-        .from(asoRecords)
-        .where(and(eq(asoRecords.employeeId, id), isNull(asoRecords.deletedAt)))
-        .orderBy(desc(asoRecords.nextAsoDate))
-        .limit(20),
-      db
-        .select()
-        .from(leaveRecords)
-        .where(and(eq(leaveRecords.employeeId, id), isNull(leaveRecords.deletedAt)))
-        .orderBy(desc(leaveRecords.startDate))
-        .limit(20),
-      db
-        .select()
-        .from(appointments)
-        .where(and(eq(appointments.employeeId, id), isNull(appointments.deletedAt)))
-        .orderBy(desc(appointments.scheduledAt))
-        .limit(20),
-      db
-        .select()
-        .from(employeeVaccinations)
-        .where(
-          and(
-            eq(employeeVaccinations.employeeId, id),
-            isNull(employeeVaccinations.deletedAt),
-          ),
-        )
-        .orderBy(desc(employeeVaccinations.administeredAt))
-        .limit(20),
-      db
-        .select()
-        .from(pregnancyCases)
-        .where(
-          and(eq(pregnancyCases.employeeId, id), isNull(pregnancyCases.deletedAt)),
-        )
-        .orderBy(desc(pregnancyCases.createdAt))
-        .limit(10),
-      db
-        .select()
-        .from(biologicalAccidents)
-        .where(
-          and(
-            eq(biologicalAccidents.employeeId, id),
-            isNull(biologicalAccidents.deletedAt),
-          ),
-        )
-        .orderBy(desc(biologicalAccidents.occurredAt))
-        .limit(10),
+      canAsos
+        ? db
+            .select({
+              id: asoRecords.id,
+              asoType: asoRecords.asoType,
+              nextAsoDate: asoRecords.nextAsoDate,
+              deadlineStatus: asoRecords.deadlineStatus,
+            })
+            .from(asoRecords)
+            .where(
+              and(eq(asoRecords.employeeId, id), isNull(asoRecords.deletedAt)),
+            )
+            .orderBy(desc(asoRecords.nextAsoDate))
+            .limit(20)
+        : Promise.resolve([]),
+      canLeaves
+        ? db
+            .select({
+              id: leaveRecords.id,
+              leaveType: leaveRecords.leaveType,
+              startDate: leaveRecords.startDate,
+              endDate: leaveRecords.endDate,
+              status: leaveRecords.status,
+              cidCode: canClinical
+                ? leaveRecords.cidCode
+                : sql<string | null>`null`,
+            })
+            .from(leaveRecords)
+            .where(
+              and(
+                eq(leaveRecords.employeeId, id),
+                isNull(leaveRecords.deletedAt),
+              ),
+            )
+            .orderBy(desc(leaveRecords.startDate))
+            .limit(20)
+        : Promise.resolve([]),
+      canAgenda
+        ? db
+            .select()
+            .from(appointments)
+            .where(
+              and(
+                eq(appointments.employeeId, id),
+                isNull(appointments.deletedAt),
+              ),
+            )
+            .orderBy(desc(appointments.scheduledAt))
+            .limit(20)
+        : Promise.resolve([]),
+      canVaccination
+        ? db
+            .select()
+            .from(employeeVaccinations)
+            .where(
+              and(
+                eq(employeeVaccinations.employeeId, id),
+                isNull(employeeVaccinations.deletedAt),
+              ),
+            )
+            .orderBy(desc(employeeVaccinations.administeredAt))
+            .limit(20)
+        : Promise.resolve([]),
+      canPregnancy
+        ? db
+            .select()
+            .from(pregnancyCases)
+            .where(
+              and(
+                eq(pregnancyCases.employeeId, id),
+                isNull(pregnancyCases.deletedAt),
+              ),
+            )
+            .orderBy(desc(pregnancyCases.createdAt))
+            .limit(10)
+        : Promise.resolve([]),
+      canBiological
+        ? db
+            .select()
+            .from(biologicalAccidents)
+            .where(
+              and(
+                eq(biologicalAccidents.employeeId, id),
+                isNull(biologicalAccidents.deletedAt),
+              ),
+            )
+            .orderBy(desc(biologicalAccidents.occurredAt))
+            .limit(10)
+        : Promise.resolve([]),
     ]);
 
-  const canUpdate = userCan(user, "employees", "update");
+  const defaultTab =
+    (canAsos && "asos") ||
+    (canAgenda && "agenda") ||
+    (canLeaves && "leaves") ||
+    (canVaccination && "vacinas") ||
+    (canPregnancy && "gestacao") ||
+    (canBiological && "acidentes") ||
+    null;
 
   return (
     <div>
@@ -109,76 +168,116 @@ export default async function ColaboradorDetailPage({
         <Info label="Cidade" value={emp.city ?? "—"} />
       </div>
 
-      <Tabs defaultValue="asos">
-        <TabsList>
-          <TabsTrigger value="asos">ASOs ({asos.length})</TabsTrigger>
-          <TabsTrigger value="agenda">Agenda ({appts.length})</TabsTrigger>
-          <TabsTrigger value="leaves">Afastamentos ({leaves.length})</TabsTrigger>
-          <TabsTrigger value="vacinas">Vacinas ({vaccines.length})</TabsTrigger>
-          <TabsTrigger value="gestacao">Gestação ({pregnancies.length})</TabsTrigger>
-          <TabsTrigger value="acidentes">Acidentes ({accidents.length})</TabsTrigger>
-        </TabsList>
-        <TabsContent value="asos" className="space-y-2">
-          {asos.map((a) => (
-            <Row
-              key={a.id}
-              title={a.asoType}
-              meta={`${formatDateBR(a.nextAsoDate)} · ${a.deadlineStatus ?? "—"}`}
-            />
-          ))}
-          {!asos.length ? <Empty /> : null}
-        </TabsContent>
-        <TabsContent value="agenda" className="space-y-2">
-          {appts.map((a) => (
-            <Row
-              key={a.id}
-              title={a.appointmentType}
-              meta={`${formatDateBR(a.scheduledAt)} · ${a.presenceStatus ?? a.confirmationStatus ?? "—"}`}
-            />
-          ))}
-          {!appts.length ? <Empty /> : null}
-        </TabsContent>
-        <TabsContent value="leaves" className="space-y-2">
-          {leaves.map((l) => (
-            <Row
-              key={l.id}
-              title={l.leaveType}
-              meta={`${formatDateBR(l.startDate)} → ${formatDateBR(l.endDate)} · ${l.status}`}
-            />
-          ))}
-          {!leaves.length ? <Empty /> : null}
-        </TabsContent>
-        <TabsContent value="vacinas" className="space-y-2">
-          {vaccines.map((v) => (
-            <Row
-              key={v.id}
-              title={`Dose ${v.doseNumber}`}
-              meta={`${formatDateBR(v.administeredAt)} · ${v.status}`}
-            />
-          ))}
-          {!vaccines.length ? <Empty /> : null}
-        </TabsContent>
-        <TabsContent value="gestacao" className="space-y-2">
-          {pregnancies.map((p) => (
-            <Row
-              key={p.id}
-              title={p.status}
-              meta={`Comunicação ${formatDateBR(p.communicationDate)}`}
-            />
-          ))}
-          {!pregnancies.length ? <Empty /> : null}
-        </TabsContent>
-        <TabsContent value="acidentes" className="space-y-2">
-          {accidents.map((a) => (
-            <Row
-              key={a.id}
-              title={a.exposureType ?? "Acidente"}
-              meta={`${formatDateBR(a.occurredAt)} · ${a.status}`}
-            />
-          ))}
-          {!accidents.length ? <Empty /> : null}
-        </TabsContent>
-      </Tabs>
+      {!defaultTab ? (
+        <p className="text-sm text-slate-500">
+          Sem permissão para visualizar módulos operacionais neste prontuário.
+        </p>
+      ) : (
+        <Tabs defaultValue={defaultTab}>
+          <TabsList>
+            {canAsos ? (
+              <TabsTrigger value="asos">ASOs ({asos.length})</TabsTrigger>
+            ) : null}
+            {canAgenda ? (
+              <TabsTrigger value="agenda">Agenda ({appts.length})</TabsTrigger>
+            ) : null}
+            {canLeaves ? (
+              <TabsTrigger value="leaves">
+                Afastamentos ({leaves.length})
+              </TabsTrigger>
+            ) : null}
+            {canVaccination ? (
+              <TabsTrigger value="vacinas">
+                Vacinas ({vaccines.length})
+              </TabsTrigger>
+            ) : null}
+            {canPregnancy ? (
+              <TabsTrigger value="gestacao">
+                Gestação ({pregnancies.length})
+              </TabsTrigger>
+            ) : null}
+            {canBiological ? (
+              <TabsTrigger value="acidentes">
+                Acidentes ({accidents.length})
+              </TabsTrigger>
+            ) : null}
+          </TabsList>
+          {canAsos ? (
+            <TabsContent value="asos" className="space-y-2">
+              {asos.map((a) => (
+                <Row
+                  key={a.id}
+                  title={a.asoType}
+                  meta={`${formatDateBR(a.nextAsoDate)} · ${a.deadlineStatus ?? "—"}`}
+                />
+              ))}
+              {!asos.length ? <Empty /> : null}
+            </TabsContent>
+          ) : null}
+          {canAgenda ? (
+            <TabsContent value="agenda" className="space-y-2">
+              {appts.map((a) => (
+                <Row
+                  key={a.id}
+                  title={a.appointmentType}
+                  meta={`${formatDateBR(a.scheduledAt)} · ${a.presenceStatus ?? a.confirmationStatus ?? "—"}`}
+                />
+              ))}
+              {!appts.length ? <Empty /> : null}
+            </TabsContent>
+          ) : null}
+          {canLeaves ? (
+            <TabsContent value="leaves" className="space-y-2">
+              {leaves.map((l) => (
+                <Row
+                  key={l.id}
+                  title={l.leaveType}
+                  meta={`${formatDateBR(l.startDate)} → ${formatDateBR(l.endDate)} · ${l.status}${
+                    canClinical && l.cidCode ? ` · CID ${l.cidCode}` : ""
+                  }`}
+                />
+              ))}
+              {!leaves.length ? <Empty /> : null}
+            </TabsContent>
+          ) : null}
+          {canVaccination ? (
+            <TabsContent value="vacinas" className="space-y-2">
+              {vaccines.map((v) => (
+                <Row
+                  key={v.id}
+                  title={`Dose ${v.doseNumber}`}
+                  meta={`${formatDateBR(v.administeredAt)} · ${v.status}`}
+                />
+              ))}
+              {!vaccines.length ? <Empty /> : null}
+            </TabsContent>
+          ) : null}
+          {canPregnancy ? (
+            <TabsContent value="gestacao" className="space-y-2">
+              {pregnancies.map((p) => (
+                <Row
+                  key={p.id}
+                  title={p.status}
+                  meta={`Comunicação ${formatDateBR(p.communicationDate)}`}
+                />
+              ))}
+              {!pregnancies.length ? <Empty /> : null}
+            </TabsContent>
+          ) : null}
+          {canBiological ? (
+            <TabsContent value="acidentes" className="space-y-2">
+              {accidents.map((a) => (
+                <Row
+                  key={a.id}
+                  title={a.exposureType ?? "Acidente"}
+                  meta={`${formatDateBR(a.occurredAt)} · ${a.status}`}
+                />
+              ))}
+              {!accidents.length ? <Empty /> : null}
+            </TabsContent>
+          ) : null}
+        </Tabs>
+      )}
     </div>
   );
 }
