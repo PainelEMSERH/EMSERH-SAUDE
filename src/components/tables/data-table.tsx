@@ -59,7 +59,7 @@ export function DataTable<T extends { id: string }>({
                 <TableCell
                   key={col.key}
                   className={cn(
-                    "h-9 px-2.5 py-1.5 align-middle text-[13px]",
+                    "h-9 px-2.5 py-1.5 align-middle text-[10px]",
                     col.className,
                   )}
                 >
