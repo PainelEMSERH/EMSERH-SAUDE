@@ -5,10 +5,8 @@ import { VaccinationRegisterDialog } from "@/components/vaccination/vaccination-
 
 export function VaccinationPanelHeader({
   canCreate,
-  defaultVaccine,
 }: {
   canCreate: boolean;
-  defaultVaccine?: string;
 }) {
   return (
     <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -21,13 +19,11 @@ export function VaccinationPanelHeader({
             Vacinação
           </h2>
           <p className="text-[12px] text-slate-500">
-            Situação vacinal por imunizante, no mesmo padrão da planilha da enfermagem.
+            Carteira completa por colaborador — veja de uma vez se o kit está em dia.
           </p>
         </div>
       </div>
-      {canCreate ? (
-        <VaccinationRegisterDialog defaultVaccine={defaultVaccine} />
-      ) : null}
+      {canCreate ? <VaccinationRegisterDialog /> : null}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   classifySituation,
   parseVaccinationNotes,
+  summarizeVaccinationKit,
 } from "@/lib/vaccination/constants";
 
 describe("parseVaccinationNotes", () => {
@@ -23,5 +24,29 @@ describe("classifySituation", () => {
       "attention",
     );
     expect(classifySituation("HEPATITE_B", "1 e 2 dose")).toBe("partial");
+  });
+});
+
+describe("summarizeVaccinationKit", () => {
+  it("marca kit completo só com 6/6 em dia", () => {
+    const kit = summarizeVaccinationKit({
+      TETANO: "1,2 e 3 dose",
+      HEPATITE_B: "Ant Hbs Reagente",
+      TRIPLICE: "1  dose Maior de 29 anos",
+      FEBRE_AMARELA: "1  dose",
+      H1N1: "1 dose menos de um ano",
+      COVID: "1 dose menos de um ano",
+    });
+    expect(kit.kitComplete).toBe(true);
+    expect(kit.kitLabel).toBe("Kit completo");
+  });
+
+  it("incompleto quando falta vacina", () => {
+    const kit = summarizeVaccinationKit({
+      TETANO: "1,2 e 3 dose",
+      HEPATITE_B: "1 e 2 dose",
+    });
+    expect(kit.kitComplete).toBe(false);
+    expect(kit.missingCount).toBe(4);
   });
 });

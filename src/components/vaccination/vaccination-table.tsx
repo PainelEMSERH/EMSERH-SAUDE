@@ -13,14 +13,13 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { VaccinationListRow } from "@/db/queries/occupational";
-import { formatDateBR } from "@/lib/dates";
 import {
   formatRegistrationDisplay,
   formatUnitDisplayName,
   humanizeLabel,
   initialsFromName,
 } from "@/lib/labels";
-import { situationTone } from "@/lib/vaccination/constants";
+import { situationTone, VACCINE_DEFS } from "@/lib/vaccination/constants";
 import { cn } from "@/lib/utils";
 
 function DetailSection({
@@ -45,11 +44,9 @@ function DetailSection({
 function DetailRow({
   label,
   value,
-  mono,
 }: {
   label: string;
   value: ReactNode;
-  mono?: boolean;
 }) {
   const empty =
     value == null ||
@@ -63,7 +60,6 @@ function DetailRow({
         className={cn(
           "min-w-0 text-right text-[13px] leading-snug",
           empty ? "font-normal text-slate-400" : "font-medium text-slate-900",
-          mono && !empty ? "tabular-nums tracking-tight" : "",
         )}
       >
         {empty ? "—" : value}
@@ -72,34 +68,61 @@ function DetailRow({
   );
 }
 
+function KitCellBadge({
+  situation,
+  kind,
+}: {
+  situation: string | null;
+  kind: "ok" | "partial" | "attention" | "refusal" | "unknown";
+}) {
+  if (!situation) {
+    return <span className="text-[10px] text-slate-400">—</span>;
+  }
+  const short =
+    situation.length > 18 ? `${situation.slice(0, 16)}…` : situation;
+  return (
+    <StatusBadge label={short} tone={situationTone(kind)} />
+  );
+}
+
 export function VaccinationTable({ rows }: { rows: VaccinationListRow[] }) {
   const [selected, setSelected] = useState<VaccinationListRow | null>(null);
 
   return (
     <>
-      <div className="mb-1 flex items-center justify-between">
-        <h3 className="text-[13px] font-semibold text-slate-800">Relação nominal</h3>
-        <p className="text-[11px] text-slate-500">Clique na linha para ver detalhes</p>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <h3 className="text-[13px] font-semibold text-slate-800">
+          Carteira vacinal por colaborador
+        </h3>
+        <p className="text-[11px] text-slate-500">
+          Clique na linha para ver o kit completo
+        </p>
       </div>
       <div className="rounded-lg border border-slate-200 bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] table-fixed border-collapse text-left text-[11px]">
+          <table className="w-full min-w-[1100px] table-fixed border-collapse text-left text-[11px]">
             <colgroup>
-              <col className="w-[26%]" />
-              <col className="w-[28%]" />
-              <col className="w-[12%]" />
-              <col className="w-[22%]" />
+              <col className="w-[16%]" />
+              <col className="w-[10%]" />
+              <col className="w-[11%]" />
+              <col className="w-[11%]" />
+              <col className="w-[11%]" />
+              <col className="w-[10%]" />
               <col className="w-[9%]" />
+              <col className="w-[9%]" />
+              <col className="w-[10%]" />
               <col className="w-[3%]" />
             </colgroup>
-            <thead className="sticky top-0 z-[1] bg-slate-50 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
+            <thead className="sticky top-0 z-[1] bg-slate-50 text-[10px] font-semibold tracking-wide text-slate-500 uppercase">
               <tr className="border-b border-slate-200">
-                <th className="px-3 py-2.5 text-left font-semibold">Colaborador</th>
-                <th className="px-3 py-2.5 text-center font-semibold">Situação</th>
-                <th className="px-3 py-2.5 text-center font-semibold">Classificação</th>
-                <th className="px-3 py-2.5 text-left font-semibold">Unidade</th>
-                <th className="px-3 py-2.5 text-center font-semibold">Data</th>
-                <th className="px-2 py-2.5" aria-hidden />
+                <th className="px-2.5 py-2.5 text-left font-semibold">Colaborador</th>
+                <th className="px-2 py-2.5 text-center font-semibold">Kit</th>
+                {VACCINE_DEFS.map((v) => (
+                  <th key={v.code} className="px-1.5 py-2.5 text-center font-semibold">
+                    {v.shortLabel}
+                  </th>
+                ))}
+                <th className="px-1 py-2.5" aria-hidden />
               </tr>
             </thead>
             <tbody>
@@ -108,7 +131,7 @@ export function VaccinationTable({ rows }: { rows: VaccinationListRow[] }) {
                   key={r.id}
                   tabIndex={0}
                   role="button"
-                  aria-label={`Abrir detalhes de ${r.fullName}`}
+                  aria-label={`Abrir carteira de ${r.fullName}`}
                   className="cursor-pointer border-b border-slate-100 transition-colors hover:bg-teal-50/40 focus-visible:bg-teal-50/60 focus-visible:outline-none"
                   onClick={() => setSelected(r)}
                   onKeyDown={(e) => {
@@ -118,55 +141,41 @@ export function VaccinationTable({ rows }: { rows: VaccinationListRow[] }) {
                     }
                   }}
                 >
-                  <td className="px-3 py-2.5 text-left">
+                  <td className="px-2.5 py-2 text-left">
                     <p className="truncate font-medium text-slate-900 capitalize">
                       {r.fullName.toLocaleLowerCase("pt-BR")}
                     </p>
-                    <p className="text-[11px] tabular-nums text-teal-800">
+                    <p className="text-[10px] tabular-nums text-teal-800">
                       {formatRegistrationDisplay(r.registration)}
                     </p>
                   </td>
-                  <td className="px-3 py-2.5 text-center">
-                    <div className="flex justify-center">
-                      <StatusBadge
-                        label={r.situation}
-                        tone={situationTone(r.situationKind)}
-                      />
+                  <td className="px-2 py-2 text-center">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <StatusBadge label={r.kit.kitLabel} tone={r.kit.kitTone} />
+                      <span className="text-[10px] tabular-nums text-slate-500">
+                        {r.kit.okCount}/{r.kit.totalVaccines}
+                      </span>
                     </div>
                   </td>
-                  <td className="px-3 py-2.5 text-center">
-                    <div className="flex justify-center">
-                      <StatusBadge
-                        label={
-                          r.situationKind === "ok"
-                            ? "Em dia"
-                            : r.situationKind === "partial"
-                              ? "Parcial"
-                              : r.situationKind === "attention"
-                                ? "Atenção"
-                                : r.situationKind === "refusal"
-                                  ? "Recusa"
-                                  : "—"
-                        }
-                        tone={situationTone(r.situationKind)}
-                      />
-                    </div>
-                  </td>
-                  <td className="truncate px-3 py-2.5 text-left text-slate-600">
-                    {formatUnitDisplayName(r.unitName)}
-                  </td>
-                  <td className="px-3 py-2.5 text-center tabular-nums text-slate-700">
-                    {formatDateBR(r.administeredAt)}
-                  </td>
-                  <td className="px-2 py-2.5 text-slate-400">
-                    <ChevronRight className="size-4" aria-hidden />
+                  {r.kit.cells.map((cell) => (
+                    <td key={cell.code} className="px-1.5 py-2 text-center">
+                      <div className="flex justify-center" title={cell.situation ?? "Sem registro"}>
+                        <KitCellBadge
+                          situation={cell.situation}
+                          kind={cell.kind}
+                        />
+                      </div>
+                    </td>
+                  ))}
+                  <td className="px-1 py-2 text-slate-400">
+                    <ChevronRight className="mx-auto size-4" aria-hidden />
                   </td>
                 </tr>
               ))}
               {!rows.length ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-10 text-center text-slate-500">
-                    Nenhuma situação vacinal com os filtros atuais.
+                  <td colSpan={10} className="px-3 py-10 text-center text-slate-500">
+                    Nenhum colaborador com os filtros atuais.
                   </td>
                 </tr>
               ) : null}
@@ -194,12 +203,16 @@ export function VaccinationTable({ rows }: { rows: VaccinationListRow[] }) {
                     <SheetDescription className="mt-1 text-[12px] text-slate-500">
                       Mat. {formatRegistrationDisplay(selected.registration)}
                       <span className="mx-1.5 text-slate-300">·</span>
-                      {selected.vaccineName}
+                      {formatUnitDisplayName(selected.unitName)}
                     </SheetDescription>
                     <div className="mt-2.5 flex flex-wrap gap-1.5">
                       <StatusBadge
-                        label={selected.situation}
-                        tone={situationTone(selected.situationKind)}
+                        label={selected.kit.kitLabel}
+                        tone={selected.kit.kitTone}
+                      />
+                      <StatusBadge
+                        label={`${selected.kit.okCount}/${selected.kit.totalVaccines} em dia`}
+                        tone={selected.kit.kitComplete ? "ok" : "warn"}
                       />
                     </div>
                   </div>
@@ -217,15 +230,23 @@ export function VaccinationTable({ rows }: { rows: VaccinationListRow[] }) {
                     value={humanizeLabel(selected.regionName)}
                   />
                 </DetailSection>
-                <DetailSection title="Vacinação">
-                  <DetailRow label="Vacina" value={selected.vaccineName} />
-                  <DetailRow label="Situação" value={selected.situation} />
-                  <DetailRow
-                    label="Data"
-                    value={formatDateBR(selected.administeredAt)}
-                    mono
-                  />
-                  <DetailRow label="Lote" value={selected.lotNumber || "—"} />
+                <DetailSection title="Kit vacinal">
+                  {selected.kit.cells.map((cell) => (
+                    <DetailRow
+                      key={cell.code}
+                      label={cell.label}
+                      value={
+                        cell.situation ? (
+                          <StatusBadge
+                            label={cell.situation}
+                            tone={situationTone(cell.kind)}
+                          />
+                        ) : (
+                          "Sem registro"
+                        )
+                      }
+                    />
+                  ))}
                 </DetailSection>
               </div>
 

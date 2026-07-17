@@ -32,10 +32,8 @@ import {
 } from "@/lib/leaves/constants";
 import { resolveLeaveReturnInfo } from "@/lib/leaves/status";
 import {
-  classifySituation,
   parseVaccinationNotes,
-  resolveVaccineCode,
-  VACCINE_DEFS,
+  summarizeVaccinationKit,
 } from "@/lib/vaccination/constants";
 import {
   employeeScopeCondition,
@@ -512,9 +510,8 @@ export async function listLeaves(
 
 export type VaccinationListParams = {
   q?: string;
-  vaccine?: string;
-  situation?: string;
-  kind?: string;
+  /** complete | incomplete | attention | refusal */
+  kit?: string;
   page?: string;
 };
 
@@ -525,25 +522,17 @@ export type VaccinationListRow = {
   fullName: string;
   unitName: string | null;
   regionName: string | null;
-  vaccineCode: string;
-  vaccineName: string;
-  situation: string;
-  situationKind: "ok" | "partial" | "attention" | "refusal" | "unknown";
-  administeredAt: string | null;
-  lotNumber: string | null;
-  notes: string | null;
-  status: string;
+  situations: Record<string, string>;
+  kit: ReturnType<typeof summarizeVaccinationKit>;
 };
 
 export type VaccinationMetrics = {
   total: number;
-  ok: number;
-  partial: number;
+  kitComplete: number;
+  incomplete: number;
+  withRefusal: number;
   attention: number;
-  refusal: number;
 };
-
-export type VaccinationTabCounts = Record<string, number>;
 
 export async function listVaccinations(
   user: SessionUser,
@@ -553,7 +542,6 @@ export async function listVaccinations(
   const pageSize = parsePageSize(undefined);
   const db = getDb();
   const scope = empJoinScope(user);
-  const vaccineCode = resolveVaccineCode(params.vaccine);
 
   const where = and(
     isNull(employeeVaccinations.deletedAt),
@@ -576,10 +564,7 @@ export async function listVaccinations(
       unitName: units.name,
       regionName: regions.name,
       vaccineCode: vaccines.code,
-      vaccineName: vaccines.name,
       doseNumber: employeeVaccinations.doseNumber,
-      administeredAt: employeeVaccinations.administeredAt,
-      lotNumber: employeeVaccinations.lotNumber,
       notes: employeeVaccinations.notes,
       status: employeeVaccinations.status,
     })
@@ -591,8 +576,6 @@ export async function listVaccinations(
     .where(where)
     .orderBy(desc(employeeVaccinations.updatedAt));
 
-  // Import legado: 1 linha TETANO com notes agregando todas as vacinas.
-  // Expande para visão por vacina (aba).
   const byEmployee = new Map<
     string,
     {
@@ -602,10 +585,7 @@ export async function listVaccinations(
       unitName: string | null;
       regionName: string | null;
       situations: Record<string, string>;
-      administeredAt: string | null;
-      lotNumber: string | null;
       sourceId: string;
-      status: string;
     }
   >();
 
@@ -615,7 +595,6 @@ export async function listVaccinations(
     const existing = byEmployee.get(key);
     if (!existing) {
       const situations = { ...parsed };
-      // Registro “limpo” de uma única vacina
       if (
         r.vaccineCode &&
         !situations[r.vaccineCode] &&
@@ -638,12 +617,7 @@ export async function listVaccinations(
         unitName: r.unitName,
         regionName: r.regionName,
         situations,
-        administeredAt: r.administeredAt
-          ? String(r.administeredAt).slice(0, 10)
-          : null,
-        lotNumber: r.lotNumber,
         sourceId: r.id,
-        status: r.status,
       });
     } else {
       Object.assign(existing.situations, parsed);
@@ -658,61 +632,60 @@ export async function listVaccinations(
     }
   }
 
-  const tabCounts: VaccinationTabCounts = {};
-  for (const v of VACCINE_DEFS) tabCounts[v.code] = 0;
+  let rows: VaccinationListRow[] = [...byEmployee.values()].map((emp) => {
+    const kit = summarizeVaccinationKit(emp.situations);
+    return {
+      id: emp.sourceId,
+      employeeId: emp.employeeId,
+      registration: emp.registration,
+      fullName: emp.fullName,
+      unitName: emp.unitName,
+      regionName: emp.regionName,
+      situations: emp.situations,
+      kit,
+    };
+  });
 
-  const exploded: VaccinationListRow[] = [];
-  for (const emp of byEmployee.values()) {
-    for (const v of VACCINE_DEFS) {
-      const situation = emp.situations[v.code];
-      if (!situation) continue;
-      tabCounts[v.code] = (tabCounts[v.code] ?? 0) + 1;
-      const kind = classifySituation(v.code, situation);
-      exploded.push({
-        id: `${emp.sourceId}:${v.code}`,
-        employeeId: emp.employeeId,
-        registration: emp.registration,
-        fullName: emp.fullName,
-        unitName: emp.unitName,
-        regionName: emp.regionName,
-        vaccineCode: v.code,
-        vaccineName: v.label,
-        situation,
-        situationKind: kind,
-        administeredAt: emp.administeredAt,
-        lotNumber: emp.lotNumber,
-        notes: null,
-        status: emp.status,
-      });
+  const kitFilter = (params.kit ?? "ALL").trim();
+  if (kitFilter === "complete") {
+    rows = rows.filter((r) => r.kit.kitComplete);
+  } else if (kitFilter === "incomplete") {
+    rows = rows.filter((r) => !r.kit.kitComplete);
+  } else if (kitFilter === "attention") {
+    rows = rows.filter(
+      (r) => r.kit.attentionCount > 0 || r.kit.partialCount > 0,
+    );
+  } else if (kitFilter === "refusal") {
+    rows = rows.filter((r) => r.kit.refusalCount > 0);
+  }
+
+  rows.sort((a, b) => {
+    if (a.kit.kitComplete !== b.kit.kitComplete) {
+      return a.kit.kitComplete ? 1 : -1;
     }
-  }
+    return a.fullName.localeCompare(b.fullName, "pt-BR");
+  });
 
-  let filtered = exploded.filter((r) => r.vaccineCode === vaccineCode);
-  if (params.situation && params.situation !== "ALL") {
-    filtered = filtered.filter((r) => r.situation === params.situation);
-  }
-  if (params.kind && params.kind !== "ALL") {
-    filtered = filtered.filter((r) => r.situationKind === params.kind);
-  }
-
-  filtered.sort((a, b) => a.fullName.localeCompare(b.fullName, "pt-BR"));
-
+  // Métricas no universo total (antes do filtro de carteira)
+  const allKits = [...byEmployee.values()].map((e) =>
+    summarizeVaccinationKit(e.situations),
+  );
   const metrics: VaccinationMetrics = {
-    total: filtered.length,
-    ok: filtered.filter((r) => r.situationKind === "ok").length,
-    partial: filtered.filter((r) => r.situationKind === "partial").length,
-    attention: filtered.filter((r) => r.situationKind === "attention").length,
-    refusal: filtered.filter((r) => r.situationKind === "refusal").length,
+    total: byEmployee.size,
+    kitComplete: allKits.filter((k) => k.kitComplete).length,
+    incomplete: allKits.filter((k) => !k.kitComplete).length,
+    withRefusal: allKits.filter((k) => k.refusalCount > 0).length,
+    attention: allKits.filter(
+      (k) => k.attentionCount > 0 || k.partialCount > 0,
+    ).length,
   };
 
-  const total = filtered.length;
-  const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const total = rows.length;
+  const pageRows = rows.slice((page - 1) * pageSize, page * pageSize);
 
   return {
     rows: pageRows,
     metrics,
-    tabCounts,
-    vaccine: vaccineCode,
     total,
     page,
     pageSize,

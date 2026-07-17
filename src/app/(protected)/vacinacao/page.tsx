@@ -8,7 +8,6 @@ import {
   type VaccinationListParams,
 } from "@/db/queries/occupational";
 import { requirePermission, userCan } from "@/lib/auth/guard";
-import { vaccineLabel } from "@/lib/vaccination/constants";
 
 export default async function VacinacaoPage({
   searchParams,
@@ -22,34 +21,16 @@ export default async function VacinacaoPage({
 
   const current: Record<string, string | number | undefined> = {
     q: params.q,
-    vaccine: data.vaccine,
-    situation: params.situation,
-    kind: params.kind,
+    kit: params.kit,
   };
 
   return (
     <div>
-      <VaccinationPanelHeader
-        canCreate={canCreate}
-        defaultVaccine={data.vaccine}
-      />
+      <VaccinationPanelHeader canCreate={canCreate} />
 
-      <VaccinationFilters
-        current={{
-          q: params.q,
-          vaccine: data.vaccine,
-          situation: params.situation,
-          kind: params.kind,
-        }}
-        vaccine={data.vaccine}
-        tabCounts={data.tabCounts}
-      />
+      <VaccinationFilters current={{ q: params.q, kit: params.kit }} />
 
-      <VaccinationSummaryCards
-        metrics={data.metrics}
-        current={current}
-        vaccineLabel={vaccineLabel(data.vaccine)}
-      />
+      <VaccinationSummaryCards metrics={data.metrics} current={current} />
 
       <VaccinationTable rows={data.rows} />
 
@@ -59,13 +40,11 @@ export default async function VacinacaoPage({
           totalPages={data.totalPages}
           total={data.total}
           pageSize={data.pageSize}
-          itemLabel="registros"
+          itemLabel="colaboradores"
           basePath="/vacinacao"
           searchParams={{
             q: params.q,
-            vaccine: data.vaccine,
-            situation: params.situation,
-            kind: params.kind,
+            kit: params.kit,
           }}
         />
       </div>

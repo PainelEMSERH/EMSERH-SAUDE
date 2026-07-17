@@ -86,13 +86,14 @@ export function classifySituation(
   if (s.includes("termo de recusa") || s.includes("recusa")) return "refusal";
   if (s.includes("ant hbs")) return "ok";
   if (s.includes("mais de 10")) return "attention";
-  if (s.includes("1,2 e 3") || s.includes("1,2 e 3 dose")) return "ok";
+  if (s.includes("a mais de um ano")) return "attention";
+  if (s.includes("1,2 e 3")) return "ok";
   if (s.includes("menos de 10") || s.includes("menos de um ano")) return "ok";
   if (s.includes("maior de 60") || s.includes("maior de 29")) return "ok";
-  if (s.includes("a mais de um ano")) return "attention";
-  if (s.includes("1 e 2") || s.includes("2 doses") || s.includes("1  dose") || s.includes("1 dose"))
-    return "partial";
+  // Febre amarela: 1 dose já completa o esquema institucional
   if (vaccineCode === "FEBRE_AMARELA" && s.includes("dose")) return "ok";
+  if (s.includes("1 e 2") || s.includes("2 doses")) return "partial";
+  if (s.includes("1  dose") || s.includes("1 dose")) return "partial";
   return "unknown";
 }
 
@@ -111,6 +112,91 @@ export function situationTone(
     default:
       return "muted";
   }
+}
+
+export type KitCell = {
+  code: VaccineCode;
+  label: string;
+  shortLabel: string;
+  situation: string | null;
+  kind: SituationKind;
+};
+
+export type KitSummary = {
+  cells: KitCell[];
+  covered: number;
+  totalVaccines: number;
+  okCount: number;
+  partialCount: number;
+  attentionCount: number;
+  refusalCount: number;
+  missingCount: number;
+  /** true se todas as 6 vacinas estão "ok" (sem lacuna/parcial/atenção/recusa). */
+  kitComplete: boolean;
+  /** tem alguma lacuna, parcial, atenção ou recusa. */
+  needsAttention: boolean;
+  kitLabel: string;
+  kitTone: "ok" | "warn" | "danger" | "info" | "muted";
+};
+
+export function summarizeVaccinationKit(
+  situations: Record<string, string>,
+): KitSummary {
+  const cells: KitCell[] = VACCINE_DEFS.map((v) => {
+    const situation = situations[v.code] ?? null;
+    return {
+      code: v.code,
+      label: v.label,
+      shortLabel: v.shortLabel,
+      situation,
+      kind: situation ? classifySituation(v.code, situation) : "unknown",
+    };
+  });
+
+  const covered = cells.filter((c) => c.situation).length;
+  const okCount = cells.filter((c) => c.kind === "ok").length;
+  const partialCount = cells.filter((c) => c.kind === "partial").length;
+  const attentionCount = cells.filter((c) => c.kind === "attention").length;
+  const refusalCount = cells.filter((c) => c.kind === "refusal").length;
+  const missingCount = cells.filter((c) => !c.situation).length;
+  const kitComplete = okCount === VACCINE_DEFS.length;
+  const needsAttention =
+    !kitComplete &&
+    (partialCount > 0 ||
+      attentionCount > 0 ||
+      refusalCount > 0 ||
+      missingCount > 0);
+
+  let kitLabel = "Incompleto";
+  let kitTone: KitSummary["kitTone"] = "warn";
+  if (kitComplete) {
+    kitLabel = "Kit completo";
+    kitTone = "ok";
+  } else if (refusalCount > 0 && okCount + refusalCount === covered && missingCount === 0) {
+    kitLabel = "Com recusa";
+    kitTone = "danger";
+  } else if (attentionCount > 0) {
+    kitLabel = "Atenção";
+    kitTone = "warn";
+  } else if (partialCount > 0 || missingCount > 0) {
+    kitLabel = "Incompleto";
+    kitTone = "warn";
+  }
+
+  return {
+    cells,
+    covered,
+    totalVaccines: VACCINE_DEFS.length,
+    okCount,
+    partialCount,
+    attentionCount,
+    refusalCount,
+    missingCount,
+    kitComplete,
+    needsAttention,
+    kitLabel,
+    kitTone,
+  };
 }
 
 /** Dose numérica aproximada para persistência (índice / ordenação). */

@@ -57,54 +57,57 @@ function Kpi({
 export function VaccinationSummaryCards({
   metrics,
   current,
-  vaccineLabel,
 }: {
   metrics: VaccinationMetrics;
   current: Record<string, string | number | undefined>;
-  vaccineLabel: string;
 }) {
   return (
     <div className="mb-3">
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-        <div className="border-b border-slate-100 bg-slate-50/70 px-3 py-1.5 text-[11px] text-slate-500">
-          Indicadores ·{" "}
-          <span className="font-semibold text-slate-700">{vaccineLabel}</span>
-        </div>
         <div className="grid grid-cols-2 divide-x divide-y divide-slate-100 sm:grid-cols-3 lg:grid-cols-5 lg:divide-y-0">
-          <Kpi label="Na aba" value={String(metrics.total)} hint="Com filtros atuais" />
           <Kpi
-            label="Em dia"
-            value={String(metrics.ok)}
+            label="Colaboradores"
+            value={String(metrics.total)}
+            hint="Com registro vacinal"
+            href={buildVaccinationUrl("/vacinacao", current, {
+              kit: undefined,
+              page: undefined,
+            })}
+          />
+          <Kpi
+            label="Kit completo"
+            value={String(metrics.kitComplete)}
             tone="ok"
+            hint="6/6 em dia"
             href={buildVaccinationUrl("/vacinacao", current, {
-              kind: "ok",
+              kit: "complete",
               page: undefined,
             })}
           />
           <Kpi
-            label="Parcial"
-            value={String(metrics.partial)}
-            tone="default"
+            label="Incompletos"
+            value={String(metrics.incomplete)}
+            tone={metrics.incomplete > 0 ? "warn" : "ok"}
             href={buildVaccinationUrl("/vacinacao", current, {
-              kind: "partial",
+              kit: "incomplete",
               page: undefined,
             })}
           />
           <Kpi
-            label="Atenção"
+            label="Parcial / atenção"
             value={String(metrics.attention)}
             tone={metrics.attention > 0 ? "warn" : "default"}
             href={buildVaccinationUrl("/vacinacao", current, {
-              kind: "attention",
+              kit: "attention",
               page: undefined,
             })}
           />
           <Kpi
-            label="Recusa"
-            value={String(metrics.refusal)}
-            tone={metrics.refusal > 0 ? "danger" : "ok"}
+            label="Com recusa"
+            value={String(metrics.withRefusal)}
+            tone={metrics.withRefusal > 0 ? "danger" : "ok"}
             href={buildVaccinationUrl("/vacinacao", current, {
-              kind: "refusal",
+              kit: "refusal",
               page: undefined,
             })}
           />
