@@ -32,6 +32,12 @@ import {
 } from "@/lib/leaves/constants";
 import { resolveLeaveReturnInfo } from "@/lib/leaves/status";
 import {
+  classifySituation,
+  parseVaccinationNotes,
+  resolveVaccineCode,
+  VACCINE_DEFS,
+} from "@/lib/vaccination/constants";
+import {
   employeeScopeCondition,
   parsePage,
   parsePageSize,
@@ -504,14 +510,51 @@ export async function listLeaves(
   };
 }
 
+export type VaccinationListParams = {
+  q?: string;
+  vaccine?: string;
+  situation?: string;
+  kind?: string;
+  page?: string;
+};
+
+export type VaccinationListRow = {
+  id: string;
+  employeeId: string;
+  registration: string;
+  fullName: string;
+  unitName: string | null;
+  regionName: string | null;
+  vaccineCode: string;
+  vaccineName: string;
+  situation: string;
+  situationKind: "ok" | "partial" | "attention" | "refusal" | "unknown";
+  administeredAt: string | null;
+  lotNumber: string | null;
+  notes: string | null;
+  status: string;
+};
+
+export type VaccinationMetrics = {
+  total: number;
+  ok: number;
+  partial: number;
+  attention: number;
+  refusal: number;
+};
+
+export type VaccinationTabCounts = Record<string, number>;
+
 export async function listVaccinations(
   user: SessionUser,
-  params: { q?: string; page?: string },
+  params: VaccinationListParams,
 ) {
   const page = parsePage(params.page);
   const pageSize = parsePageSize(undefined);
   const db = getDb();
   const scope = empJoinScope(user);
+  const vaccineCode = resolveVaccineCode(params.vaccine);
+
   const where = and(
     isNull(employeeVaccinations.deletedAt),
     isNull(employees.deletedAt),
@@ -524,33 +567,152 @@ export async function listVaccinations(
       : undefined,
   );
 
-  const [totalRow] = await db
-    .select({ value: count() })
-    .from(employeeVaccinations)
-    .innerJoin(employees, eq(employeeVaccinations.employeeId, employees.id))
-    .where(where);
-
-  const rows = await db
+  const rawRows = await db
     .select({
       id: employeeVaccinations.id,
+      employeeId: employeeVaccinations.employeeId,
       registration: employees.registration,
       fullName: employees.fullName,
+      unitName: units.name,
+      regionName: regions.name,
+      vaccineCode: vaccines.code,
       vaccineName: vaccines.name,
       doseNumber: employeeVaccinations.doseNumber,
       administeredAt: employeeVaccinations.administeredAt,
+      lotNumber: employeeVaccinations.lotNumber,
+      notes: employeeVaccinations.notes,
       status: employeeVaccinations.status,
     })
     .from(employeeVaccinations)
     .innerJoin(employees, eq(employeeVaccinations.employeeId, employees.id))
     .leftJoin(vaccines, eq(employeeVaccinations.vaccineId, vaccines.id))
+    .leftJoin(units, eq(employees.unitId, units.id))
+    .leftJoin(regions, eq(employees.regionId, regions.id))
     .where(where)
-    .orderBy(desc(employeeVaccinations.administeredAt))
-    .limit(pageSize)
-    .offset((page - 1) * pageSize);
+    .orderBy(desc(employeeVaccinations.updatedAt));
 
-  const total = totalRow?.value ?? 0;
+  // Import legado: 1 linha TETANO com notes agregando todas as vacinas.
+  // Expande para visão por vacina (aba).
+  const byEmployee = new Map<
+    string,
+    {
+      employeeId: string;
+      registration: string;
+      fullName: string;
+      unitName: string | null;
+      regionName: string | null;
+      situations: Record<string, string>;
+      administeredAt: string | null;
+      lotNumber: string | null;
+      sourceId: string;
+      status: string;
+    }
+  >();
+
+  for (const r of rawRows) {
+    const key = r.employeeId;
+    const parsed = parseVaccinationNotes(r.notes);
+    const existing = byEmployee.get(key);
+    if (!existing) {
+      const situations = { ...parsed };
+      // Registro “limpo” de uma única vacina
+      if (
+        r.vaccineCode &&
+        !situations[r.vaccineCode] &&
+        r.status &&
+        r.status !== "IMPORTADO"
+      ) {
+        situations[r.vaccineCode] = r.status;
+      } else if (
+        r.vaccineCode &&
+        !situations[r.vaccineCode] &&
+        r.status === "IMPORTADO" &&
+        Object.keys(parsed).length === 0
+      ) {
+        situations[r.vaccineCode] = `Dose ${r.doseNumber}`;
+      }
+      byEmployee.set(key, {
+        employeeId: r.employeeId,
+        registration: r.registration,
+        fullName: r.fullName,
+        unitName: r.unitName,
+        regionName: r.regionName,
+        situations,
+        administeredAt: r.administeredAt
+          ? String(r.administeredAt).slice(0, 10)
+          : null,
+        lotNumber: r.lotNumber,
+        sourceId: r.id,
+        status: r.status,
+      });
+    } else {
+      Object.assign(existing.situations, parsed);
+      if (
+        r.vaccineCode &&
+        !existing.situations[r.vaccineCode] &&
+        r.status &&
+        r.status !== "IMPORTADO"
+      ) {
+        existing.situations[r.vaccineCode] = r.status;
+      }
+    }
+  }
+
+  const tabCounts: VaccinationTabCounts = {};
+  for (const v of VACCINE_DEFS) tabCounts[v.code] = 0;
+
+  const exploded: VaccinationListRow[] = [];
+  for (const emp of byEmployee.values()) {
+    for (const v of VACCINE_DEFS) {
+      const situation = emp.situations[v.code];
+      if (!situation) continue;
+      tabCounts[v.code] = (tabCounts[v.code] ?? 0) + 1;
+      const kind = classifySituation(v.code, situation);
+      exploded.push({
+        id: `${emp.sourceId}:${v.code}`,
+        employeeId: emp.employeeId,
+        registration: emp.registration,
+        fullName: emp.fullName,
+        unitName: emp.unitName,
+        regionName: emp.regionName,
+        vaccineCode: v.code,
+        vaccineName: v.label,
+        situation,
+        situationKind: kind,
+        administeredAt: emp.administeredAt,
+        lotNumber: emp.lotNumber,
+        notes: null,
+        status: emp.status,
+      });
+    }
+  }
+
+  let filtered = exploded.filter((r) => r.vaccineCode === vaccineCode);
+  if (params.situation && params.situation !== "ALL") {
+    filtered = filtered.filter((r) => r.situation === params.situation);
+  }
+  if (params.kind && params.kind !== "ALL") {
+    filtered = filtered.filter((r) => r.situationKind === params.kind);
+  }
+
+  filtered.sort((a, b) => a.fullName.localeCompare(b.fullName, "pt-BR"));
+
+  const metrics: VaccinationMetrics = {
+    total: filtered.length,
+    ok: filtered.filter((r) => r.situationKind === "ok").length,
+    partial: filtered.filter((r) => r.situationKind === "partial").length,
+    attention: filtered.filter((r) => r.situationKind === "attention").length,
+    refusal: filtered.filter((r) => r.situationKind === "refusal").length,
+  };
+
+  const total = filtered.length;
+  const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
+
   return {
-    rows,
+    rows: pageRows,
+    metrics,
+    tabCounts,
+    vaccine: vaccineCode,
     total,
     page,
     pageSize,

@@ -19,6 +19,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth/guard";
 import { addRealMonths, calcImc, calcLeaveDays, computeDeadlineStatus } from "@/lib/dates";
 import { leaveRequiresReturnAso } from "@/lib/leaves/constants";
+import { doseNumberFromSituation } from "@/lib/vaccination/constants";
 import { requireEmployeeInUserScope } from "@/lib/scope";
 import type { SessionUser } from "@/types";
 
@@ -355,7 +356,7 @@ export async function createVaccinationAction(
     const schema = z.object({
       registration: z.string().min(1),
       vaccineCode: z.string().min(1),
-      doseNumber: z.coerce.number().int().positive(),
+      situation: z.string().min(1),
       administeredAt: z.string().optional(),
       lotNumber: z.string().optional(),
       notes: z.string().optional(),
@@ -363,7 +364,7 @@ export async function createVaccinationAction(
     const data = schema.parse({
       registration: formData.get("registration"),
       vaccineCode: formData.get("vaccineCode"),
-      doseNumber: formData.get("doseNumber"),
+      situation: formData.get("situation"),
       administeredAt: formData.get("administeredAt") || undefined,
       lotNumber: formData.get("lotNumber") || undefined,
       notes: formData.get("notes") || undefined,
@@ -395,16 +396,22 @@ export async function createVaccinationAction(
       vaccine = createdVac;
     }
 
+    const doseNumber = doseNumberFromSituation(data.situation);
+    const noteParts = [
+      `${data.vaccineCode}: ${data.situation}`,
+      data.notes?.trim() || null,
+    ].filter(Boolean);
+
     const [created] = await db
       .insert(employeeVaccinations)
       .values({
         employeeId,
         vaccineId: vaccine.id,
-        doseNumber: data.doseNumber,
+        doseNumber: Math.max(doseNumber, 1),
         administeredAt: data.administeredAt || null,
         lotNumber: data.lotNumber || null,
-        notes: data.notes || null,
-        status: data.administeredAt ? "APLICADA" : "PENDENTE",
+        notes: noteParts.join(" | "),
+        status: data.situation,
         createdBy: user.id,
         updatedBy: user.id,
       })
