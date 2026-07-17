@@ -1,30 +1,27 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-/**
- * Claro: fundo suave + borda.
- * Escuro: outline (como carteira vacinal) — sem bloco claro estourando no preto.
- */
+/** Badges institucionais: suave no claro, outline discreto no escuro. */
 const TONES: Record<string, string> = {
   ok: cn(
     "border-[color:var(--primary-border)] bg-[color:var(--primary-soft)] text-[color:var(--success)]",
-    "dark:border-[color:var(--primary)] dark:bg-transparent dark:text-[color:var(--primary)]",
+    "dark:border-[color:var(--primary-border)] dark:bg-[color:var(--primary-soft)] dark:text-[color:var(--accent-foreground)]",
   ),
   warn: cn(
-    "border-amber-200/80 bg-amber-50 text-[color:var(--warning)]",
-    "dark:border-[color:var(--warning)] dark:bg-transparent dark:text-[color:var(--warning)]",
+    "border-amber-200/70 bg-amber-50 text-[color:var(--warning)]",
+    "dark:border-amber-700/50 dark:bg-amber-950/40 dark:text-amber-200/90",
   ),
   danger: cn(
-    "border-red-200/80 bg-red-50 text-[color:var(--danger)]",
-    "dark:border-[color:var(--danger)] dark:bg-transparent dark:text-[color:var(--danger)]",
+    "border-red-200/70 bg-red-50 text-[color:var(--danger)]",
+    "dark:border-red-800/50 dark:bg-red-950/40 dark:text-red-200/90",
   ),
   muted: cn(
     "border-border bg-muted text-muted-foreground",
-    "dark:border-border dark:bg-transparent dark:text-muted-foreground",
+    "dark:border-border dark:bg-muted/50 dark:text-muted-foreground",
   ),
   info: cn(
-    "border-blue-200/80 bg-blue-50 text-[color:var(--info)]",
-    "dark:border-[color:var(--info)] dark:bg-transparent dark:text-[color:var(--info)]",
+    "border-blue-200/70 bg-blue-50 text-[color:var(--info)]",
+    "dark:border-blue-800/50 dark:bg-blue-950/40 dark:text-blue-200/90",
   ),
 };
 

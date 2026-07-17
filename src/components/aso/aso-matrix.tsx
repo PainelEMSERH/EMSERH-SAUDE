@@ -33,17 +33,14 @@ type Selection = {
   unitId: string | null;
 };
 
-/** Tons da matriz: no escuro, sem fundo claro/azul — texto + soft sutil. */
+/** Dados normais neutros; cor só em atenção/abaixo da meta. */
 const TONE_CLASSES: Record<AsoMatrixCell["tone"], string> = {
-  ok: "bg-primary-soft/70 text-primary hover:bg-primary-soft dark:bg-transparent dark:hover:bg-primary-soft",
-  near: "bg-amber-50 text-[color:var(--warning)] hover:bg-amber-100 dark:bg-transparent dark:bg-amber-500/10 dark:hover:bg-amber-500/15",
-  below:
-    "bg-red-50 text-[color:var(--danger)] hover:bg-red-100 dark:bg-transparent dark:bg-red-500/10 dark:hover:bg-red-500/15",
-  empty: "bg-muted/50 text-muted-foreground hover:bg-muted dark:bg-transparent dark:hover:bg-card-hover",
-  future:
-    "bg-muted/60 text-muted-foreground hover:bg-muted dark:bg-card-hover dark:text-muted-foreground dark:hover:bg-muted",
-  neutral:
-    "bg-muted/40 text-foreground/80 hover:bg-muted dark:bg-transparent dark:hover:bg-card-hover",
+  ok: "bg-transparent text-foreground hover:bg-muted/60 dark:hover:bg-card-hover",
+  near: "bg-transparent text-[color:var(--warning)] hover:bg-amber-500/10",
+  below: "bg-transparent text-[color:var(--danger)] hover:bg-red-500/10",
+  empty: "bg-transparent text-muted-foreground hover:bg-muted/50",
+  future: "bg-muted/40 text-muted-foreground hover:bg-muted/60 dark:bg-card-hover",
+  neutral: "bg-transparent text-foreground/80 hover:bg-muted/50",
 };
 
 function cellLabel(cell: AsoMatrixCell): string {
@@ -179,7 +176,7 @@ export function AsoMatrix({
               className={cn(
                 "rounded-md px-2.5 py-1 text-[12px] font-semibold transition-colors",
                 appliedMatches
-                  ? "border border-primary bg-transparent text-primary"
+                  ? "border border-border bg-card text-foreground"
                   : "bg-primary text-primary-foreground hover:bg-primary-hover",
               )}
             >
@@ -207,8 +204,8 @@ export function AsoMatrix({
       ) : null}
 
       {!unitSelected && unitCount > 1 ? (
-        <div className="border-b border-primary-border bg-primary-soft/60 px-3 py-1.5 text-[11px] text-primary">
-          Para ver a matriz por unidade, escolha a <strong>Unidade</strong> no
+        <div className="border-b border-border bg-muted/60 px-3 py-1.5 text-[11px] text-muted-foreground">
+          Para ver a matriz por unidade, escolha a <strong className="text-foreground">Unidade</strong> no
           filtro acima. Aqui fica só o consolidado da regional — sem lista
           interminável.
         </div>
@@ -235,12 +232,12 @@ export function AsoMatrix({
                     key={label}
                     className={cn(
                       "text-center",
-                      headerSelected ? "bg-primary-soft text-primary" : "",
+                      headerSelected ? "bg-muted text-foreground" : "",
                     )}
                   >
                     <button
                       type="button"
-                      className="w-full !px-0.5 !py-0.5 !text-[10px] !font-semibold hover:text-primary"
+                      className="w-full !px-0.5 !py-0.5 !text-[10px] !font-semibold hover:text-foreground"
                       title={`Selecionar ${MONTH_NAMES[idx]} no escopo atual`}
                       onClick={() => {
                         const base =
@@ -279,7 +276,7 @@ export function AsoMatrix({
                     className={cn(
                       "sticky left-0 z-10 max-w-[148px] truncate bg-card dark:bg-background",
                       "app-table-emphasis text-foreground/80",
-                      rowSelected ? "bg-primary-soft/80 dark:bg-primary-soft" : "",
+                      rowSelected ? "bg-muted dark:bg-card-hover" : "",
                       row.cadastralAlert
                         ? "text-[color:var(--warning)]"
                         : "",
@@ -317,9 +314,9 @@ export function AsoMatrix({
                             "flex h-[40px] w-full flex-col items-center justify-center rounded !px-0.5 leading-none transition-colors",
                             TONE_CLASSES[cell.tone],
                             isSelected
-                              ? "bg-primary-soft ring-2 ring-primary ring-offset-1 ring-offset-background"
+                              ? "bg-primary-soft/80 outline outline-1 outline-primary/50"
                               : isApplied
-                                ? "ring-1 ring-primary"
+                                ? "outline outline-1 outline-primary/35"
                                 : "",
                           )}
                         >
