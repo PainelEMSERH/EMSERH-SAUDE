@@ -198,7 +198,7 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
   const now = new Date();
   const year = Number(params.year) || now.getFullYear();
   const month = Math.min(12, Math.max(1, Number(params.month) || now.getMonth() + 1));
-  const asoType = params.type && params.type !== "ALL" ? params.type : "ALL";
+  const asoType = params.type || "PERIODICO";
   const mode = params.mode === "accumulated" ? "accumulated" : "monthly";
   const scoped = clampScope(
     user,
