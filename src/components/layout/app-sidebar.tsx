@@ -5,7 +5,12 @@ import { usePathname } from "next/navigation";
 import { LogOut, Menu } from "lucide-react";
 import { useState } from "react";
 import { logoutAction } from "@/actions/auth";
+import { useSidebarUi } from "@/components/layout/sidebar-ui";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import {
+  ConnectionStatus,
+  SidebarCollapseButton,
+} from "@/components/layout/topbar-controls";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -22,14 +27,16 @@ import { APP_NAME, NAV_SECTIONS } from "./nav-config";
 function NavLinks({
   user,
   onNavigate,
+  collapsed = false,
 }: {
   user: SessionUser;
   onNavigate?: () => void;
+  collapsed?: boolean;
 }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-col gap-5 px-3 py-3">
+    <nav className={cn("flex flex-col gap-5 py-3", collapsed ? "px-2" : "px-3")}>
       {NAV_SECTIONS.map((section) => {
         const items = section.items.filter((item) =>
           can(user, item.module, "view"),
@@ -38,9 +45,13 @@ function NavLinks({
 
         return (
           <div key={section.id}>
-            <p className="mb-1.5 px-2.5 text-[10px] font-semibold tracking-[0.08em] text-sidebar-foreground/70 uppercase">
-              {section.label}
-            </p>
+            {!collapsed ? (
+              <p className="mb-1.5 px-2.5 text-[10px] font-semibold tracking-[0.08em] text-sidebar-foreground/70 uppercase">
+                {section.label}
+              </p>
+            ) : (
+              <div className="mx-auto mb-1.5 h-px w-6 bg-sidebar-border" aria-hidden />
+            )}
             <div className="flex flex-col gap-0.5">
               {items.map((item) => {
                 const active =
@@ -52,8 +63,12 @@ function NavLinks({
                     key={item.href}
                     href={item.href}
                     onClick={onNavigate}
+                    title={collapsed ? item.title : undefined}
                     className={cn(
-                      "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors",
+                      "flex items-center rounded-lg text-[13px] transition-colors",
+                      collapsed
+                        ? "justify-center px-0 py-2"
+                        : "gap-2.5 px-2.5 py-2",
                       active
                         ? "border border-sidebar-border bg-sidebar-primary font-medium text-sidebar-primary-foreground shadow-sm"
                         : "border border-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
@@ -68,7 +83,11 @@ function NavLinks({
                       )}
                       strokeWidth={1.75}
                     />
-                    <span className="truncate">{item.title}</span>
+                    {!collapsed ? (
+                      <span className="truncate">{item.title}</span>
+                    ) : (
+                      <span className="sr-only">{item.title}</span>
+                    )}
                   </Link>
                 );
               })}
@@ -119,18 +138,36 @@ function UserMenu({ user }: { user: SessionUser }) {
 }
 
 export function AppSidebar({ user }: { user: SessionUser }) {
+  const { collapsed } = useSidebarUi();
+
   return (
-    <aside className="hidden h-svh w-[220px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
-      <div className="px-4 pt-5 pb-2">
-        <p className="text-[15px] font-semibold tracking-tight text-foreground">
-          Menu
-        </p>
-        <p className="mt-0.5 truncate text-[10px] font-medium tracking-[0.12em] text-primary uppercase dark:text-ring">
-          EMSERH · Saúde
-        </p>
+    <aside
+      className={cn(
+        "hidden h-svh shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 lg:flex",
+        collapsed ? "w-[64px]" : "w-[220px]",
+      )}
+    >
+      <div className={cn("pb-2 pt-5", collapsed ? "px-2" : "px-4")}>
+        {collapsed ? (
+          <p
+            className="text-center text-[11px] font-bold tracking-tight text-primary dark:text-ring"
+            title={APP_NAME}
+          >
+            ES
+          </p>
+        ) : (
+          <>
+            <p className="text-[15px] font-semibold tracking-tight text-foreground">
+              Menu
+            </p>
+            <p className="mt-0.5 truncate text-[10px] font-medium tracking-[0.12em] text-primary uppercase dark:text-ring">
+              EMSERH · Saúde
+            </p>
+          </>
+        )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto pb-4">
-        <NavLinks user={user} />
+        <NavLinks user={user} collapsed={collapsed} />
       </div>
     </aside>
   );
@@ -138,9 +175,15 @@ export function AppSidebar({ user }: { user: SessionUser }) {
 
 export function AppTopbar({ user }: { user: SessionUser }) {
   return (
-    <header className="hidden h-12 shrink-0 items-center justify-end gap-2.5 border-b border-border bg-background px-4 md:px-5 lg:flex">
-      <ThemeToggle />
-      <UserMenu user={user} />
+    <header className="hidden h-12 shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-4 md:px-5 lg:flex">
+      <div className="flex items-center gap-3">
+        <SidebarCollapseButton />
+        <ConnectionStatus />
+      </div>
+      <div className="flex items-center gap-2.5">
+        <ThemeToggle />
+        <UserMenu user={user} />
+      </div>
     </header>
   );
 }
@@ -174,6 +217,7 @@ export function MobileNav({ user }: { user: SessionUser }) {
           Saúde Ocupacional
         </p>
       </div>
+      <ConnectionStatus />
       <ThemeToggle />
       <UserMenu user={user} />
     </div>

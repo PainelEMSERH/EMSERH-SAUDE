@@ -6,6 +6,7 @@ import {
   AppTopbar,
   MobileNav,
 } from "@/components/layout/app-sidebar";
+import { SidebarUiProvider } from "@/components/layout/sidebar-ui";
 import { SetupBanner } from "@/components/feedback/setup-banner";
 
 export default async function ProtectedLayout({
@@ -30,15 +31,17 @@ export default async function ProtectedLayout({
   }
 
   return (
-    <div className="flex h-svh overflow-hidden bg-background">
-      <AppSidebar user={user} />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <MobileNav user={user} />
-        <AppTopbar user={user} />
-        <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-[13px] leading-snug [zoom:0.9] md:px-5 md:py-5">
-          {children}
-        </main>
+    <SidebarUiProvider>
+      <div className="flex h-svh overflow-hidden bg-background">
+        <AppSidebar user={user} />
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <MobileNav user={user} />
+          <AppTopbar user={user} />
+          <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-[13px] leading-snug [zoom:0.9] md:px-5 md:py-5">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </SidebarUiProvider>
   );
 }
