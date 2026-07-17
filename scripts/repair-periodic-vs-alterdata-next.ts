@@ -1,10 +1,12 @@
 /**
- * Remove periódicos 2026 que não batem com o Proximo_aso confiável do Alterdata.
+ * Remove periódicos 2026 fantasmas vs Proximo_aso do Alterdata.
  *
- * Casos (ex.: Raimunda 003695):
- * - Plano em out/2026 (ASO_2026_CONTROL)
- * - Ultimo atestado em mar/jun 2026
- * - Proximo_aso em 2027 → não deveria aparecer em 2026
+ * Regras:
+ * - Next em 2027+ e plano AINDA ABERTO → remove
+ * - Next em 2027+ e REALIZADO em competência FUTURA → remove (ex.: Raimunda out)
+ * - Next em 2027+ e REALIZADO em competência passada/atual → MANTÉM (histórico)
+ * - Next em 2026 noutro mês e plano aberto → remove
+ * - Next em 2026 noutro mês e REALIZADO futuro → remove; passado/atual mantém
  *
  * Uso: npx tsx scripts/repair-periodic-vs-alterdata-next.ts
  */
@@ -24,6 +26,13 @@ import { yearMonthFromDate } from "../src/lib/aso/planning";
 
 const YEAR = 2026;
 const BATCH = 200;
+const TODAY = new Date();
+const CURRENT_MONTH =
+  TODAY.getFullYear() === YEAR
+    ? TODAY.getMonth() + 1
+    : TODAY.getFullYear() > YEAR
+      ? 12
+      : 0;
 
 async function main() {
   const db = getDb();
@@ -34,6 +43,7 @@ async function main() {
       registration: asoMonthlyPlans.registration,
       employeeName: asoMonthlyPlans.employeeName,
       month: asoMonthlyPlans.month,
+      executionStatus: asoMonthlyPlans.executionStatus,
       admissionDate: employees.admissionDate,
     })
     .from(asoMonthlyPlans)
@@ -47,9 +57,10 @@ async function main() {
       ),
     );
 
-  console.log(`Periódicos ${YEAR} abertos/ativos: ${plans.length}`);
+  console.log(
+    `Periódicos ${YEAR} abertos/ativos: ${plans.length} · competência atual: ${CURRENT_MONTH}`,
+  );
 
-  // Último snapshot por matrícula (1 query)
   const snapRows = await db.execute(sql`
     select distinct on (registration)
       registration,
@@ -75,6 +86,7 @@ async function main() {
   const samples: string[] = [];
   let kept = 0;
   let noSnap = 0;
+  let keptHistory = 0;
 
   for (const plan of plans) {
     const snap = snapByReg.get(plan.registration);
@@ -106,6 +118,16 @@ async function main() {
       continue;
     }
 
+    const isRealized = plan.executionStatus === "REALIZADO";
+    const isPastOrCurrent = plan.month <= CURRENT_MONTH;
+
+    // Histórico já executado na competência: não apagar porque next foi pra 2027
+    if (isRealized && isPastOrCurrent) {
+      keptHistory += 1;
+      kept += 1;
+      continue;
+    }
+
     if (ym.year > YEAR) {
       removeNextYear.push(plan.planId);
       if (
@@ -114,7 +136,7 @@ async function main() {
         removeNextYear.length % 250 === 0
       ) {
         samples.push(
-          `REM>ANO ${plan.registration} ${plan.employeeName} · plano ${plan.month}/${YEAR} · next ${trusted.nextPeriodicDate}`,
+          `REM>ANO ${plan.registration} ${plan.employeeName} · plano ${plan.month}/${YEAR} · next ${trusted.nextPeriodicDate} · status ${plan.executionStatus}`,
         );
       }
       continue;
@@ -142,29 +164,29 @@ async function main() {
       .update(asoMonthlyPlans)
       .set({ deletedAt: new Date() })
       .where(inArray(asoMonthlyPlans.id, chunk));
-    console.log(`Soft-delete ${Math.min(i + BATCH, allIds.length)}/${allIds.length}`);
+    console.log(
+      `Soft-delete ${Math.min(i + BATCH, allIds.length)}/${allIds.length}`,
+    );
   }
 
   console.log(
-    `\nConcluído · removidos next≥2027: ${removeNextYear.length} · mês errado: ${removeWrongMonth.length} · mantidos: ${kept} · sem snap: ${noSnap}`,
+    `\nConcluído · removidos next≥2027: ${removeNextYear.length} · mês errado: ${removeWrongMonth.length} · mantidos: ${kept} (histórico REALIZADO: ${keptHistory}) · sem snap: ${noSnap}`,
   );
 
   const out = await db.execute(sql`
-    select
+    select month,
       count(*)::int as planejado,
       count(*) filter (where execution_status = 'REALIZADO')::int as executado
     from occupational.aso_monthly_plans
     where deleted_at is null
       and aso_type = 'PERIODICO'
-      and year = 2026 and month = 10
+      and year = 2026
+    group by month
+    order by month
   `);
   console.log(
-    "OUTUBRO_APOS",
-    JSON.stringify(
-      (out as { rows?: unknown }).rows ?? out,
-      null,
-      2,
-    ),
+    "POR_MES",
+    JSON.stringify((out as { rows?: unknown }).rows ?? out, null, 2),
   );
 
   const raimunda = await db.execute(sql`
@@ -176,11 +198,7 @@ async function main() {
   `);
   console.log(
     "RAIMUNDA",
-    JSON.stringify(
-      (raimunda as { rows?: unknown }).rows ?? raimunda,
-      null,
-      2,
-    ),
+    JSON.stringify((raimunda as { rows?: unknown }).rows ?? raimunda, null, 2),
   );
 }
 

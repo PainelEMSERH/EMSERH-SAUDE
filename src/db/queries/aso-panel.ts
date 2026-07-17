@@ -1040,6 +1040,19 @@ export async function generateAsoPlanningForYear(
       // Next confiável fora do ano/mês → plano fantasma (ex.: ASO 2026 em out com next em 2027)
       const isStaleVsAlterdata =
         keepMonth == null || row.month !== keepMonth;
+      const isRealized = String(row.executionStatus || "") === "REALIZADO";
+      const now = new Date();
+      const currentMonth =
+        now.getFullYear() === year
+          ? now.getMonth() + 1
+          : now.getFullYear() > year
+            ? 12
+            : 0;
+      // REALIZADO em competência passada/atual = histórico de aderência.
+      // Não apagar só porque o Proximo_aso já foi para o ano seguinte.
+      if (isRealized && row.month <= currentMonth && !isGhostDismissed) {
+        continue;
+      }
       const isOpenStatus = [
         "PREVISTO",
         "VENCIDO",
@@ -1064,12 +1077,8 @@ export async function generateAsoPlanningForYear(
       ) {
         continue;
       }
-      // Mantém REALIZADO só se for o mês correto do next (já continuou acima).
-      // Fantasma em outro mês/ano: remove mesmo REALIZADO (antecipação já cumprida).
-      if (
-        !isGhostDismissed &&
-        !isStaleVsAlterdata
-      ) {
+      // Fantasma futuro (mês > atual) ou aberto fora do next: remove.
+      if (!isGhostDismissed && !isStaleVsAlterdata) {
         continue;
       }
       await db
