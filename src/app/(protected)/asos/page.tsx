@@ -6,7 +6,6 @@ import {
   AsoNominalTable,
 } from "@/components/aso/aso-nominal-table";
 import { AsoPanelHeader } from "@/components/aso/aso-panel-header";
-import { AsoPrioritiesPanel } from "@/components/aso/aso-priorities";
 import { AsoSummaryCards } from "@/components/aso/aso-summary-cards";
 import { Pagination } from "@/components/tables/pagination";
 import { getAsoPanelData, type AsoPanelParams } from "@/db/queries/aso-panel";
@@ -95,13 +94,6 @@ export default async function AsosPage({
         closureStatus={data.closure?.status}
         current={current}
         asoType={data.asoType}
-      />
-
-      <AsoPrioritiesPanel
-        priorities={data.priorities}
-        current={current}
-        activePriority={params.priority}
-        activeMonth={data.month}
       />
 
       <AsoMatrix
