@@ -1,7 +1,6 @@
 import {
   Baby,
   BarChart3,
-  CalendarDays,
   ClipboardList,
   FileUp,
   HeartPulse,
@@ -26,7 +25,6 @@ export const NAV_ITEMS: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard, module: "dashboard" },
   { title: "Colaboradores", href: "/colaboradores", icon: Users, module: "employees" },
   { title: "ASOs", href: "/asos", icon: ClipboardList, module: "asos" },
-  { title: "Agenda", href: "/agenda", icon: CalendarDays, module: "agenda" },
   { title: "Afastamentos", href: "/afastamentos", icon: HeartPulse, module: "leaves" },
   { title: "Vacinação", href: "/vacinacao", icon: Syringe, module: "vaccination" },
   { title: "Gestantes", href: "/gestantes", icon: Baby, module: "pregnancy" },

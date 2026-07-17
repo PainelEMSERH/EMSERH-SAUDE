@@ -77,6 +77,29 @@ describe("computeCompetenceMetrics", () => {
     expect(m.demitidos).toBe(1);
     expect(m.outrosJustificados).toBe(1);
   });
+  it("realizado conta mesmo com elegibilidade JUSTIFICADO residual (demissional)", () => {
+    const m = computeCompetenceMetrics([
+      {
+        eligibility: "JUSTIFICADO",
+        executionStatus: "REALIZADO",
+        alterdataStatus: "CONFIRMADO",
+        justificationReason: "DEMITIDO",
+        functionalStatusSnapshot: "DEMITIDO",
+      },
+      {
+        eligibility: "ELEGIVEL",
+        executionStatus: "REALIZADO",
+        alterdataStatus: "CONFIRMADO",
+        functionalStatusSnapshot: "DEMITIDO",
+      },
+    ]);
+    expect(m.previstosBrutos).toBe(2);
+    expect(m.justificados).toBe(0);
+    expect(m.realizados).toBe(2);
+    expect(m.confirmadosAlterdata).toBe(2);
+    expect(m.previstosElegiveis).toBe(2);
+    expect(m.aderenciaPercent).toBe(100);
+  });
 });
 
 describe("consolidateWeighted", () => {

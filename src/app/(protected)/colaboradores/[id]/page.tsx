@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   Baby,
   Biohazard,
-  CalendarDays,
   ClipboardList,
   Database,
   FileWarning,
@@ -17,7 +16,6 @@ import { StatusBadge } from "@/components/feedback/status-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDb } from "@/db";
 import {
-  appointments,
   asoRecords,
   biologicalAccidents,
   employeeVaccinations,
@@ -26,7 +24,7 @@ import {
 } from "@/db/schemas";
 import { getEmployeeById } from "@/db/queries/employees";
 import { requirePermission, userCan } from "@/lib/auth/guard";
-import { formatDateBR, formatDateTimeBR } from "@/lib/dates";
+import { formatDateBR } from "@/lib/dates";
 import { formatPhoneBR } from "@/lib/employees/cpf-display";
 import {
   formatRegistrationDisplay,
@@ -53,7 +51,6 @@ export default async function ColaboradorDetailPage({
 
   const emp = data.employee;
   const canAsos = userCan(user, "asos", "view");
-  const canAgenda = userCan(user, "agenda", "view");
   const canLeaves = userCan(user, "leaves", "view");
   const canVaccination = userCan(user, "vaccination", "view");
   const canPregnancy = userCan(user, "pregnancy", "view");
@@ -63,7 +60,7 @@ export default async function ColaboradorDetailPage({
     userCan(user, "leaves", "view_clinical");
 
   const db = getDb();
-  const [asos, leaves, appts, vaccines, pregnancies, accidents] =
+  const [asos, leaves, vaccines, pregnancies, accidents] =
     await Promise.all([
       canAsos
         ? db
@@ -103,19 +100,6 @@ export default async function ColaboradorDetailPage({
               ),
             )
             .orderBy(desc(leaveRecords.startDate))
-            .limit(20)
-        : Promise.resolve([]),
-      canAgenda
-        ? db
-            .select()
-            .from(appointments)
-            .where(
-              and(
-                eq(appointments.employeeId, id),
-                isNull(appointments.deletedAt),
-              ),
-            )
-            .orderBy(desc(appointments.scheduledAt))
             .limit(20)
         : Promise.resolve([]),
       canVaccination
@@ -250,11 +234,6 @@ export default async function ColaboradorDetailPage({
           {canAsos ? (
             <TabTrigger value="asos" count={asos.length}>
               ASOs
-            </TabTrigger>
-          ) : null}
-          {canAgenda ? (
-            <TabTrigger value="agenda" count={appts.length}>
-              Agenda
             </TabTrigger>
           ) : null}
           {canLeaves ? (
@@ -407,44 +386,6 @@ export default async function ColaboradorDetailPage({
                   icon={<ClipboardList className="size-5" />}
                   title="Nenhum ASO registrado"
                   description="Os exames ocupacionais deste colaborador aparecerão aqui."
-                />
-              ) : null}
-            </ModuleCard>
-          </TabsContent>
-        ) : null}
-
-        {canAgenda ? (
-          <TabsContent value="agenda">
-            <ModuleCard
-              icon={<CalendarDays className="size-4" />}
-              title="Agenda"
-              description="Consultas e atendimentos agendados."
-            >
-              {appts.map((a) => (
-                <RecordRow
-                  key={a.id}
-                  icon={<CalendarDays className="size-4 text-teal-700" />}
-                  title={humanizeLabel(a.appointmentType)}
-                  meta={
-                    <span className="tabular-nums">
-                      {formatDateTimeBR(a.scheduledAt)}
-                    </span>
-                  }
-                  badge={
-                    <StatusBadge
-                      label={humanizeLabel(
-                        a.presenceStatus ?? a.confirmationStatus,
-                      )}
-                      tone="muted"
-                    />
-                  }
-                />
-              ))}
-              {!appts.length ? (
-                <EmptyModule
-                  icon={<CalendarDays className="size-5" />}
-                  title="Nenhum agendamento"
-                  description="Consultas e retornos médicos aparecerão nesta aba."
                 />
               ) : null}
             </ModuleCard>

@@ -812,9 +812,16 @@ export async function generateAsoPlanningForYear(
     const alreadyRealized = existing?.executionStatus === "REALIZADO";
     const forceLeaveOutOfMeta = Boolean(leaveReason) && !alreadyRealized;
 
+    // Demissional não usa justificativa "DEMITIDO" — a demissão É o motivo do exame.
+    const spuriousDemissionalJustify =
+      input.asoType === "DEMISSIONAL" &&
+      existing?.executionStatus === "JUSTIFICADO" &&
+      existing?.justificationReason === "DEMITIDO";
+
     const preserveManual =
       !forceLeaveOutOfMeta &&
       !returningFromLeave &&
+      !spuriousDemissionalJustify &&
       (existing?.executionStatus === "REALIZADO" ||
         existing?.executionStatus === "JUSTIFICADO" ||
         existing?.executionStatus === "DISPENSADO" ||
@@ -826,7 +833,7 @@ export async function generateAsoPlanningForYear(
       executionStatus = "JUSTIFICADO";
     } else if (preserveManual) {
       executionStatus = existing!.executionStatus;
-    } else if (returningFromLeave) {
+    } else if (returningFromLeave || spuriousDemissionalJustify) {
       executionStatus = "PREVISTO";
     } else {
       executionStatus =
@@ -866,23 +873,23 @@ export async function generateAsoPlanningForYear(
       }
     }
 
+    const justificationReason = forceLeaveOutOfMeta
+      ? leaveReason
+      : returningFromLeave || spuriousDemissionalJustify
+        ? null
+        : leaveReason && alreadyRealized
+          ? leaveReason
+          : existing?.justificationReason || elig.reason || null;
+
     const eligibility = forceLeaveOutOfMeta
       ? "JUSTIFICADO"
-      : returningFromLeave
+      : returningFromLeave || spuriousDemissionalJustify
         ? "ELEGIVEL"
         : existing?.justificationReason && !leaveReason
           ? existing.eligibility
           : leaveReason && alreadyRealized
             ? existing?.eligibility || "ELEGIVEL"
             : elig.eligibility;
-
-    const justificationReason = forceLeaveOutOfMeta
-      ? leaveReason
-      : returningFromLeave
-        ? null
-        : leaveReason && alreadyRealized
-          ? leaveReason
-          : existing?.justificationReason || elig.reason || null;
 
     const payload = {
       registration: input.registration,
@@ -1092,6 +1099,53 @@ export async function generateAsoPlanningForYear(
 
     const dem = yearMonthFromDate(emp.dismissalDate);
     if (dem && dem.year === year) {
+      // Remove demissionais fantasmas em mês/ano diferente da demissão atual.
+      const wrongDem = await db
+        .select({
+          id: asoMonthlyPlans.id,
+          month: asoMonthlyPlans.month,
+          year: asoMonthlyPlans.year,
+        })
+        .from(asoMonthlyPlans)
+        .where(
+          and(
+            eq(asoMonthlyPlans.employeeId, emp.id),
+            eq(asoMonthlyPlans.asoType, "DEMISSIONAL"),
+            isNull(asoMonthlyPlans.deletedAt),
+            eq(asoMonthlyPlans.frozen, false),
+          ),
+        );
+      for (const row of wrongDem) {
+        if (row.year === dem.year && row.month === dem.month) continue;
+        await db
+          .update(asoMonthlyPlans)
+          .set({ deletedAt: new Date(), updatedBy: user.id })
+          .where(eq(asoMonthlyPlans.id, row.id));
+        cleaned += 1;
+      }
+
+      const lastIso = snap?.lastAsoDate
+        ? String(snap.lastAsoDate).slice(0, 10)
+        : null;
+      const demIso = emp.dismissalDate
+        ? String(emp.dismissalDate).slice(0, 10)
+        : null;
+      const statusAso = String(snap?.statusAso || "")
+        .trim()
+        .toUpperCase();
+      // Evidência de demissional no Alterdata:
+      // 1) Data_Atestado ≥ demissão, ou
+      // 2) Status_ASO = DEMITIDO (ciclo ocupacional encerrado no espelho)
+      const demissionalDone = Boolean(
+        demIso &&
+          ((lastIso && lastIso >= demIso) || statusAso === "DEMITIDO"),
+      );
+      const performedFromAlterdata = demissionalDone
+        ? lastIso && demIso && lastIso >= demIso
+          ? lastIso
+          : demIso
+        : null;
+
       await upsertPlan({
         employeeId: emp.id,
         registration: emp.registration,
@@ -1106,7 +1160,30 @@ export async function generateAsoPlanningForYear(
         unitName: emp.unitName,
         functionalStatus: emp.functionalStatus,
         origin: "DISMISSAL",
+        markRealizedFromAlterdata: demissionalDone,
+        alterdataPerformedDate: performedFromAlterdata,
       });
+    } else if (emp.dismissalDate) {
+      // Demissão fora do ano: limpa demissionais do ano de planejamento.
+      const wrongDem = await db
+        .select({ id: asoMonthlyPlans.id })
+        .from(asoMonthlyPlans)
+        .where(
+          and(
+            eq(asoMonthlyPlans.employeeId, emp.id),
+            eq(asoMonthlyPlans.asoType, "DEMISSIONAL"),
+            eq(asoMonthlyPlans.year, year),
+            isNull(asoMonthlyPlans.deletedAt),
+            eq(asoMonthlyPlans.frozen, false),
+          ),
+        );
+      for (const row of wrongDem) {
+        await db
+          .update(asoMonthlyPlans)
+          .set({ deletedAt: new Date(), updatedBy: user.id })
+          .where(eq(asoMonthlyPlans.id, row.id));
+        cleaned += 1;
+      }
     }
   }
 

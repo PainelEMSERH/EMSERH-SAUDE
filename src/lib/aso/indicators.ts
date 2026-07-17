@@ -83,6 +83,20 @@ export function computeCompetenceMetrics(
       day,
     );
 
+    // Realizado conta sempre — inclusive demissional com elegibilidade JUSTIFICADO residual.
+    if (REALIZED_EXECUTION.has(exec as ExecutionStatus) || r.asoRecordId || r.performedDate) {
+      previstosElegiveis += 1;
+      realizados += 1;
+      if (alt === "CONFIRMADO") confirmadosAlterdata += 1;
+      if (
+        alt === "PENDENTE_ATUALIZACAO" ||
+        alt === "AGUARDANDO_SINCRONIZACAO"
+      ) {
+        pendentesAlterdata += 1;
+      }
+      continue;
+    }
+
     if (
       JUSTIFIED_ELIGIBILITY.has(elig as Eligibility) ||
       exec === "JUSTIFICADO" ||
@@ -107,16 +121,7 @@ export function computeCompetenceMetrics(
 
     previstosElegiveis += 1;
 
-    if (REALIZED_EXECUTION.has(exec as ExecutionStatus)) {
-      realizados += 1;
-      if (alt === "CONFIRMADO") confirmadosAlterdata += 1;
-      if (
-        alt === "PENDENTE_ATUALIZACAO" ||
-        alt === "AGUARDANDO_SINCRONIZACAO"
-      ) {
-        pendentesAlterdata += 1;
-      }
-    } else if (effective === "VENCIDO" || isPlanOverdue(r, day)) {
+    if (effective === "VENCIDO" || isPlanOverdue(r, day)) {
       vencidos += 1;
       naoRealizados += 1;
     } else {
