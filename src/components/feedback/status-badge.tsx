@@ -19,7 +19,10 @@ export function StatusBadge({
   return (
     <Badge
       variant="outline"
-      className={cn("font-medium", TONES[tone] ?? TONES.muted)}
+      className={cn(
+        "px-1.5 py-0 text-[11px] font-medium leading-5",
+        TONES[tone] ?? TONES.muted,
+      )}
     >
       {label}
     </Badge>

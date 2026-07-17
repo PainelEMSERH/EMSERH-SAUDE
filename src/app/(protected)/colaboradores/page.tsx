@@ -26,16 +26,16 @@ export default async function ColaboradoresPage({
 
   return (
     <div>
-      <div className="mb-6 flex items-end justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg border border-teal-100 bg-teal-50 text-teal-800">
-            <Users className="size-5" aria-hidden />
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-teal-100 bg-teal-50 text-teal-800">
+            <Users className="size-4" aria-hidden />
           </div>
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+            <h2 className="text-lg font-semibold tracking-tight text-slate-900">
               Colaboradores
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="text-[12px] text-slate-500">
               Cadastro único com lotação, vínculo e linha do tempo ocupacional.
             </p>
           </div>
@@ -45,11 +45,12 @@ export default async function ColaboradoresPage({
             href="/colaboradores/novo"
             className={cn(
               buttonVariants({
-                className: "h-10 shrink-0 gap-2 bg-teal-700 hover:bg-teal-800",
+                size: "sm",
+                className: "h-8 shrink-0 gap-1.5 bg-teal-700 text-[13px] hover:bg-teal-800",
               }),
             )}
           >
-            <UserPlus className="size-4" />
+            <UserPlus className="size-3.5" />
             Novo colaborador
           </Link>
         ) : null}
@@ -82,7 +83,7 @@ export default async function ColaboradoresPage({
           {
             key: "registration",
             header: "Matrícula",
-            className: "w-[120px]",
+            className: "w-[100px]",
             cell: (r) => (
               <Link
                 href={`/colaboradores/${r.id}`}
@@ -98,7 +99,7 @@ export default async function ColaboradoresPage({
             header: "Nome",
             cell: (r) => (
               <p
-                className="max-w-[240px] truncate font-medium text-slate-900"
+                className="max-w-[220px] truncate font-medium text-slate-900"
                 title={r.fullName}
               >
                 {r.fullName}
@@ -110,7 +111,7 @@ export default async function ColaboradoresPage({
             header: "Função",
             cell: (r) => (
               <span
-                className="block max-w-[180px] truncate text-slate-700"
+                className="block max-w-[160px] truncate text-slate-600"
                 title={r.jobRoleName ?? undefined}
               >
                 {r.jobRoleName ?? "—"}
@@ -122,7 +123,7 @@ export default async function ColaboradoresPage({
             header: "Unidade",
             cell: (r) => (
               <span
-                className="block max-w-[200px] truncate text-slate-700"
+                className="block max-w-[180px] truncate text-slate-600"
                 title={r.unitName ?? undefined}
               >
                 {humanizeLabel(r.unitName)}
@@ -134,7 +135,7 @@ export default async function ColaboradoresPage({
             header: "Regional",
             cell: (r) => (
               <span
-                className="block max-w-[120px] truncate text-slate-700"
+                className="block max-w-[100px] truncate text-slate-600"
                 title={r.regionName ?? undefined}
               >
                 {humanizeLabel(r.regionName)}
@@ -162,19 +163,19 @@ export default async function ColaboradoresPage({
           },
           {
             key: "actions",
-            header: "Ações",
-            className: "w-[150px]",
+            header: "",
+            className: "w-[118px]",
             cell: (r) => (
               <Link
                 href={`/colaboradores/${r.id}`}
                 className={cn(
                   buttonVariants({ variant: "outline", size: "sm" }),
-                  "h-8 gap-1.5 text-teal-800",
+                  "h-7 gap-1 px-2 text-[12px] text-teal-800",
                 )}
                 title="Ver prontuário"
               >
-                <Eye className="size-3.5" />
-                Ver prontuário
+                <Eye className="size-3" />
+                Prontuário
               </Link>
             ),
           },

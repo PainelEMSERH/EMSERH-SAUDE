@@ -35,19 +35,19 @@ export function Pagination({
   if (totalPages <= 1 && (total == null || total === 0)) return null;
 
   return (
-    <div className="mt-4 flex items-center justify-between gap-3">
-      <p className="text-sm text-slate-500">
+    <div className="mt-3 flex items-center justify-between gap-3">
+      <p className="text-[12px] text-slate-500">
         {total != null
           ? `Mostrando ${from}–${to} de ${total} ${itemLabel}`
           : `Página ${page} de ${totalPages}`}
       </p>
       {totalPages > 1 ? (
-        <div className="flex gap-2">
+        <div className="flex gap-1.5">
           {page <= 1 ? (
             <span
               className={cn(
                 buttonVariants({ variant: "outline", size: "sm" }),
-                "pointer-events-none opacity-50",
+                "h-7 pointer-events-none px-2 text-[12px] opacity-50",
               )}
             >
               Anterior
@@ -55,7 +55,10 @@ export function Pagination({
           ) : (
             <Link
               href={href(page - 1)}
-              className={buttonVariants({ variant: "outline", size: "sm" })}
+              className={cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                "h-7 px-2 text-[12px]",
+              )}
             >
               Anterior
             </Link>
@@ -64,7 +67,7 @@ export function Pagination({
             <span
               className={cn(
                 buttonVariants({ variant: "outline", size: "sm" }),
-                "pointer-events-none opacity-50",
+                "h-7 pointer-events-none px-2 text-[12px] opacity-50",
               )}
             >
               Próxima
@@ -72,7 +75,10 @@ export function Pagination({
           ) : (
             <Link
               href={href(page + 1)}
-              className={buttonVariants({ variant: "outline", size: "sm" })}
+              className={cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                "h-7 px-2 text-[12px]",
+              )}
             >
               Próxima
             </Link>

@@ -32,7 +32,7 @@ export function DataTable<T extends { id: string }>({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
       <Table>
         <TableHeader>
           <TableRow className="border-b border-slate-200 bg-slate-50 hover:bg-slate-50">
@@ -40,7 +40,7 @@ export function DataTable<T extends { id: string }>({
               <TableHead
                 key={col.key}
                 className={cn(
-                  "h-11 px-4 text-xs font-semibold tracking-wide text-slate-600 uppercase",
+                  "h-8 px-2.5 text-[11px] font-semibold tracking-wide text-slate-500 uppercase",
                   col.className,
                 )}
               >
@@ -53,12 +53,15 @@ export function DataTable<T extends { id: string }>({
           {rows.map((row) => (
             <TableRow
               key={row.id}
-              className="border-slate-100 transition-colors hover:bg-teal-50/40"
+              className="border-slate-100 transition-colors hover:bg-teal-50/50"
             >
               {columns.map((col) => (
                 <TableCell
                   key={col.key}
-                  className={cn("h-14 px-4 py-3 align-middle", col.className)}
+                  className={cn(
+                    "h-9 px-2.5 py-1.5 align-middle text-[13px]",
+                    col.className,
+                  )}
                 >
                   {col.cell(row)}
                 </TableCell>

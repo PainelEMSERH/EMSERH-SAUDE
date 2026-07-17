@@ -26,7 +26,7 @@ const NEW_JOB_ROLE = "__NEW__";
 type Opt = { id: string; name: string };
 
 const fieldClass =
-  "h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition-colors focus-visible:border-teal-600 focus-visible:ring-3 focus-visible:ring-teal-600/20";
+  "h-8 w-full rounded-md border border-slate-200 bg-white px-2.5 text-[13px] outline-none transition-colors focus-visible:border-teal-600 focus-visible:ring-2 focus-visible:ring-teal-600/20";
 
 export function EmployeeForm({
   regions,
@@ -90,7 +90,7 @@ export function EmployeeForm({
       : "/colaboradores";
 
   return (
-    <form action={action} className="mx-auto max-w-3xl space-y-5">
+    <form action={action} className="mx-auto max-w-3xl space-y-3">
       {defaults?.id ? (
         <input type="hidden" name="id" value={defaults.id} />
       ) : null}
@@ -106,7 +106,7 @@ export function EmployeeForm({
               id="registration"
               name="registration"
               required
-              className="h-10"
+              className="h-8"
               placeholder="Ex.: 012345"
               defaultValue={defaults?.registration ?? ""}
             />
@@ -116,7 +116,7 @@ export function EmployeeForm({
               id="fullName"
               name="fullName"
               required
-              className="h-10"
+              className="h-8"
               placeholder="Nome completo"
               defaultValue={defaults?.fullName ?? ""}
             />
@@ -125,7 +125,7 @@ export function EmployeeForm({
             <Input
               id="cpf"
               name="cpf"
-              className="h-10"
+              className="h-8"
               placeholder={
                 mode === "edit"
                   ? "Informe apenas para alterar"
@@ -217,7 +217,7 @@ export function EmployeeForm({
                 id="jobRoleName"
                 name="jobRoleName"
                 required
-                className="h-10"
+                className="h-8"
                 placeholder="Digite o nome da função"
               />
             </Field>
@@ -243,7 +243,7 @@ export function EmployeeForm({
               id="admissionDate"
               name="admissionDate"
               type="date"
-              className="h-10"
+              className="h-8"
               defaultValue={defaults?.admissionDate ?? ""}
             />
           </Field>
@@ -260,7 +260,7 @@ export function EmployeeForm({
             <Input
               id="phone"
               name="phone"
-              className="h-10"
+              className="h-8"
               inputMode="tel"
               placeholder="(98) 90000-0000"
               defaultValue={defaults?.phone ?? ""}
@@ -272,7 +272,7 @@ export function EmployeeForm({
               <Input
                 id="city"
                 name="city"
-                className="h-10 pl-9"
+                className="h-8 pl-8"
                 placeholder="Cidade"
                 defaultValue={defaults?.city ?? ""}
               />
@@ -290,14 +290,15 @@ export function EmployeeForm({
       <div className="flex items-center justify-end gap-2 pt-1">
         <Link
           href={cancelHref}
-          className={cn(buttonVariants({ variant: "outline" }), "h-10")}
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 text-[13px]")}
         >
           Cancelar
         </Link>
         <Button
           type="submit"
           disabled={pending}
-          className="h-10 min-w-[180px] gap-2 bg-teal-700 hover:bg-teal-800"
+          size="sm"
+          className="h-8 min-w-[160px] gap-1.5 bg-teal-700 text-[13px] hover:bg-teal-800"
         >
           {pending ? <Loader2 className="size-4 animate-spin" /> : null}
           {pending
@@ -323,14 +324,14 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-start gap-3 border-b border-slate-100 pb-4">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-teal-100 bg-teal-50 text-teal-800">
+    <section className="rounded-lg border border-slate-200 bg-white p-4">
+      <div className="mb-3 flex items-start gap-2.5 border-b border-slate-100 pb-3">
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-md border border-teal-100 bg-teal-50 text-teal-800">
           {icon}
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-          <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+          <h3 className="text-[13px] font-semibold text-slate-900">{title}</h3>
+          <p className="mt-0.5 text-[11px] text-slate-500">{description}</p>
         </div>
       </div>
       {children}

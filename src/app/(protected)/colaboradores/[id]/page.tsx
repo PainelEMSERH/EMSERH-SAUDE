@@ -162,24 +162,24 @@ export default async function ColaboradorDetailPage({
     null;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       <Link
         href="/colaboradores"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-teal-800 hover:underline"
+        className="inline-flex items-center gap-1 text-[12px] font-medium text-teal-800 hover:underline"
       >
-        <ArrowLeft className="size-4" />
+        <ArrowLeft className="size-3.5" />
         Voltar para colaboradores
       </Link>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-4">
-            <div className="flex size-14 shrink-0 items-center justify-center rounded-full border border-teal-100 bg-teal-50 text-base font-semibold text-teal-900">
+      <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-full border border-teal-100 bg-teal-50 text-sm font-semibold text-teal-900">
               {initialsFromName(emp.fullName)}
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="truncate text-xl font-semibold text-slate-900">
+                <h2 className="truncate text-base font-semibold text-slate-900">
                   {emp.fullName}
                 </h2>
                 <StatusBadge
@@ -216,11 +216,11 @@ export default async function ColaboradorDetailPage({
             <Link
               href={`/colaboradores/${id}/editar`}
               className={cn(
-                buttonVariants({ variant: "outline" }),
-                "h-10 shrink-0 gap-2",
+                buttonVariants({ variant: "outline", size: "sm" }),
+                "h-8 shrink-0 gap-1.5 text-[13px]",
               )}
             >
-              <Pencil className="size-4" />
+              <Pencil className="size-3.5" />
               Editar colaborador
             </Link>
           ) : null}
