@@ -36,7 +36,12 @@ function NavLinks({
   const pathname = usePathname();
 
   return (
-    <nav className={cn("flex flex-col gap-5 py-3", collapsed ? "px-2" : "px-3")}>
+    <nav
+      className={cn(
+        "flex flex-col gap-[13px] py-3",
+        collapsed ? "px-2" : "px-2.5",
+      )}
+    >
       {NAV_SECTIONS.map((section) => {
         const items = section.items.filter((item) =>
           can(user, item.module, "view"),
@@ -46,11 +51,14 @@ function NavLinks({
         return (
           <div key={section.id}>
             {!collapsed ? (
-              <p className="mb-1.5 px-2.5 text-[10px] font-semibold tracking-[0.08em] text-sidebar-foreground/70 uppercase">
+              <p className="mb-1 px-[10px] text-[9px] font-semibold tracking-[0.08em] text-sidebar-foreground/70 uppercase">
                 {section.label}
               </p>
             ) : (
-              <div className="mx-auto mb-1.5 h-px w-6 bg-sidebar-border" aria-hidden />
+              <div
+                className="mx-auto mb-1 h-px w-5 bg-sidebar-border"
+                aria-hidden
+              />
             )}
             <div className="flex flex-col gap-0.5">
               {items.map((item) => {
@@ -65,10 +73,10 @@ function NavLinks({
                     onClick={onNavigate}
                     title={collapsed ? item.title : undefined}
                     className={cn(
-                      "flex items-center rounded-lg text-[13px] transition-colors",
+                      "flex h-8 items-center rounded-[6px] text-[12px] leading-none transition-colors",
                       collapsed
-                        ? "justify-center px-0 py-2"
-                        : "gap-2.5 px-2.5 py-2",
+                        ? "justify-center px-0"
+                        : "gap-1.5 px-[10px] py-[6px]",
                       active
                         ? "border border-sidebar-border bg-sidebar-primary font-medium text-sidebar-primary-foreground shadow-sm"
                         : "border border-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
@@ -76,7 +84,7 @@ function NavLinks({
                   >
                     <Icon
                       className={cn(
-                        "size-4 shrink-0",
+                        "size-[14px] shrink-0",
                         active
                           ? "text-sidebar-primary-foreground"
                           : "text-sidebar-foreground",
@@ -144,10 +152,10 @@ export function AppSidebar({ user }: { user: SessionUser }) {
     <aside
       className={cn(
         "hidden h-svh shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 lg:flex",
-        collapsed ? "w-[64px]" : "w-[220px]",
+        collapsed ? "w-[64px]" : "w-[230px]",
       )}
     >
-      <div className={cn("pb-2 pt-5", collapsed ? "px-2" : "px-4")}>
+      <div className={cn("pb-2 pt-5", collapsed ? "px-2" : "px-3")}>
         {collapsed ? (
           <p
             className="text-center text-[11px] font-bold tracking-tight text-primary dark:text-ring"
@@ -157,10 +165,10 @@ export function AppSidebar({ user }: { user: SessionUser }) {
           </p>
         ) : (
           <>
-            <p className="text-[15px] font-semibold tracking-tight text-foreground">
+            <p className="text-[14px] font-semibold tracking-tight text-foreground">
               Menu
             </p>
-            <p className="mt-0.5 truncate text-[10px] font-medium tracking-[0.12em] text-primary uppercase dark:text-ring">
+            <p className="mt-0.5 truncate text-[9px] font-medium tracking-[0.12em] text-primary uppercase dark:text-ring">
               EMSERH · Saúde
             </p>
           </>
@@ -200,12 +208,12 @@ export function MobileNav({ user }: { user: SessionUser }) {
         >
           <Menu className="size-4" />
         </SheetTrigger>
-        <SheetContent side="left" className="w-[240px] bg-sidebar p-0">
-          <div className="px-4 pt-5 pb-2">
-            <p className="text-[15px] font-semibold tracking-tight text-foreground">
+        <SheetContent side="left" className="w-[230px] bg-sidebar p-0">
+          <div className="px-3 pt-5 pb-2">
+            <p className="text-[14px] font-semibold tracking-tight text-foreground">
               Menu
             </p>
-            <p className="mt-0.5 text-[10px] font-medium tracking-[0.12em] text-primary uppercase dark:text-ring">
+            <p className="mt-0.5 text-[9px] font-medium tracking-[0.12em] text-primary uppercase dark:text-ring">
               {APP_NAME}
             </p>
           </div>
