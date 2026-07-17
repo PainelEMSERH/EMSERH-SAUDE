@@ -15,6 +15,8 @@ import {
 import { normalizeText, registrationSchema } from "@/lib/validation";
 import { z } from "zod";
 
+const NEW_JOB_ROLE = "__NEW__";
+
 const employeeSchema = z.object({
   registration: registrationSchema,
   fullName: z.string().trim().min(3).max(200),
@@ -26,7 +28,7 @@ const employeeSchema = z.object({
   functionalStatus: z.string().default("ATIVO"),
   regionId: z.string().uuid().optional().or(z.literal("")),
   unitId: z.string().uuid().optional().or(z.literal("")),
-  jobRoleId: z.string().uuid().optional().or(z.literal("")),
+  jobRoleId: z.string().optional(),
   jobRoleName: z.string().optional(),
 });
 
@@ -36,8 +38,11 @@ export async function upsertEmployeeAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const user = await requirePermission("employees", "create");
   const id = String(formData.get("id") || "");
+  const user = id
+    ? await requirePermission("employees", "update")
+    : await requirePermission("employees", "create");
+
   const parsed = employeeSchema.safeParse({
     registration: formData.get("registration"),
     fullName: formData.get("fullName"),
@@ -68,12 +73,38 @@ export async function upsertEmployeeAction(
   }
 
   const db = getDb();
-  let jobRoleId = data.jobRoleId || null;
+  const regionId = data.regionId || null;
+  const unitId = data.unitId || null;
 
-  if (!jobRoleId && data.jobRoleName?.trim()) {
-    const normalized = normalizeText(data.jobRoleName);
+  if (unitId) {
+    const [unit] = await db
+      .select({ id: units.id, regionId: units.regionId })
+      .from(units)
+      .where(and(eq(units.id, unitId), isNull(units.deletedAt)))
+      .limit(1);
+    if (!unit) return { error: "Unidade inválida." };
+    if (regionId && unit.regionId !== regionId) {
+      return { error: "Unidade não pertence à regional selecionada." };
+    }
+  }
+
+  // Função: existente XOR nova
+  let jobRoleId: string | null = null;
+  const roleSelect = (data.jobRoleId || "").trim();
+  const roleName = (data.jobRoleName || "").trim();
+
+  if (roleSelect && roleSelect !== NEW_JOB_ROLE) {
+    const [existingRole] = await db
+      .select({ id: jobRoles.id })
+      .from(jobRoles)
+      .where(and(eq(jobRoles.id, roleSelect), isNull(jobRoles.deletedAt)))
+      .limit(1);
+    if (!existingRole) return { error: "Função inválida." };
+    jobRoleId = existingRole.id;
+  } else if (roleName) {
+    const normalized = normalizeText(roleName);
     const [existing] = await db
-      .select()
+      .select({ id: jobRoles.id })
       .from(jobRoles)
       .where(eq(jobRoles.normalizedName, normalized))
       .limit(1);
@@ -83,7 +114,7 @@ export async function upsertEmployeeAction(
       const [created] = await db
         .insert(jobRoles)
         .values({
-          name: data.jobRoleName.trim(),
+          name: roleName,
           normalizedName: normalized,
         })
         .returning({ id: jobRoles.id });
@@ -91,36 +122,36 @@ export async function upsertEmployeeAction(
     }
   }
 
-  let cpfEncrypted: string | null = null;
-  let cpfHash: string | null = null;
-  if (data.cpf?.trim()) {
-    const digits = normalizeCpf(data.cpf);
+  const cpfRaw = data.cpf?.trim() || "";
+  let cpfUpdate: { cpfEncrypted: string | null; cpfHash: string | null } | null =
+    null;
+  if (cpfRaw) {
+    const digits = normalizeCpf(cpfRaw);
     if (digits.length !== 11) return { error: "CPF inválido." };
-    cpfHash = hashCpf(digits);
-    if (getEnv().FIELD_ENCRYPTION_KEY) {
-      cpfEncrypted = encryptField(digits);
-    }
+    cpfUpdate = {
+      cpfHash: hashCpf(digits),
+      cpfEncrypted: getEnv().FIELD_ENCRYPTION_KEY
+        ? encryptField(digits)
+        : null,
+    };
   }
 
-  const payload = {
+  const basePayload = {
     registration: data.registration.trim(),
     fullName: data.fullName.trim(),
     normalizedName: normalizeText(data.fullName),
-    cpfEncrypted,
-    cpfHash,
     sex: data.sex || null,
     phone: data.phone || null,
     city: data.city || null,
     admissionDate: data.admissionDate || null,
     functionalStatus: data.functionalStatus,
-    regionId: data.regionId || null,
-    unitId: data.unitId || null,
+    regionId,
+    unitId,
     jobRoleId,
     updatedBy: user.id,
   };
 
   if (id) {
-    await requirePermission("employees", "update");
     try {
       await requireEmployeeInUserScope(user, { employeeId: id });
     } catch {
@@ -133,14 +164,24 @@ export async function upsertEmployeeAction(
       .limit(1);
     if (!before) return { error: "Colaborador não encontrado." };
 
-    await db.update(employees).set(payload).where(eq(employees.id, id));
+    await db
+      .update(employees)
+      .set(cpfUpdate ? { ...basePayload, ...cpfUpdate } : basePayload)
+      .where(eq(employees.id, id));
+
     await writeAuditLog({
       user,
       action: "UPDATE",
       entityType: "employee",
       entityId: id,
-      beforeData: { registration: before.registration, fullName: before.fullName },
-      afterData: { registration: payload.registration, fullName: payload.fullName },
+      beforeData: {
+        registration: before.registration,
+        fullName: before.fullName,
+      },
+      afterData: {
+        registration: basePayload.registration,
+        fullName: basePayload.fullName,
+      },
     });
     revalidatePath("/colaboradores");
     revalidatePath(`/colaboradores/${id}`);
@@ -149,7 +190,12 @@ export async function upsertEmployeeAction(
 
   const [created] = await db
     .insert(employees)
-    .values({ ...payload, createdBy: user.id, sourceSystem: "MANUAL" })
+    .values({
+      ...basePayload,
+      ...(cpfUpdate ?? { cpfEncrypted: null, cpfHash: null }),
+      createdBy: user.id,
+      sourceSystem: "MANUAL",
+    })
     .returning({ id: employees.id });
 
   await writeAuditLog({
@@ -157,7 +203,10 @@ export async function upsertEmployeeAction(
     action: "CREATE",
     entityType: "employee",
     entityId: created.id,
-    afterData: { registration: payload.registration, fullName: payload.fullName },
+    afterData: {
+      registration: basePayload.registration,
+      fullName: basePayload.fullName,
+    },
   });
   revalidatePath("/colaboradores");
   return { ok: true, id: created.id };

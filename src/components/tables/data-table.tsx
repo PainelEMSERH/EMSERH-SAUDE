@@ -7,6 +7,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/feedback/setup-banner";
+import { cn } from "@/lib/utils";
 
 export type Column<T> = {
   key: string;
@@ -31,12 +32,18 @@ export function DataTable<T extends { id: string }>({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="border-b border-slate-200 bg-slate-50 hover:bg-slate-50">
             {columns.map((col) => (
-              <TableHead key={col.key} className={col.className}>
+              <TableHead
+                key={col.key}
+                className={cn(
+                  "h-11 px-4 text-xs font-semibold tracking-wide text-slate-600 uppercase",
+                  col.className,
+                )}
+              >
                 {col.header}
               </TableHead>
             ))}
@@ -44,9 +51,15 @@ export function DataTable<T extends { id: string }>({
         </TableHeader>
         <TableBody>
           {rows.map((row) => (
-            <TableRow key={row.id}>
+            <TableRow
+              key={row.id}
+              className="border-slate-100 transition-colors hover:bg-teal-50/40"
+            >
               {columns.map((col) => (
-                <TableCell key={col.key} className={col.className}>
+                <TableCell
+                  key={col.key}
+                  className={cn("h-14 px-4 py-3 align-middle", col.className)}
+                >
                   {col.cell(row)}
                 </TableCell>
               ))}

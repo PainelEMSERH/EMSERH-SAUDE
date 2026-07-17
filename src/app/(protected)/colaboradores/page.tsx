@@ -1,14 +1,16 @@
 import Link from "next/link";
-import { PageHeader } from "@/components/feedback/setup-banner";
-import {
-  StatusBadge,
-} from "@/components/feedback/status-badge";
+import { Eye, UserPlus, Users } from "lucide-react";
+import { StatusBadge } from "@/components/feedback/status-badge";
 import { DataTable } from "@/components/tables/data-table";
 import { Pagination } from "@/components/tables/pagination";
 import { SearchFilters } from "@/components/tables/search-filters";
 import { buttonVariants } from "@/components/ui/button";
 import { requirePermission, userCan } from "@/lib/auth/guard";
 import { formatDateBR } from "@/lib/dates";
+import {
+  humanizeLabel,
+  toneForFunctionalStatus,
+} from "@/lib/labels";
 import { listEmployees } from "@/db/queries/employees";
 import { cn } from "@/lib/utils";
 
@@ -24,24 +26,46 @@ export default async function ColaboradoresPage({
 
   return (
     <div>
-      <PageHeader
-        title="Colaboradores"
-        description="Cadastro único com lotação, vínculo e linha do tempo ocupacional."
-        actions={
-          canCreate ? (
-            <Link
-              href="/colaboradores/novo"
-              className={cn(buttonVariants({ className: "bg-teal-700 hover:bg-teal-800" }))}
-            >
-              Novo colaborador
-            </Link>
-          ) : null
-        }
-      />
+      <div className="mb-6 flex items-end justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg border border-teal-100 bg-teal-50 text-teal-800">
+            <Users className="size-5" aria-hidden />
+          </div>
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+              Colaboradores
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Cadastro único com lotação, vínculo e linha do tempo ocupacional.
+            </p>
+          </div>
+        </div>
+        {canCreate ? (
+          <Link
+            href="/colaboradores/novo"
+            className={cn(
+              buttonVariants({
+                className: "h-10 shrink-0 gap-2 bg-teal-700 hover:bg-teal-800",
+              }),
+            )}
+          >
+            <UserPlus className="size-4" />
+            Novo colaborador
+          </Link>
+        ) : null}
+      </div>
+
       <SearchFilters
         action="/colaboradores"
         q={params.q}
         status={params.status}
+        placeholder="Buscar por nome ou matrícula"
+        resultCount={data.total}
+        resultLabel={
+          data.total === 1
+            ? "colaborador encontrado"
+            : "colaboradores encontrados"
+        }
         statusOptions={[
           { value: "ATIVO", label: "Ativo" },
           { value: "AFASTADO", label: "Afastado" },
@@ -49,6 +73,7 @@ export default async function ColaboradoresPage({
           { value: "FERIAS", label: "Férias" },
         ]}
       />
+
       <DataTable
         rows={data.rows}
         emptyTitle="Nenhum colaborador encontrado"
@@ -57,36 +82,111 @@ export default async function ColaboradoresPage({
           {
             key: "registration",
             header: "Matrícula",
+            className: "w-[120px]",
             cell: (r) => (
-              <Link href={`/colaboradores/${r.id}`} className="font-medium text-teal-800 hover:underline">
+              <Link
+                href={`/colaboradores/${r.id}`}
+                className="font-semibold text-teal-800 hover:underline"
+                title={`Abrir prontuário de ${r.fullName}`}
+              >
                 {r.registration}
               </Link>
             ),
           },
-          { key: "name", header: "Nome", cell: (r) => r.fullName },
-          { key: "role", header: "Função", cell: (r) => r.jobRoleName ?? "—" },
-          { key: "unit", header: "Unidade", cell: (r) => r.unitName ?? "—" },
-          { key: "region", header: "Regional", cell: (r) => r.regionName ?? "—" },
+          {
+            key: "name",
+            header: "Nome",
+            cell: (r) => (
+              <p
+                className="max-w-[240px] truncate font-medium text-slate-900"
+                title={r.fullName}
+              >
+                {r.fullName}
+              </p>
+            ),
+          },
+          {
+            key: "role",
+            header: "Função",
+            cell: (r) => (
+              <span
+                className="block max-w-[180px] truncate text-slate-700"
+                title={r.jobRoleName ?? undefined}
+              >
+                {r.jobRoleName ?? "—"}
+              </span>
+            ),
+          },
+          {
+            key: "unit",
+            header: "Unidade",
+            cell: (r) => (
+              <span
+                className="block max-w-[200px] truncate text-slate-700"
+                title={r.unitName ?? undefined}
+              >
+                {humanizeLabel(r.unitName)}
+              </span>
+            ),
+          },
+          {
+            key: "region",
+            header: "Regional",
+            cell: (r) => (
+              <span
+                className="block max-w-[120px] truncate text-slate-700"
+                title={r.regionName ?? undefined}
+              >
+                {humanizeLabel(r.regionName)}
+              </span>
+            ),
+          },
           {
             key: "status",
             header: "Situação",
             cell: (r) => (
               <StatusBadge
-                label={r.functionalStatus}
-                tone={r.functionalStatus === "ATIVO" ? "ok" : r.functionalStatus === "DEMITIDO" ? "danger" : "warn"}
+                label={humanizeLabel(r.functionalStatus)}
+                tone={toneForFunctionalStatus(r.functionalStatus)}
               />
             ),
           },
           {
             key: "admission",
             header: "Admissão",
-            cell: (r) => formatDateBR(r.admissionDate),
+            cell: (r) => (
+              <span className="tabular-nums text-slate-600">
+                {formatDateBR(r.admissionDate)}
+              </span>
+            ),
+          },
+          {
+            key: "actions",
+            header: "Ações",
+            className: "w-[150px]",
+            cell: (r) => (
+              <Link
+                href={`/colaboradores/${r.id}`}
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "h-8 gap-1.5 text-teal-800",
+                )}
+                title="Ver prontuário"
+              >
+                <Eye className="size-3.5" />
+                Ver prontuário
+              </Link>
+            ),
           },
         ]}
       />
+
       <Pagination
         page={data.page}
         totalPages={data.totalPages}
+        total={data.total}
+        pageSize={data.pageSize}
+        itemLabel="colaboradores"
         basePath="/colaboradores"
         searchParams={{ q: params.q, status: params.status }}
       />

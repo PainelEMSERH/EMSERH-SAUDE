@@ -1,10 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
-import { PageHeader } from "@/components/feedback/setup-banner";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Baby,
+  Biohazard,
+  CalendarDays,
+  ClipboardList,
+  FileWarning,
+  Pencil,
+  Syringe,
+} from "lucide-react";
 import { StatusBadge } from "@/components/feedback/status-badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buttonVariants } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDb } from "@/db";
 import {
   appointments,
@@ -16,7 +26,13 @@ import {
 } from "@/db/schemas";
 import { getEmployeeById } from "@/db/queries/employees";
 import { requirePermission, userCan } from "@/lib/auth/guard";
-import { formatDateBR } from "@/lib/dates";
+import { formatDateBR, formatDateTimeBR } from "@/lib/dates";
+import {
+  humanizeLabel,
+  initialsFromName,
+  toneForDeadlineStatus,
+  toneForFunctionalStatus,
+} from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
 export default async function ColaboradorDetailPage({
@@ -135,6 +151,7 @@ export default async function ColaboradorDetailPage({
         : Promise.resolve([]),
     ]);
 
+  const overdueAso = asos.find((a) => a.deadlineStatus === "VENCIDO");
   const defaultTab =
     (canAsos && "asos") ||
     (canAgenda && "agenda") ||
@@ -145,135 +162,350 @@ export default async function ColaboradorDetailPage({
     null;
 
   return (
-    <div>
-      <PageHeader
-        title={emp.fullName}
-        description={`Matrícula ${emp.registration} · ${data.unitName ?? "Sem unidade"} · ${data.regionName ?? "Sem regional"}`}
-        actions={
-          canUpdate ? (
+    <div className="space-y-5">
+      <Link
+        href="/colaboradores"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-teal-800 hover:underline"
+      >
+        <ArrowLeft className="size-4" />
+        Voltar para colaboradores
+      </Link>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-4">
+            <div className="flex size-14 shrink-0 items-center justify-center rounded-full border border-teal-100 bg-teal-50 text-base font-semibold text-teal-900">
+              {initialsFromName(emp.fullName)}
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="truncate text-xl font-semibold text-slate-900">
+                  {emp.fullName}
+                </h2>
+                <StatusBadge
+                  label={humanizeLabel(emp.functionalStatus)}
+                  tone={toneForFunctionalStatus(emp.functionalStatus)}
+                />
+              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                Matrícula{" "}
+                <span className="font-semibold text-teal-800">
+                  {emp.registration}
+                </span>
+              </p>
+              <dl className="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                <Meta label="Função" value={data.jobRoleName ?? "—"} />
+                <Meta
+                  label="Unidade"
+                  value={humanizeLabel(data.unitName)}
+                />
+                <Meta
+                  label="Regional"
+                  value={humanizeLabel(data.regionName)}
+                />
+                <Meta
+                  label="Admissão"
+                  value={formatDateBR(emp.admissionDate)}
+                />
+                <Meta label="Cidade" value={emp.city ?? "—"} />
+                {emp.phone ? <Meta label="Telefone" value={emp.phone} /> : null}
+              </dl>
+            </div>
+          </div>
+          {canUpdate ? (
             <Link
               href={`/colaboradores/${id}/editar`}
-              className={cn(buttonVariants({ variant: "outline" }))}
+              className={cn(
+                buttonVariants({ variant: "outline" }),
+                "h-10 shrink-0 gap-2",
+              )}
             >
-              Editar
+              <Pencil className="size-4" />
+              Editar colaborador
             </Link>
-          ) : null
-        }
-      />
-
-      <div className="mb-6 grid gap-3 sm:grid-cols-4">
-        <Info label="Função" value={data.jobRoleName ?? "—"} />
-        <Info label="Situação" value={emp.functionalStatus} />
-        <Info label="Admissão" value={formatDateBR(emp.admissionDate)} />
-        <Info label="Cidade" value={emp.city ?? "—"} />
+          ) : null}
+        </div>
       </div>
 
+      {overdueAso ? (
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-900">
+          <AlertTriangle className="mt-0.5 size-5 shrink-0 text-red-700" />
+          <div>
+            <p className="text-sm font-semibold">Alerta ocupacional</p>
+            <p className="mt-0.5 text-sm">
+              ASO {humanizeLabel(overdueAso.asoType).toLowerCase()} vencido
+              desde {formatDateBR(overdueAso.nextAsoDate)}.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       {!defaultTab ? (
-        <p className="text-sm text-slate-500">
+        <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500">
           Sem permissão para visualizar módulos operacionais neste prontuário.
         </p>
       ) : (
-        <Tabs defaultValue={defaultTab}>
-          <TabsList>
+        <Tabs defaultValue={defaultTab} className="gap-4">
+          <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-slate-100 p-1.5">
             {canAsos ? (
-              <TabsTrigger value="asos">ASOs ({asos.length})</TabsTrigger>
+              <TabTrigger value="asos" count={asos.length}>
+                ASOs
+              </TabTrigger>
             ) : null}
             {canAgenda ? (
-              <TabsTrigger value="agenda">Agenda ({appts.length})</TabsTrigger>
+              <TabTrigger value="agenda" count={appts.length}>
+                Agenda
+              </TabTrigger>
             ) : null}
             {canLeaves ? (
-              <TabsTrigger value="leaves">
-                Afastamentos ({leaves.length})
-              </TabsTrigger>
+              <TabTrigger value="leaves" count={leaves.length}>
+                Afastamentos
+              </TabTrigger>
             ) : null}
             {canVaccination ? (
-              <TabsTrigger value="vacinas">
-                Vacinas ({vaccines.length})
-              </TabsTrigger>
+              <TabTrigger value="vacinas" count={vaccines.length}>
+                Vacinas
+              </TabTrigger>
             ) : null}
             {canPregnancy ? (
-              <TabsTrigger value="gestacao">
-                Gestação ({pregnancies.length})
-              </TabsTrigger>
+              <TabTrigger value="gestacao" count={pregnancies.length}>
+                Gestação
+              </TabTrigger>
             ) : null}
             {canBiological ? (
-              <TabsTrigger value="acidentes">
-                Acidentes ({accidents.length})
-              </TabsTrigger>
+              <TabTrigger value="acidentes" count={accidents.length}>
+                Acidentes
+              </TabTrigger>
             ) : null}
           </TabsList>
+
           {canAsos ? (
-            <TabsContent value="asos" className="space-y-2">
-              {asos.map((a) => (
-                <Row
-                  key={a.id}
-                  title={a.asoType}
-                  meta={`${formatDateBR(a.nextAsoDate)} · ${a.deadlineStatus ?? "—"}`}
-                />
-              ))}
-              {!asos.length ? <Empty /> : null}
+            <TabsContent value="asos">
+              <ModuleCard
+                icon={<ClipboardList className="size-4" />}
+                title="ASOs"
+                description="Exames ocupacionais e status de vencimento."
+              >
+                {asos.map((a) => (
+                  <RecordRow
+                    key={a.id}
+                    icon={<ClipboardList className="size-4 text-teal-700" />}
+                    title={humanizeLabel(a.asoType)}
+                    meta={
+                      <span className="tabular-nums">
+                        Próximo: {formatDateBR(a.nextAsoDate)}
+                      </span>
+                    }
+                    badge={
+                      <StatusBadge
+                        label={humanizeLabel(a.deadlineStatus)}
+                        tone={toneForDeadlineStatus(a.deadlineStatus)}
+                      />
+                    }
+                  />
+                ))}
+                {!asos.length ? (
+                  <EmptyModule
+                    icon={<ClipboardList className="size-5" />}
+                    title="Nenhum ASO registrado"
+                    description="Os exames ocupacionais deste colaborador aparecerão aqui."
+                  />
+                ) : null}
+              </ModuleCard>
             </TabsContent>
           ) : null}
+
           {canAgenda ? (
-            <TabsContent value="agenda" className="space-y-2">
-              {appts.map((a) => (
-                <Row
-                  key={a.id}
-                  title={a.appointmentType}
-                  meta={`${formatDateBR(a.scheduledAt)} · ${a.presenceStatus ?? a.confirmationStatus ?? "—"}`}
-                />
-              ))}
-              {!appts.length ? <Empty /> : null}
+            <TabsContent value="agenda">
+              <ModuleCard
+                icon={<CalendarDays className="size-4" />}
+                title="Agenda"
+                description="Consultas e atendimentos agendados."
+              >
+                {appts.map((a) => (
+                  <RecordRow
+                    key={a.id}
+                    icon={<CalendarDays className="size-4 text-teal-700" />}
+                    title={humanizeLabel(a.appointmentType)}
+                    meta={
+                      <span className="tabular-nums">
+                        {formatDateTimeBR(a.scheduledAt)}
+                      </span>
+                    }
+                    badge={
+                      <StatusBadge
+                        label={humanizeLabel(
+                          a.presenceStatus ?? a.confirmationStatus,
+                        )}
+                        tone="muted"
+                      />
+                    }
+                  />
+                ))}
+                {!appts.length ? (
+                  <EmptyModule
+                    icon={<CalendarDays className="size-5" />}
+                    title="Nenhum agendamento"
+                    description="Consultas e retornos médicos aparecerão nesta aba."
+                  />
+                ) : null}
+              </ModuleCard>
             </TabsContent>
           ) : null}
+
           {canLeaves ? (
-            <TabsContent value="leaves" className="space-y-2">
-              {leaves.map((l) => (
-                <Row
-                  key={l.id}
-                  title={l.leaveType}
-                  meta={`${formatDateBR(l.startDate)} → ${formatDateBR(l.endDate)} · ${l.status}${
-                    canClinical && l.cidCode ? ` · CID ${l.cidCode}` : ""
-                  }`}
-                />
-              ))}
-              {!leaves.length ? <Empty /> : null}
+            <TabsContent value="leaves">
+              <ModuleCard
+                icon={<FileWarning className="size-4" />}
+                title="Afastamentos"
+                description="Atestados, licenças e períodos de afastamento."
+              >
+                {leaves.map((l) => (
+                  <RecordRow
+                    key={l.id}
+                    icon={<FileWarning className="size-4 text-amber-700" />}
+                    title={humanizeLabel(l.leaveType)}
+                    meta={
+                      <span>
+                        <span className="tabular-nums">
+                          {formatDateBR(l.startDate)} →{" "}
+                          {formatDateBR(l.endDate)}
+                        </span>
+                        {canClinical && l.cidCode
+                          ? ` · CID ${l.cidCode}`
+                          : ""}
+                      </span>
+                    }
+                    badge={
+                      <StatusBadge
+                        label={humanizeLabel(l.status)}
+                        tone={
+                          l.status === "ATIVO"
+                            ? "warn"
+                            : l.status === "ENCERRADO"
+                              ? "ok"
+                              : "muted"
+                        }
+                      />
+                    }
+                  />
+                ))}
+                {!leaves.length ? (
+                  <EmptyModule
+                    icon={<FileWarning className="size-5" />}
+                    title="Nenhum afastamento"
+                    description="Registros de atestado e licença aparecerão aqui."
+                  />
+                ) : null}
+              </ModuleCard>
             </TabsContent>
           ) : null}
+
           {canVaccination ? (
-            <TabsContent value="vacinas" className="space-y-2">
-              {vaccines.map((v) => (
-                <Row
-                  key={v.id}
-                  title={`Dose ${v.doseNumber}`}
-                  meta={`${formatDateBR(v.administeredAt)} · ${v.status}`}
-                />
-              ))}
-              {!vaccines.length ? <Empty /> : null}
+            <TabsContent value="vacinas">
+              <ModuleCard
+                icon={<Syringe className="size-4" />}
+                title="Vacinas"
+                description="Doses aplicadas e situação vacinal importada."
+              >
+                {vaccines.map((v) => (
+                  <RecordRow
+                    key={v.id}
+                    icon={<Syringe className="size-4 text-teal-700" />}
+                    title={`Dose ${v.doseNumber}`}
+                    meta={
+                      <span className="tabular-nums">
+                        {formatDateBR(v.administeredAt)}
+                      </span>
+                    }
+                    badge={
+                      <StatusBadge
+                        label={humanizeLabel(v.status)}
+                        tone="muted"
+                      />
+                    }
+                  />
+                ))}
+                {!vaccines.length ? (
+                  <EmptyModule
+                    icon={<Syringe className="size-5" />}
+                    title="Nenhuma vacina registrada"
+                    description="O histórico vacinal deste colaborador aparecerá aqui."
+                  />
+                ) : null}
+              </ModuleCard>
             </TabsContent>
           ) : null}
+
           {canPregnancy ? (
-            <TabsContent value="gestacao" className="space-y-2">
-              {pregnancies.map((p) => (
-                <Row
-                  key={p.id}
-                  title={p.status}
-                  meta={`Comunicação ${formatDateBR(p.communicationDate)}`}
-                />
-              ))}
-              {!pregnancies.length ? <Empty /> : null}
+            <TabsContent value="gestacao">
+              <ModuleCard
+                icon={<Baby className="size-4" />}
+                title="Gestação"
+                description="Acompanhamento de gestantes e comunicação."
+              >
+                {pregnancies.map((p) => (
+                  <RecordRow
+                    key={p.id}
+                    icon={<Baby className="size-4 text-teal-700" />}
+                    title={humanizeLabel(p.status)}
+                    meta={
+                      <span className="tabular-nums">
+                        Comunicação {formatDateBR(p.communicationDate)}
+                      </span>
+                    }
+                    badge={
+                      <StatusBadge
+                        label={humanizeLabel(p.status)}
+                        tone="info"
+                      />
+                    }
+                  />
+                ))}
+                {!pregnancies.length ? (
+                  <EmptyModule
+                    icon={<Baby className="size-5" />}
+                    title="Nenhum acompanhamento gestacional"
+                    description="Casos de gestação registrados aparecerão nesta aba."
+                  />
+                ) : null}
+              </ModuleCard>
             </TabsContent>
           ) : null}
+
           {canBiological ? (
-            <TabsContent value="acidentes" className="space-y-2">
-              {accidents.map((a) => (
-                <Row
-                  key={a.id}
-                  title={a.exposureType ?? "Acidente"}
-                  meta={`${formatDateBR(a.occurredAt)} · ${a.status}`}
-                />
-              ))}
-              {!accidents.length ? <Empty /> : null}
+            <TabsContent value="acidentes">
+              <ModuleCard
+                icon={<Biohazard className="size-4" />}
+                title="Acidentes com material biológico"
+                description="Ocorrências e status de acompanhamento."
+              >
+                {accidents.map((a) => (
+                  <RecordRow
+                    key={a.id}
+                    icon={<Biohazard className="size-4 text-red-700" />}
+                    title={humanizeLabel(a.exposureType) || "Acidente"}
+                    meta={
+                      <span className="tabular-nums">
+                        {formatDateBR(a.occurredAt)}
+                      </span>
+                    }
+                    badge={
+                      <StatusBadge
+                        label={humanizeLabel(a.status)}
+                        tone="warn"
+                      />
+                    }
+                  />
+                ))}
+                {!accidents.length ? (
+                  <EmptyModule
+                    icon={<Biohazard className="size-5" />}
+                    title="Nenhum acidente registrado"
+                    description="Exposições a material biológico aparecerão aqui."
+                  />
+                ) : null}
+              </ModuleCard>
             </TabsContent>
           ) : null}
         </Tabs>
@@ -282,27 +514,107 @@ export default async function ColaboradorDetailPage({
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function TabTrigger({
+  value,
+  count,
+  children,
+}: {
+  value: string;
+  count: number;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-medium text-slate-900">{value}</p>
+    <TabsTrigger
+      value={value}
+      className="h-10 gap-2 px-3 text-sm data-active:bg-white data-active:text-teal-900 data-active:shadow-sm"
+    >
+      {children}
+      <span className="rounded-md bg-slate-200/80 px-1.5 py-0.5 text-[11px] font-semibold text-slate-700 data-active:bg-teal-100 data-active:text-teal-900">
+        {count}
+      </span>
+    </TabsTrigger>
+  );
+}
+
+function Meta({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs text-slate-500">{label}</dt>
+      <dd className="truncate font-medium text-slate-900" title={value}>
+        {value}
+      </dd>
     </div>
   );
 }
 
-function Row({ title, meta }: { title: string; meta: string }) {
+function ModuleCard({
+  icon,
+  title,
+  description,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
-      <div>
-        <p className="text-sm font-medium">{title}</p>
-        <p className="text-xs text-slate-500">{meta}</p>
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-4 flex items-start gap-3 border-b border-slate-100 pb-3">
+        <div className="flex size-9 items-center justify-center rounded-lg border border-teal-100 bg-teal-50 text-teal-800">
+          {icon}
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+          <p className="text-xs text-slate-500">{description}</p>
+        </div>
       </div>
-      <StatusBadge label="registro" tone="muted" />
+      <div className="space-y-2">{children}</div>
     </div>
   );
 }
 
-function Empty() {
-  return <p className="text-sm text-slate-500">Sem registros neste módulo.</p>;
+function RecordRow({
+  icon,
+  title,
+  meta,
+  badge,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  meta: React.ReactNode;
+  badge: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2.5">
+      <div className="flex min-w-0 items-start gap-3">
+        <div className="mt-0.5">{icon}</div>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-slate-900">{title}</p>
+          <p className="mt-0.5 text-xs text-slate-500">{meta}</p>
+        </div>
+      </div>
+      <div className="shrink-0">{badge}</div>
+    </div>
+  );
+}
+
+function EmptyModule({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-lg border border-dashed border-slate-200 bg-slate-50/50 px-4 py-6">
+      <div className="text-slate-400">{icon}</div>
+      <div>
+        <p className="text-sm font-medium text-slate-800">{title}</p>
+        <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+      </div>
+    </div>
+  );
 }
