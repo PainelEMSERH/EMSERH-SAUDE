@@ -175,10 +175,10 @@ export default async function ColaboradoresPage({
           {
             key: "region",
             header: "Regional",
-            className: "w-[8%] text-left",
+            className: "w-[8%] text-center",
             cell: (r) => (
               <span
-                className="block truncate text-slate-600"
+                className="block truncate text-center text-slate-600"
                 title={r.regionName ?? undefined}
               >
                 {humanizeLabel(r.regionName)}
@@ -211,7 +211,7 @@ export default async function ColaboradoresPage({
           {
             key: "actions",
             header: "",
-            className: "w-[6%] text-center",
+            className: "w-[9%] text-center whitespace-nowrap",
             cell: (r) => (
               <Link
                 href={`/colaboradores/${r.id}`}
@@ -221,7 +221,7 @@ export default async function ColaboradoresPage({
                 )}
                 title="Ver prontuário"
               >
-                <Eye className="size-3" />
+                <Eye className="size-3 shrink-0" />
                 Prontuário
               </Link>
             ),
