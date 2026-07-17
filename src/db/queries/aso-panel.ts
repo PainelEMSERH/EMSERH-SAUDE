@@ -32,7 +32,7 @@ import {
 import { resolveTrustedPeriodicNext } from "@/lib/aso/prediction";
 import { MONTH_LABELS } from "@/lib/aso/constants";
 import {
-  isDueWithinDays,
+  isOpenWorkload,
   isPlanOverdue,
 } from "@/lib/aso/execution";
 import { reconcileAlterdataStatus } from "@/lib/aso/reconciliation";
@@ -505,19 +505,36 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
     };
   });
 
-  // Prioridades: competência selecionada × visão anual (mesmo ano/tipo/escopo)
+  // Prioridades operacionais (controle por mês, não por “vence em X dias”)
   const yearOpen = await db
     .select({
+      id: asoMonthlyPlans.id,
+      employeeId: asoMonthlyPlans.employeeId,
+      registration: asoMonthlyPlans.registration,
+      employeeName: asoMonthlyPlans.employeeName,
+      asoType: asoMonthlyPlans.asoType,
+      year: asoMonthlyPlans.year,
       month: asoMonthlyPlans.month,
+      expectedDate: asoMonthlyPlans.expectedDate,
+      regionId: asoMonthlyPlans.regionId,
+      unitId: asoMonthlyPlans.unitId,
+      regionNameSnapshot: asoMonthlyPlans.regionNameSnapshot,
+      unitNameSnapshot: asoMonthlyPlans.unitNameSnapshot,
+      functionalStatusSnapshot: asoMonthlyPlans.functionalStatusSnapshot,
+      eligibility: asoMonthlyPlans.eligibility,
+      justificationReason: asoMonthlyPlans.justificationReason,
       executionStatus: asoMonthlyPlans.executionStatus,
       alterdataStatus: asoMonthlyPlans.alterdataStatus,
-      expectedDate: asoMonthlyPlans.expectedDate,
-      eligibility: asoMonthlyPlans.eligibility,
-      functionalStatusSnapshot: asoMonthlyPlans.functionalStatusSnapshot,
       asoRecordId: asoMonthlyPlans.asoRecordId,
       frozen: asoMonthlyPlans.frozen,
+      predictionOrigin: asoMonthlyPlans.predictionOrigin,
+      performedDate: asoRecords.performedDate,
+      result: asoRecords.result,
+      nextAsoDate: asoRecords.nextAsoDate,
+      recordUpdatedAt: asoRecords.updatedAt,
     })
     .from(asoMonthlyPlans)
+    .leftJoin(asoRecords, eq(asoMonthlyPlans.asoRecordId, asoRecords.id))
     .where(
       and(
         ...planScopeFilters(
@@ -531,85 +548,76 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
       ),
     );
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const nextMonth = month < 12 ? month + 1 : null;
+  const competenceRows = yearOpen.filter((p) => p.month === month);
+  const backlogRows = yearOpen.filter((p) => p.month < month);
+  const nextMonthRows = nextMonth
+    ? yearOpen.filter((p) => p.month === nextMonth)
+    : [];
 
-  function countPriorities(
-    rows: Array<{
-      executionStatus: string;
-      alterdataStatus: string;
-      expectedDate: string | null;
-      eligibility: string;
-      functionalStatusSnapshot: string | null;
-      asoRecordId: string | null;
-    }>,
+  function openOf(
+    rows: typeof yearOpen,
   ) {
-    return {
-      vencidos: rows.filter((p) =>
-        isPlanOverdue(
-          {
-            eligibility: p.eligibility,
-            executionStatus: p.executionStatus,
-            expectedDate: p.expectedDate,
-            asoRecordId: p.asoRecordId,
-          },
-          today,
-        ),
-      ).length,
-      vencendo7: rows.filter((p) =>
-        isDueWithinDays(
-          {
-            eligibility: p.eligibility,
-            executionStatus: p.executionStatus,
-            expectedDate: p.expectedDate,
-            asoRecordId: p.asoRecordId,
-          },
-          7,
-          today,
-        ),
-      ).length,
-      vencendo30: rows.filter((p) =>
-        isDueWithinDays(
-          {
-            eligibility: p.eligibility,
-            executionStatus: p.executionStatus,
-            expectedDate: p.expectedDate,
-            asoRecordId: p.asoRecordId,
-          },
-          30,
-          today,
-        ),
-      ).length,
-      pendentesAlterdata: rows.filter(
-        (p) =>
-          p.alterdataStatus === "PENDENTE_ATUALIZACAO" ||
-          p.alterdataStatus === "AGUARDANDO_SINCRONIZACAO",
-      ).length,
-      divergencias: rows.filter((p) => p.alterdataStatus === "DIVERGENCIA_DATA")
-        .length,
-      atualizadoSemRegistro: rows.filter(
-        (p) => p.alterdataStatus === "ATUALIZADO_SEM_REGISTRO",
-      ).length,
-      semProximoAso: rows.filter((p) => !p.expectedDate).length,
-      afastadosRetorno: rows.filter(
-        (p) => p.functionalStatusSnapshot === "AFASTADO",
-      ).length,
-      competenciasAguardando: 0,
-    };
+    return rows.filter((p) =>
+      isOpenWorkload({
+        eligibility: p.eligibility,
+        executionStatus: p.executionStatus,
+        expectedDate: p.expectedDate,
+        asoRecordId: p.asoRecordId,
+        performedDate: p.performedDate,
+      }),
+    );
   }
 
-  const competenceRows = yearOpen.filter((p) => p.month === month);
+  const byMonth = Array.from({ length: 12 }, (_, i) => {
+    const m = i + 1;
+    const rows = yearOpen.filter((p) => p.month === m);
+    const aFazer = openOf(rows).length;
+    const realizados = rows.filter(
+      (p) => String(p.executionStatus).toUpperCase() === "REALIZADO",
+    ).length;
+    return {
+      month: m,
+      aFazer,
+      realizados,
+      previstos: rows.filter((p) => p.eligibility === "ELEGIVEL").length,
+    };
+  });
+
   const priorities = {
-    ...countPriorities(competenceRows),
+    aFazerMes: openOf(competenceRows).length,
+    realizadosMes: competenceRows.filter(
+      (p) => String(p.executionStatus).toUpperCase() === "REALIZADO",
+    ).length,
+    pendentesAlterdata: competenceRows.filter(
+      (p) =>
+        p.alterdataStatus === "PENDENTE_ATUALIZACAO" ||
+        p.alterdataStatus === "AGUARDANDO_SINCRONIZACAO",
+    ).length,
+    divergencias: competenceRows.filter(
+      (p) => p.alterdataStatus === "DIVERGENCIA_DATA",
+    ).length,
+    pendentesAnteriores: openOf(backlogRows).length,
+    proximoMes: openOf(nextMonthRows).length,
+    proximoMesNumber: nextMonth,
     competenciasAguardando: closure?.status === "EM_CONFERENCIA" ? 1 : 0,
-  };
-  const yearPriorities = {
-    ...countPriorities(yearOpen),
-    competenciasAguardando: closure?.status === "EM_CONFERENCIA" ? 1 : 0,
+    byMonth,
   };
 
   // Relação nominal filtrada
   let nominal = planRows;
+  if (params.priority === "pendentesAnteriores") {
+    nominal = openOf(backlogRows);
+  } else if (params.priority === "proximoMes" && nextMonth) {
+    nominal = openOf(nextMonthRows);
+  } else if (params.priority === "aFazerMes") {
+    nominal = openOf(competenceRows);
+  } else if (params.priority === "realizadosMes") {
+    nominal = competenceRows.filter(
+      (p) => String(p.executionStatus).toUpperCase() === "REALIZADO",
+    );
+  }
+
   if (params.q?.trim()) {
     const q = params.q.trim().toLowerCase();
     nominal = nominal.filter(
@@ -630,18 +638,22 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
     );
   }
   if (params.pendingOnly === "1") {
-    nominal = nominal.filter(
-      (p) =>
-        p.eligibility === "ELEGIVEL" &&
-        p.executionStatus !== "REALIZADO" &&
-        p.executionStatus !== "JUSTIFICADO" &&
-        p.executionStatus !== "DISPENSADO",
+    nominal = nominal.filter((p) =>
+      isOpenWorkload({
+        eligibility: p.eligibility,
+        executionStatus: p.executionStatus,
+        expectedDate: p.expectedDate,
+        asoRecordId: p.asoRecordId,
+        performedDate: p.performedDate,
+      }),
     );
   }
   if (params.divergencesOnly === "1") {
     nominal = nominal.filter((p) => p.alterdataStatus === "DIVERGENCIA_DATA");
   }
-  if (params.overdueOnly === "1" || params.priority === "vencidos") {
+  if (params.overdueOnly === "1") {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     nominal = nominal.filter((p) =>
       isPlanOverdue(
         {
@@ -655,35 +667,9 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
       ),
     );
   }
-  if (params.priority === "vencendo7") {
-    nominal = nominal.filter((p) =>
-      isDueWithinDays(
-        {
-          eligibility: p.eligibility,
-          executionStatus: p.executionStatus,
-          expectedDate: p.expectedDate,
-          asoRecordId: p.asoRecordId,
-          performedDate: p.performedDate,
-        },
-        7,
-        today,
-      ),
-    );
-  }
-  if (params.priority === "vencendo30") {
-    nominal = nominal.filter((p) =>
-      isDueWithinDays(
-        {
-          eligibility: p.eligibility,
-          executionStatus: p.executionStatus,
-          expectedDate: p.expectedDate,
-          asoRecordId: p.asoRecordId,
-          performedDate: p.performedDate,
-        },
-        30,
-        today,
-      ),
-    );
+  if (params.priority === "vencidos") {
+    // Legado da UI antiga → pendências de meses anteriores
+    nominal = openOf(backlogRows);
   }
   if (params.priority === "pendentesAlterdata") {
     nominal = nominal.filter(
@@ -745,7 +731,6 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
     matrixRows,
     chartSeries,
     priorities,
-    yearPriorities,
     distribution: {
       realizadoConfirmado: metrics.confirmadosAlterdata,
       realizadoPendente: metrics.pendentesAlterdata,

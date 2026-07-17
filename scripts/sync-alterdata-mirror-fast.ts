@@ -157,10 +157,30 @@ function cell(row: Record<string, string>, ...keys: string[]) {
 
 function toDate(value: string): string | null {
   if (!value) return null;
-  const d = new Date(value);
-  if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
-  const br = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (br) return `${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+
+  if (/^\d+(\.\d+)?$/.test(raw)) {
+    const n = Number(raw);
+    if (n >= 20000 && n <= 60000) {
+      const utc = new Date(Date.UTC(1899, 11, 30) + Math.round(n) * 86_400_000);
+      return utc.toISOString().slice(0, 10);
+    }
+  }
+
+  // BR DD/MM/YYYY — NÃO usar new Date() (interpreta MM/DD)
+  const br = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (br) {
+    const day = Number(br[1]);
+    const month = Number(br[2]);
+    const year = Number(br[3]);
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+  }
   return null;
 }
 

@@ -132,6 +132,19 @@ export function canRegisterRealization(plan: PlanOverdueInput): boolean {
   );
 }
 
+/**
+ * Ainda precisa ser feito na competência (independente do dia do mês).
+ * Saúde ocupacional controla pelo mês, não por “vence em X dias”.
+ */
+export function isOpenWorkload(plan: PlanOverdueInput): boolean {
+  const elig = String(plan.eligibility || "").toUpperCase();
+  const exec = String(plan.executionStatus || "").toUpperCase();
+  if (elig !== "ELEGIVEL" && elig !== "") return false;
+  if (CLOSED_EXECUTION.has(exec)) return false;
+  if (plan.asoRecordId || plan.performedDate) return false;
+  return true;
+}
+
 export function reasonExcludesDenominator(reason: string): boolean {
   const r = reason.trim().toUpperCase();
   if (NON_EXCLUSION_REASONS.has(r)) return false;

@@ -30,6 +30,7 @@ import {
   tallyCpfDiagnostic,
 } from "@/lib/employees/cpf-sync";
 import { normalizeRegionName, normalizeText } from "@/lib/validation";
+import { parseSheetDate } from "@/lib/dates";
 import type { SessionUser } from "@/types";
 
 export type MirrorSyncResult = {
@@ -178,14 +179,7 @@ function cell(row: Record<string, string>, ...keys: string[]) {
 }
 
 function toDate(value: string): string | null {
-  if (!value) return null;
-  const d = new Date(value);
-  if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
-  const br = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (br) {
-    return `${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
-  }
-  return null;
+  return parseSheetDate(value);
 }
 
 function keepText(

@@ -99,9 +99,9 @@ export default async function AsosPage({
 
       <AsoPrioritiesPanel
         priorities={data.priorities}
-        yearPriorities={data.yearPriorities}
         current={current}
         activePriority={params.priority}
+        activeMonth={data.month}
       />
 
       <AsoMatrix

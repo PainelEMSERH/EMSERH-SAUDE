@@ -137,7 +137,7 @@ export function AsoSummaryCards({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         <Card label="Previstos brutos" value={String(metrics.previstosBrutos)} />
         <Card label="Justificados" value={String(metrics.justificados)} tone="warn" />
         <Card
@@ -158,12 +158,6 @@ export function AsoSummaryCards({
             priority: "pendentesAlterdata",
             page: undefined,
           })}
-        />
-        <Card
-          label="Vencidos"
-          value={String(metrics.vencidos)}
-          tone="danger"
-          href={buildAsoUrl("/asos", current, { priority: "vencidos", page: undefined })}
         />
       </div>
 
