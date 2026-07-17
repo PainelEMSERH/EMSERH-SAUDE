@@ -18,13 +18,13 @@ import {
 import { writeAuditLog } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth/guard";
 import { addRealMonths, calcImc, calcLeaveDays, computeDeadlineStatus } from "@/lib/dates";
-import { findEmployeeIdByRegistration } from "@/db/queries/occupational";
+import { requireEmployeeInUserScope } from "@/lib/scope";
+import type { SessionUser } from "@/types";
 
 export type ActionState = { error?: string; ok?: boolean };
 
-async function resolveEmployee(registration: string) {
-  const id = await findEmployeeIdByRegistration(registration);
-  if (!id) throw new Error("Colaborador não encontrado pela matrícula.");
+async function resolveEmployee(user: SessionUser, registration: string) {
+  const { id } = await requireEmployeeInUserScope(user, { registration });
   return id;
 }
 
@@ -53,7 +53,7 @@ export async function createAsoAction(
       adminNotes: formData.get("adminNotes") || undefined,
     });
 
-    const employeeId = await resolveEmployee(data.registration);
+    const employeeId = await resolveEmployee(user, data.registration);
     const periodicity = data.periodicityMonths ?? 12;
     const baseDate = data.performedDate
       ? new Date(data.performedDate)
@@ -125,7 +125,7 @@ export async function createAppointmentAction(
       heightCm: formData.get("heightCm") || undefined,
     });
 
-    const employeeId = await resolveEmployee(data.registration);
+    const employeeId = await resolveEmployee(user, data.registration);
     const db = getDb();
     let physicianId: string | null = null;
     if (data.physicianName?.trim()) {
@@ -209,7 +209,7 @@ export async function createLeaveAction(
       status: formData.get("status") || "ATIVO",
     });
 
-    const employeeId = await resolveEmployee(data.registration);
+    const employeeId = await resolveEmployee(user, data.registration);
     const daysCount = data.endDate
       ? calcLeaveDays(new Date(data.startDate), new Date(data.endDate))
       : null;
@@ -278,7 +278,7 @@ export async function createVaccinationAction(
       notes: formData.get("notes") || undefined,
     });
 
-    const employeeId = await resolveEmployee(data.registration);
+    const employeeId = await resolveEmployee(user, data.registration);
     const db = getDb();
     let [vaccine] = await db
       .select()
@@ -363,7 +363,7 @@ export async function createPregnancyAction(
       notes: formData.get("notes") || undefined,
     });
 
-    const employeeId = await resolveEmployee(data.registration);
+    const employeeId = await resolveEmployee(user, data.registration);
     const hazardous = data.hazardousActivity === "true";
     const db = getDb();
     const [created] = await db
@@ -425,7 +425,7 @@ export async function createBiologicalAccidentAction(
       catNumber: formData.get("catNumber") || undefined,
     });
 
-    const employeeId = await resolveEmployee(data.registration);
+    const employeeId = await resolveEmployee(user, data.registration);
     const occurredAt = new Date(data.occurredAt);
     const db = getDb();
     const [created] = await db

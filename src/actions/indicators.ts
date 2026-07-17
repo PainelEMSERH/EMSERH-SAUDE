@@ -9,7 +9,7 @@ import {
 } from "@/db/schemas";
 import { writeAuditLog } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth/guard";
-import { findEmployeeIdByRegistration } from "@/db/queries/occupational";
+import { requireEmployeeInUserScope } from "@/lib/scope";
 import type { ActionState } from "@/actions/occupational";
 
 export async function createAttendanceAction(
@@ -26,8 +26,9 @@ export async function createAttendanceAction(
     if (!registration || !attendanceType || !attendedAt) {
       return { error: "Preencha matrícula, tipo e data." };
     }
-    const employeeId = await findEmployeeIdByRegistration(registration);
-    if (!employeeId) return { error: "Colaborador não encontrado." };
+    const { id: employeeId } = await requireEmployeeInUserScope(user, {
+      registration,
+    });
 
     const db = getDb();
     const [created] = await db

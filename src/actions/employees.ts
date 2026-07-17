@@ -8,6 +8,10 @@ import { writeAuditLog } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth/guard";
 import { encryptField, hashCpf, normalizeCpf } from "@/lib/encryption";
 import { getEnv } from "@/lib/env";
+import {
+  assertOrgIdsInUserScope,
+  requireEmployeeInUserScope,
+} from "@/lib/scope";
 import { normalizeText, registrationSchema } from "@/lib/validation";
 import { z } from "zod";
 
@@ -54,6 +58,15 @@ export async function upsertEmployeeAction(
   }
 
   const data = parsed.data;
+  try {
+    assertOrgIdsInUserScope(user, {
+      regionId: data.regionId || null,
+      unitId: data.unitId || null,
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Escopo inválido." };
+  }
+
   const db = getDb();
   let jobRoleId = data.jobRoleId || null;
 
@@ -108,6 +121,11 @@ export async function upsertEmployeeAction(
 
   if (id) {
     await requirePermission("employees", "update");
+    try {
+      await requireEmployeeInUserScope(user, { employeeId: id });
+    } catch {
+      return { error: "Colaborador não encontrado." };
+    }
     const [before] = await db
       .select()
       .from(employees)
@@ -149,6 +167,11 @@ export async function softDeleteEmployeeAction(formData: FormData) {
   const user = await requirePermission("employees", "delete");
   const id = String(formData.get("id") || "");
   if (!id) return;
+  try {
+    await requireEmployeeInUserScope(user, { employeeId: id });
+  } catch {
+    return;
+  }
   const db = getDb();
   await db
     .update(employees)
