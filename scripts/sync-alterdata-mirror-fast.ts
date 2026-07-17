@@ -1,6 +1,8 @@
 /**
  * Sync rápida do espelho (pg direto, matrícula = chave).
+ * Mesmo mapeamento do sync normal (mirror-sync.ts).
  * CPF duplicado não bloqueia — matrícula prevalece.
+ * Não sobrescreve dados válidos com células vazias.
  */
 import { config } from "dotenv";
 import { resolve } from "node:path";
@@ -26,6 +28,13 @@ function normalizeText(value: string) {
     .trim();
 }
 
+function normalizeRegionName(value: string) {
+  const n = normalizeText(value);
+  if (n === "CENTRO" || n === "CENTRAL") return "CENTRO";
+  if (n === "OESTE") return "SUL";
+  return n;
+}
+
 function normalizeCpf(cpf: string) {
   return cpf.replace(/\D/g, "");
 }
@@ -48,7 +57,52 @@ function encryptField(plain: string): string | null {
   return `v1:${iv.toString("base64url")}:${tag.toString("base64url")}:${encrypted.toString("base64url")}`;
 }
 
-function parseCsv(text: string): Record<string, string>[] {
+function mapAlterdataFunctionalStatus(input: {
+  dismissalRaw?: string;
+  statusAso?: string;
+  afastamentoRaw?: string;
+  statusFerias?: string;
+}): string {
+  const demissao = (input.dismissalRaw || "").trim();
+  if (demissao) return "DEMITIDO";
+
+  const statusAso = normalizeText(input.statusAso || "");
+  if (statusAso.includes("DEMIT")) return "DEMITIDO";
+
+  const ferias = normalizeText(
+    `${input.statusFerias || ""} ${input.statusAso || ""}`,
+  );
+  if (
+    ferias.includes("FERIAS") ||
+    ferias.includes("EM FERIAS") ||
+    ferias === "FERIAS"
+  ) {
+    return "FERIAS";
+  }
+
+  const afast = normalizeText(
+    `${input.afastamentoRaw || ""} ${input.statusAso || ""}`,
+  );
+  if (
+    afast.includes("AFAST") ||
+    afast.includes("LICENCA") ||
+    afast.includes("INSS")
+  ) {
+    return "AFASTADO";
+  }
+
+  return "ATIVO";
+}
+
+function mapAlterdataSex(raw: string): string | null {
+  const n = normalizeText(raw);
+  if (!n) return null;
+  if (n.startsWith("F") || n === "FEMININO") return "F";
+  if (n.startsWith("M") || n === "MASCULINO") return "M";
+  return raw.trim().slice(0, 20) || null;
+}
+
+function parseCsv(text: string): { headers: string[]; rows: Record<string, string>[] } {
   const rows: string[][] = [];
   let current: string[] = [];
   let field = "";
@@ -87,15 +141,16 @@ function parseCsv(text: string): Record<string, string>[] {
     current.push(field);
     rows.push(current);
   }
-  if (!rows.length) return [];
+  if (!rows.length) return { headers: [], rows: [] };
   const headers = rows[0].map((h) => h.trim());
-  return rows.slice(1).map((cols) => {
+  const data = rows.slice(1).map((cols) => {
     const obj: Record<string, string> = {};
     headers.forEach((h, idx) => {
       obj[h] = (cols[idx] ?? "").trim();
     });
     return obj;
   });
+  return { headers, rows: data };
 }
 
 function cell(row: Record<string, string>, ...keys: string[]) {
@@ -103,7 +158,7 @@ function cell(row: Record<string, string>, ...keys: string[]) {
     const found = Object.keys(row).find(
       (k) => normalizeText(k) === normalizeText(key),
     );
-    if (found && row[found]) return row[found].trim();
+    if (found !== undefined) return (row[found] ?? "").trim();
   }
   return "";
 }
@@ -128,8 +183,9 @@ async function main() {
   );
   if (!csvRes.ok) throw new Error(`HTTP ${csvRes.status} no espelho`);
   const csv = await csvRes.text();
-  const rows = parseCsv(csv);
+  const { headers, rows } = parseCsv(csv);
   console.log("Linhas no espelho:", rows.length);
+  console.log("Cabeçalhos:", headers.join(" | "));
 
   const c = new Client({
     connectionString: url,
@@ -137,13 +193,17 @@ async function main() {
   });
   await c.connect();
 
-  await c.query(`update files.import_batches set status='CANCELLED' where status='RUNNING'`);
+  await c.query(
+    `update files.import_batches set status='CANCELLED' where status='RUNNING'`,
+  );
 
   const existingRegs = await c.query<{
     id: string;
     registration: string;
     cpf_hash: string | null;
-  }>(`select id, registration, cpf_hash from core.employees where deleted_at is null`);
+  }>(
+    `select id, registration, cpf_hash from core.employees where deleted_at is null`,
+  );
   const byReg = new Map(existingRegs.rows.map((r) => [r.registration, r]));
 
   const cpfOwners = new Map<string, string>();
@@ -156,10 +216,12 @@ async function main() {
   const roleCache = new Map<string, string>();
 
   async function ensureRegion(name: string) {
-    const code = normalizeText(name || "NAO_INFORMADA");
-    const fixed = code === "CENTRAL" ? "CENTRO" : code === "OESTE" ? "SUL" : code;
+    const fixed = normalizeRegionName(name || "NAO_INFORMADA");
     if (regionCache.has(fixed)) return regionCache.get(fixed)!;
-    const found = await c.query(`select id from core.regions where code=$1 limit 1`, [fixed]);
+    const found = await c.query(
+      `select id from core.regions where code=$1 limit 1`,
+      [fixed],
+    );
     if (found.rows[0]) {
       regionCache.set(fixed, found.rows[0].id);
       return found.rows[0].id as string;
@@ -234,18 +296,33 @@ async function main() {
         continue;
       }
 
-      const department = cell(row, "nmdepartamento", "Departamento");
-      const city = cell(row, "nmcidade", "cidade");
-      const roleName = cell(row, "nmfuncao", "Função");
+      const department = cell(row, "nmdepartamento", "Departamento", "UNIDADE");
+      const city = cell(row, "nmcidade", "cidade", "Cidade");
+      const roleName = cell(row, "nmfuncao", "Função", "FUNÇÃO");
       const demissao = cell(row, "DtDemissao");
       const statusAso = cell(row, "Status_ASO");
-      const functionalStatus =
-        demissao || normalizeText(statusAso).includes("DEMIT")
-          ? "DEMITIDO"
-          : "ATIVO";
+      const statusFerias = cell(row, "Status_Ferias", "StatusFerias", "Ferias");
+      const afastamentoRaw = cell(
+        row,
+        "Afastamento",
+        "Status_Afastamento",
+        "Situacao",
+        "Situação",
+        "SituacaoFuncional",
+      );
+      const functionalStatus = mapAlterdataFunctionalStatus({
+        dismissalRaw: demissao,
+        statusAso,
+        afastamentoRaw,
+        statusFerias,
+      });
 
-      const regionId = await ensureRegion(cell(row, "Regional") || "NAO_INFORMADA");
-      const unitId = department ? await ensureUnit(regionId, department, city) : null;
+      const regionId = await ensureRegion(
+        cell(row, "Regional") || "NAO_INFORMADA",
+      );
+      const unitId = department
+        ? await ensureUnit(regionId, department, city)
+        : null;
       const jobRoleId = await ensureRole(roleName);
 
       const cpfRaw = cell(row, "NrCPF", "CPF");
@@ -265,25 +342,43 @@ async function main() {
         }
       }
 
+      const phone = cell(row, "NrTelefone", "NrCelular");
+      const sex = mapAlterdataSex(cell(row, "TpSexo"));
+      const admissionDate = toDate(cell(row, "DtAdmissao"));
+      const dismissalDate = toDate(demissao);
+      const birthDate = toDate(cell(row, "DtNascimento"));
+
       const existing = byReg.get(registration);
       if (existing) {
         await c.query(
           `update core.employees set
-            full_name=$1, normalized_name=$2, city=$3, phone=$4, sex=$5,
-            admission_date=$6, dismissal_date=$7, birth_date=$8,
-            functional_status=$9, job_role_id=$10, unit_id=$11, region_id=$12,
-            cpf_hash=coalesce($13, cpf_hash), cpf_encrypted=coalesce($14, cpf_encrypted),
-            source_system='ALTERDATA_MIRROR', alterdata_id=$15, updated_at=now()
+            full_name=$1,
+            normalized_name=$2,
+            city=coalesce(nullif($3,''), city),
+            phone=coalesce(nullif($4,''), phone),
+            sex=coalesce(nullif($5,''), sex),
+            admission_date=coalesce($6::date, admission_date),
+            dismissal_date=coalesce($7::date, dismissal_date),
+            birth_date=coalesce($8::date, birth_date),
+            functional_status=$9,
+            job_role_id=coalesce($10::uuid, job_role_id),
+            unit_id=coalesce($11::uuid, unit_id),
+            region_id=coalesce($12::uuid, region_id),
+            cpf_hash=coalesce($13, cpf_hash),
+            cpf_encrypted=coalesce($14, cpf_encrypted),
+            source_system='ALTERDATA_MIRROR',
+            alterdata_id=$15,
+            updated_at=now()
            where id=$16`,
           [
             fullName,
             normalizeText(fullName),
             city || null,
-            cell(row, "NrTelefone", "NrCelular") || null,
-            cell(row, "TpSexo") || null,
-            toDate(cell(row, "DtAdmissao")),
-            toDate(demissao),
-            toDate(cell(row, "DtNascimento")),
+            phone || null,
+            sex,
+            admissionDate,
+            dismissalDate,
+            birthDate,
             functionalStatus,
             jobRoleId,
             unitId,
@@ -309,11 +404,11 @@ async function main() {
             fullName,
             normalizeText(fullName),
             city || null,
-            cell(row, "NrTelefone", "NrCelular") || null,
-            cell(row, "TpSexo") || null,
-            toDate(cell(row, "DtAdmissao")),
-            toDate(demissao),
-            toDate(cell(row, "DtNascimento")),
+            phone || null,
+            sex,
+            admissionDate,
+            dismissalDate,
+            birthDate,
             functionalStatus,
             jobRoleId,
             unitId,
@@ -332,7 +427,9 @@ async function main() {
       }
 
       if ((i + 1) % 1000 === 0) {
-        console.log(`progress ${i + 1}/${rows.length} imported=${imported} updated=${updated}`);
+        console.log(
+          `progress ${i + 1}/${rows.length} imported=${imported} updated=${updated}`,
+        );
       }
     } catch (e) {
       errors++;
@@ -343,6 +440,7 @@ async function main() {
     }
   }
 
+  const finishedAt = new Date().toISOString();
   await c.query(
     `update files.import_batches set
       status=$1, imported_rows=$2, updated_rows=$3, skipped_rows=$4, error_rows=$5,
@@ -357,6 +455,13 @@ async function main() {
       JSON.stringify({
         fileHash: createHash("sha256").update(csv).digest("hex"),
         mode: "FAST_PG_READONLY",
+        finishedAt,
+        headers,
+        imported,
+        updated,
+        skipped,
+        errors,
+        origin: "ALTERDATA_MIRROR",
       }),
       batchId,
     ],
@@ -371,6 +476,7 @@ async function main() {
     updated,
     skipped,
     errors,
+    finishedAt,
     employeesInDb: total.rows[0].n,
   });
   await c.end();

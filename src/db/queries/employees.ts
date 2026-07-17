@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ilike, isNull, or } from "drizzle-orm";
+import { and, count, eq, ilike, inArray, isNull, or } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   employees,
@@ -7,13 +7,13 @@ import {
   units,
 } from "@/db/schemas";
 import { can } from "@/lib/permissions";
+import { resolveCpfDisplay } from "@/lib/employees/cpf-display";
 import {
   employeeScopeCondition,
   parsePage,
   parsePageSize,
   type ListResult,
 } from "@/lib/scope";
-import { maskCpf } from "@/lib/encryption";
 import type { SessionUser } from "@/types";
 
 export type EmployeeListItem = {
@@ -23,20 +23,60 @@ export type EmployeeListItem = {
   functionalStatus: string;
   unitName: string | null;
   regionName: string | null;
+  regionId: string | null;
+  unitId: string | null;
   jobRoleName: string | null;
   city: string | null;
   admissionDate: string | null;
-  cpfDisplay: string;
+};
+
+export type EmployeeListParams = {
+  q?: string;
+  status?: string;
+  regionId?: string;
+  unitId?: string;
+  page?: string;
 };
 
 export async function listEmployees(
   user: SessionUser,
-  params: { q?: string; status?: string; page?: string },
-): Promise<ListResult<EmployeeListItem>> {
+  params: EmployeeListParams,
+): Promise<
+  ListResult<EmployeeListItem> & {
+    filterLabel?: string;
+    appliedRegionId?: string;
+    appliedUnitId?: string;
+  }
+> {
   const page = parsePage(params.page);
   const pageSize = parsePageSize(undefined);
   const db = getDb();
   const scope = employeeScopeCondition(user);
+
+  let regionId = params.regionId?.trim() || "";
+  let unitId = params.unitId?.trim() || "";
+  if (regionId === "ALL") regionId = "";
+  if (unitId === "ALL") unitId = "";
+
+  // Escopo: usuário UNIT não pode ampliar via URL
+  if (user.scopeLevel === "UNIT") {
+    if (user.unitIds.length === 1) unitId = user.unitIds[0];
+    else if (unitId && !user.unitIds.includes(unitId)) unitId = "";
+    regionId = "";
+  } else if (user.scopeLevel === "REGION") {
+    if (regionId && !user.regionIds.includes(regionId)) regionId = "";
+    if (!regionId && user.regionIds.length === 1) regionId = user.regionIds[0];
+  }
+
+  // Unidade deve pertencer à regional filtrada
+  if (unitId && regionId) {
+    const [u] = await db
+      .select({ regionId: units.regionId })
+      .from(units)
+      .where(and(eq(units.id, unitId), isNull(units.deletedAt)))
+      .limit(1);
+    if (!u || u.regionId !== regionId) unitId = "";
+  }
 
   const filters = [
     isNull(employees.deletedAt),
@@ -44,6 +84,8 @@ export async function listEmployees(
     params.status && params.status !== "ALL"
       ? eq(employees.functionalStatus, params.status)
       : undefined,
+    regionId ? eq(employees.regionId, regionId) : undefined,
+    unitId ? eq(employees.unitId, unitId) : undefined,
     params.q
       ? or(
           ilike(employees.fullName, `%${params.q}%`),
@@ -68,7 +110,8 @@ export async function listEmployees(
       functionalStatus: employees.functionalStatus,
       city: employees.city,
       admissionDate: employees.admissionDate,
-      cpfEncrypted: employees.cpfEncrypted,
+      regionId: employees.regionId,
+      unitId: employees.unitId,
       unitName: units.name,
       regionName: regions.name,
       jobRoleName: jobRoles.name,
@@ -78,36 +121,30 @@ export async function listEmployees(
     .leftJoin(regions, eq(employees.regionId, regions.id))
     .leftJoin(jobRoles, eq(employees.jobRoleId, jobRoles.id))
     .where(where)
-    .orderBy(desc(employees.updatedAt))
+    .orderBy(regions.name, units.name, employees.fullName)
     .limit(pageSize)
     .offset((page - 1) * pageSize);
 
-  const showSensitive = can(user, "employees", "view_sensitive_identifiers");
-
-  const mapped: EmployeeListItem[] = rows.map((r) => ({
-    id: r.id,
-    registration: r.registration,
-    fullName: r.fullName,
-    functionalStatus: r.functionalStatus,
-    unitName: r.unitName,
-    regionName: r.regionName,
-    jobRoleName: r.jobRoleName,
-    city: r.city,
-    admissionDate: r.admissionDate,
-    cpfDisplay: showSensitive
-      ? r.cpfEncrypted
-        ? "[protegido]"
-        : "—"
-      : maskCpf(null),
-  }));
+  let filterLabel: string | undefined;
+  if (regionId) {
+    const [r] = await db
+      .select({ name: regions.name })
+      .from(regions)
+      .where(eq(regions.id, regionId))
+      .limit(1);
+    if (r?.name) filterLabel = `na Regional ${r.name}`;
+  }
 
   const total = totalRow?.value ?? 0;
   return {
-    rows: mapped,
+    rows,
     total,
     page,
     pageSize,
     totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    filterLabel,
+    appliedRegionId: regionId || undefined,
+    appliedUnitId: unitId || undefined,
   };
 }
 
@@ -127,7 +164,85 @@ export async function getEmployeeById(user: SessionUser, id: string) {
     .leftJoin(jobRoles, eq(employees.jobRoleId, jobRoles.id))
     .where(and(eq(employees.id, id), isNull(employees.deletedAt), scope))
     .limit(1);
-  return row ?? null;
+
+  if (!row) return null;
+
+  const showSensitive = can(user, "employees", "view_sensitive_identifiers");
+  const cpfDisplay = resolveCpfDisplay(
+    row.employee.cpfEncrypted,
+    showSensitive,
+  );
+
+  return {
+    ...row,
+    cpfDisplay,
+    canViewSensitive: showSensitive,
+  };
+}
+
+export async function listRegionsForUser(user: SessionUser) {
+  const db = getDb();
+  const base = and(isNull(regions.deletedAt), eq(regions.isActive, true));
+  if (user.scopeLevel === "EMSERH") {
+    return db.select().from(regions).where(base).orderBy(regions.name);
+  }
+  if (user.scopeLevel === "REGION") {
+    if (!user.regionIds.length) return [];
+    return db
+      .select()
+      .from(regions)
+      .where(and(base, inArray(regions.id, user.regionIds)))
+      .orderBy(regions.name);
+  }
+  // UNIT: regionais das unidades do usuário
+  if (!user.unitIds.length) return [];
+  const unitRows = await db
+    .select({ regionId: units.regionId })
+    .from(units)
+    .where(and(isNull(units.deletedAt), inArray(units.id, user.unitIds)));
+  const ids = [
+    ...new Set(unitRows.map((u) => u.regionId).filter(Boolean) as string[]),
+  ];
+  if (!ids.length) return [];
+  return db
+    .select()
+    .from(regions)
+    .where(and(base, inArray(regions.id, ids)))
+    .orderBy(regions.name);
+}
+
+export async function listUnitsForUser(user: SessionUser, regionId?: string) {
+  const db = getDb();
+  const filters = [isNull(units.deletedAt), eq(units.isActive, true)];
+
+  if (user.scopeLevel === "UNIT") {
+    if (!user.unitIds.length) return [];
+    filters.push(inArray(units.id, user.unitIds));
+  } else if (user.scopeLevel === "REGION") {
+    if (!user.regionIds.length) return [];
+    filters.push(inArray(units.regionId, user.regionIds));
+  }
+
+  if (regionId && regionId !== "ALL") {
+    if (user.scopeLevel === "REGION" && !user.regionIds.includes(regionId)) {
+      return [];
+    }
+    filters.push(eq(units.regionId, regionId));
+  }
+
+  return db
+    .select({
+      id: units.id,
+      name: units.name,
+      city: units.city,
+      regionId: units.regionId,
+      regionCode: regions.code,
+      regionName: regions.name,
+    })
+    .from(units)
+    .leftJoin(regions, eq(units.regionId, regions.id))
+    .where(and(...filters))
+    .orderBy(units.name);
 }
 
 export async function listRegions() {

@@ -1,29 +1,68 @@
 import Link from "next/link";
-import { Eye, UserPlus, Users } from "lucide-react";
+import { Database, Eye, Users } from "lucide-react";
+import { EmployeeFilters } from "@/components/employees/employee-filters";
 import { StatusBadge } from "@/components/feedback/status-badge";
 import { DataTable } from "@/components/tables/data-table";
 import { Pagination } from "@/components/tables/pagination";
-import { SearchFilters } from "@/components/tables/search-filters";
 import { buttonVariants } from "@/components/ui/button";
-import { requirePermission, userCan } from "@/lib/auth/guard";
+import { requirePermission } from "@/lib/auth/guard";
 import { formatDateBR } from "@/lib/dates";
 import {
   humanizeLabel,
   formatRegistrationDisplay,
   toneForFunctionalStatus,
 } from "@/lib/labels";
-import { listEmployees } from "@/db/queries/employees";
+import {
+  listEmployees,
+  listRegionsForUser,
+  listUnitsForUser,
+} from "@/db/queries/employees";
 import { cn } from "@/lib/utils";
 
 export default async function ColaboradoresPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; page?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    status?: string;
+    regionId?: string;
+    unitId?: string;
+    page?: string;
+    notice?: string;
+  }>;
 }) {
   const user = await requirePermission("employees", "view");
   const params = await searchParams;
-  const data = await listEmployees(user, params);
-  const canCreate = userCan(user, "employees", "create");
+
+  const lockRegion = user.scopeLevel === "REGION";
+  const lockUnit = user.scopeLevel === "UNIT";
+  const hideRegion = user.scopeLevel === "UNIT";
+
+  let regionId = params.regionId;
+  let unitId = params.unitId;
+  if (lockRegion && user.regionIds.length === 1) {
+    regionId = user.regionIds[0];
+  }
+  if (lockUnit && user.unitIds.length === 1) {
+    unitId = user.unitIds[0];
+  }
+
+  const [data, regions, units] = await Promise.all([
+    listEmployees(user, {
+      q: params.q,
+      status: params.status,
+      regionId,
+      unitId,
+      page: params.page,
+    }),
+    listRegionsForUser(user),
+    listUnitsForUser(
+      user,
+      lockRegion && user.regionIds.length === 1
+        ? user.regionIds[0]
+        : regionId,
+    ),
+  ]);
 
   return (
     <div>
@@ -37,54 +76,52 @@ export default async function ColaboradoresPage({
               Colaboradores
             </h2>
             <p className="text-[12px] text-slate-500">
-              Cadastro único com lotação, vínculo e linha do tempo ocupacional.
+              Base sincronizada pelo Alterdata · consulta por regional e unidade.
             </p>
           </div>
         </div>
-        {canCreate ? (
-          <Link
-            href="/colaboradores/novo"
-            className={cn(
-              buttonVariants({
-                size: "sm",
-                className: "h-8 shrink-0 gap-1.5 bg-teal-700 text-[13px] hover:bg-teal-800",
-              }),
-            )}
-          >
-            <UserPlus className="size-3.5" />
-            Novo colaborador
-          </Link>
-        ) : null}
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+          <Database className="size-3.5 text-teal-700" aria-hidden />
+          Dados do Alterdata
+        </span>
       </div>
 
-      <SearchFilters
-        action="/colaboradores"
+      {params.notice === "alterdata" ? (
+        <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-950">
+          Os colaboradores são cadastrados exclusivamente pelo Alterdata.
+        </div>
+      ) : null}
+
+      <EmployeeFilters
+        regions={regions.map((r) => ({ id: r.id, name: r.name }))}
+        units={units.map((u) => ({
+          id: u.id,
+          name: u.name,
+          regionId: u.regionId,
+        }))}
         q={params.q}
         status={params.status}
-        placeholder="Buscar por nome ou matrícula"
+        regionId={data.appliedRegionId}
+        unitId={data.appliedUnitId}
         resultCount={data.total}
-        resultLabel={
-          data.total === 1
-            ? "colaborador encontrado"
-            : "colaboradores encontrados"
-        }
-        statusOptions={[
-          { value: "ATIVO", label: "Ativo" },
-          { value: "AFASTADO", label: "Afastado" },
-          { value: "DEMITIDO", label: "Demitido" },
-          { value: "FERIAS", label: "Férias" },
-        ]}
+        filterLabel={data.filterLabel}
+        lockRegion={lockRegion}
+        lockUnit={lockUnit}
+        hideRegion={hideRegion}
+        hideUnit={false}
       />
 
       <DataTable
+        stickyHeader
+        maxHeightClassName="max-h-[calc(100vh-240px)]"
         rows={data.rows}
         emptyTitle="Nenhum colaborador encontrado"
-        emptyDescription="Cadastre ou importe a base Alterdata para iniciar o prontuário ocupacional."
+        emptyDescription="Ajuste os filtros ou sincronize o espelho Alterdata."
         columns={[
           {
             key: "registration",
             header: "Matrícula",
-            className: "w-[100px] text-center",
+            className: "w-[88px] text-center",
             cell: (r) => (
               <Link
                 href={`/colaboradores/${r.id}`}
@@ -98,33 +135,20 @@ export default async function ColaboradoresPage({
           {
             key: "name",
             header: "Nome",
+            className: "min-w-[220px] w-[28%]",
             cell: (r) => (
-              <p
-                className="max-w-[220px] truncate font-medium text-slate-900"
-                title={r.fullName}
-              >
+              <p className="truncate font-medium text-slate-900" title={r.fullName}>
                 {r.fullName}
               </p>
             ),
           },
           {
-            key: "role",
-            header: "Função",
-            cell: (r) => (
-              <span
-                className="block max-w-[160px] truncate text-slate-600"
-                title={r.jobRoleName ?? undefined}
-              >
-                {r.jobRoleName ?? "—"}
-              </span>
-            ),
-          },
-          {
             key: "unit",
             header: "Unidade",
+            className: "min-w-[180px] w-[18%]",
             cell: (r) => (
               <span
-                className="block max-w-[180px] truncate text-slate-600"
+                className="block truncate text-slate-600"
                 title={r.unitName ?? undefined}
               >
                 {humanizeLabel(r.unitName)}
@@ -132,11 +156,25 @@ export default async function ColaboradoresPage({
             ),
           },
           {
-            key: "region",
-            header: "Regional",
+            key: "role",
+            header: "Função",
+            className: "min-w-[150px] w-[16%]",
             cell: (r) => (
               <span
-                className="block max-w-[100px] truncate text-slate-600"
+                className="block truncate text-slate-600"
+                title={r.jobRoleName ?? undefined}
+              >
+                {r.jobRoleName ?? "—"}
+              </span>
+            ),
+          },
+          {
+            key: "region",
+            header: "Regional",
+            className: "w-[72px]",
+            cell: (r) => (
+              <span
+                className="block truncate text-slate-600"
                 title={r.regionName ?? undefined}
               >
                 {humanizeLabel(r.regionName)}
@@ -146,7 +184,7 @@ export default async function ColaboradoresPage({
           {
             key: "status",
             header: "Situação",
-            className: "text-center",
+            className: "w-[88px] text-center",
             cell: (r) => (
               <div className="flex justify-center">
                 <StatusBadge
@@ -159,6 +197,7 @@ export default async function ColaboradoresPage({
           {
             key: "admission",
             header: "Admissão",
+            className: "w-[84px] text-center",
             cell: (r) => (
               <span className="tabular-nums text-slate-600">
                 {formatDateBR(r.admissionDate)}
@@ -168,7 +207,7 @@ export default async function ColaboradoresPage({
           {
             key: "actions",
             header: "",
-            className: "w-[118px]",
+            className: "w-[96px]",
             cell: (r) => (
               <Link
                 href={`/colaboradores/${r.id}`}
@@ -193,7 +232,12 @@ export default async function ColaboradoresPage({
         pageSize={data.pageSize}
         itemLabel="colaboradores"
         basePath="/colaboradores"
-        searchParams={{ q: params.q, status: params.status }}
+        searchParams={{
+          q: params.q,
+          status: params.status,
+          regionId: data.appliedRegionId,
+          unitId: data.appliedUnitId,
+        }}
       />
     </div>
   );

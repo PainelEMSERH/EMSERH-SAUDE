@@ -1,11 +1,3 @@
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { EmptyState } from "@/components/feedback/setup-banner";
 import { cn } from "@/lib/utils";
 
@@ -21,55 +13,72 @@ export function DataTable<T extends { id: string }>({
   rows,
   emptyTitle = "Nenhum registro",
   emptyDescription = "Não há dados para exibir com os filtros atuais.",
+  stickyHeader = false,
+  maxHeightClassName = "max-h-[calc(100vh-240px)]",
 }: {
   columns: Column<T>[];
   rows: T[];
   emptyTitle?: string;
   emptyDescription?: string;
+  stickyHeader?: boolean;
+  maxHeightClassName?: string;
 }) {
   if (!rows.length) {
     return <EmptyState title={emptyTitle} description={emptyDescription} />;
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-      <Table>
-        <TableHeader>
-          <TableRow className="border-b border-slate-200 bg-slate-50 hover:bg-slate-50">
+    <div
+      className={cn(
+        "rounded-lg border border-slate-200 bg-white",
+        stickyHeader
+          ? cn("overflow-auto", maxHeightClassName)
+          : "overflow-hidden",
+      )}
+    >
+      <table className="w-full caption-bottom text-sm">
+        <thead
+          className={cn(
+            stickyHeader &&
+              "sticky top-0 z-10 bg-slate-50 shadow-[0_1px_0_0_rgb(226_232_240)]",
+          )}
+        >
+          <tr className="border-b border-slate-200 bg-slate-50 hover:bg-slate-50">
             {columns.map((col) => (
-              <TableHead
+              <th
                 key={col.key}
                 className={cn(
-                  "h-8 px-2.5 text-center text-[11px] font-semibold tracking-wide text-slate-500 uppercase",
+                  "h-8 px-2.5 text-center align-middle text-[11px] font-semibold tracking-wide whitespace-nowrap text-slate-500 uppercase",
+                  stickyHeader && "bg-slate-50",
                   col.className,
                 )}
               >
                 {col.header}
-              </TableHead>
+              </th>
             ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+          </tr>
+        </thead>
+        <tbody>
           {rows.map((row) => (
-            <TableRow
+            <tr
               key={row.id}
-              className="border-slate-100 transition-colors hover:bg-teal-50/50"
+              className="border-b border-slate-100 transition-colors hover:bg-teal-50/50"
             >
               {columns.map((col) => (
-                <TableCell
+                <td
                   key={col.key}
                   className={cn(
-                    "h-9 px-2.5 py-1.5 align-middle text-[10px]",
+                    "h-9 px-2.5 py-1.5 align-middle text-[10px] whitespace-nowrap",
                     col.className,
                   )}
                 >
                   {col.cell(row)}
-                </TableCell>
+                </td>
               ))}
-            </TableRow>
+            </tr>
           ))}
-        </TableBody>
-      </Table>
+        </tbody>
+      </table>
     </div>
   );
 }

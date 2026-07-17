@@ -1,50 +1,31 @@
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { EmployeeForm } from "@/components/forms/employee-form";
+import { Database } from "lucide-react";
 import { requirePermission } from "@/lib/auth/guard";
-import {
-  ensureOrgDefaults,
-  listJobRoles,
-  listRegions,
-  listUnits,
-} from "@/db/queries/employees";
 
 export default async function NovoColaboradorPage() {
-  const user = await requirePermission("employees", "create");
-  await ensureOrgDefaults(user.id);
-  const [regions, units, jobRoles] = await Promise.all([
-    listRegions(),
-    listUnits(),
-    listJobRoles(),
-  ]);
+  await requirePermission("employees", "view");
 
   return (
-    <div className="space-y-5">
-      <Link
-        href="/colaboradores"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-teal-800 hover:underline"
-      >
-        <ArrowLeft className="size-4" />
-        Voltar para colaboradores
-      </Link>
+    <div className="mx-auto max-w-lg space-y-4 rounded-lg border border-slate-200 bg-white p-6">
+      <div className="flex size-10 items-center justify-center rounded-md border border-teal-100 bg-teal-50 text-teal-800">
+        <Database className="size-5" aria-hidden />
+      </div>
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
-          Novo colaborador
+        <h2 className="text-lg font-semibold text-slate-900">
+          Cadastro pelo Alterdata
         </h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Cadastro manual com escopo institucional.
+        <p className="mt-2 text-sm text-slate-600">
+          Os colaboradores são cadastrados exclusivamente pelo Alterdata. O
+          sistema importa e atualiza os dados a partir do espelho oficial —
+          não há cadastro manual nesta aplicação.
         </p>
       </div>
-      <EmployeeForm
-        mode="create"
-        regions={regions.map((r) => ({ id: r.id, name: r.name }))}
-        units={units.map((u) => ({
-          id: u.id,
-          name: u.name,
-          regionId: u.regionId,
-        }))}
-        jobRoles={jobRoles.map((j) => ({ id: j.id, name: j.name }))}
-      />
+      <Link
+        href="/colaboradores"
+        className="inline-flex h-8 items-center rounded-md bg-teal-700 px-3 text-[13px] font-medium text-white hover:bg-teal-800"
+      >
+        Voltar para colaboradores
+      </Link>
     </div>
   );
 }

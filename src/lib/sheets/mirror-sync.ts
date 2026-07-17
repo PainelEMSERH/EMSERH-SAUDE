@@ -15,6 +15,10 @@ import {
   units,
 } from "@/db/schemas";
 import { writeAuditLog } from "@/lib/audit";
+import {
+  mapAlterdataFunctionalStatus,
+  mapAlterdataSex,
+} from "@/lib/employees/alterdata-status";
 import { hashCpf, normalizeCpf, encryptField } from "@/lib/encryption";
 import { getEnv } from "@/lib/env";
 import { normalizeRegionName, normalizeText } from "@/lib/validation";
@@ -29,6 +33,7 @@ export type MirrorSyncResult = {
   skipped: number;
   errors: number;
   batchId?: string;
+  headers?: string[];
 };
 
 function mirrorSheetId() {
@@ -87,7 +92,7 @@ export async function fetchMirrorCsv(): Promise<string> {
   throw new Error(lastError);
 }
 
-function parseCsv(text: string): Record<string, string>[] {
+function parseCsv(text: string): { headers: string[]; rows: Record<string, string>[] } {
   const rows: string[][] = [];
   let current: string[] = [];
   let field = "";
@@ -131,25 +136,37 @@ function parseCsv(text: string): Record<string, string>[] {
     rows.push(current);
   }
 
-  if (!rows.length) return [];
+  if (!rows.length) return { headers: [], rows: [] };
   const headers = rows[0].map((h) => h.trim());
-  return rows.slice(1).map((cols) => {
+  const data = rows.slice(1).map((cols) => {
     const obj: Record<string, string> = {};
     headers.forEach((h, idx) => {
       obj[h] = (cols[idx] ?? "").trim();
     });
     return obj;
   });
+  return { headers, rows: data };
 }
 
-function cell(row: Record<string, string>, ...keys: string[]) {
+/** Valor da célula se a coluna existir; distingue ausente vs vazia. */
+function cellInfo(
+  row: Record<string, string>,
+  ...keys: string[]
+): { present: boolean; value: string } {
   for (const key of keys) {
     const found = Object.keys(row).find(
       (k) => normalizeText(k) === normalizeText(key),
     );
-    if (found && row[found]) return row[found].trim();
+    if (found !== undefined) {
+      return { present: true, value: (row[found] ?? "").trim() };
+    }
   }
-  return "";
+  return { present: false, value: "" };
+}
+
+function cell(row: Record<string, string>, ...keys: string[]) {
+  const info = cellInfo(row, ...keys);
+  return info.present ? info.value : "";
 }
 
 function toDate(value: string): string | null {
@@ -161,6 +178,23 @@ function toDate(value: string): string | null {
     return `${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
   }
   return null;
+}
+
+function keepText(
+  incoming: string | null | undefined,
+  existing: string | null | undefined,
+): string | null {
+  const v = (incoming ?? "").trim();
+  if (v) return v;
+  return existing ?? null;
+}
+
+function keepDate(
+  incoming: string | null,
+  existing: string | null | undefined,
+): string | null {
+  if (incoming) return incoming;
+  return existing ?? null;
 }
 
 export async function syncAlterdataMirror(options?: {
@@ -194,7 +228,7 @@ export async function syncAlterdataMirror(options?: {
   }
 
   const csv = await fetchMirrorCsv();
-  const rows = parseCsv(csv);
+  const { headers, rows } = parseCsv(csv);
   if (!rows.length) {
     return {
       ok: false,
@@ -204,6 +238,7 @@ export async function syncAlterdataMirror(options?: {
       updated: 0,
       skipped: 0,
       errors: 0,
+      headers,
     };
   }
 
@@ -312,19 +347,30 @@ export async function syncAlterdataMirror(options?: {
       }
 
       const department = cell(row, "nmdepartamento", "Departamento", "UNIDADE");
-      const city = cell(row, "nmcidade", "cidade", "Cidade");
+      const cityRaw = cell(row, "nmcidade", "cidade", "Cidade");
       const roleName = cell(row, "nmfuncao", "Função", "FUNÇÃO");
       const regionName = cell(row, "Regional") || "NAO_INFORMADA";
-      const demissao = cell(row, "DtDemissao");
+      const demissaoRaw = cell(row, "DtDemissao");
       const statusAso = cell(row, "Status_ASO");
-      const functionalStatus =
-        demissao || normalizeText(statusAso).includes("DEMIT")
-          ? "DEMITIDO"
-          : "ATIVO";
+      const statusFerias = cell(row, "Status_Ferias", "StatusFerias", "Ferias");
+      const afastamentoRaw = cell(
+        row,
+        "Afastamento",
+        "Status_Afastamento",
+        "Situacao",
+        "Situação",
+        "SituacaoFuncional",
+      );
+      const functionalStatus = mapAlterdataFunctionalStatus({
+        dismissalRaw: demissaoRaw,
+        statusAso,
+        afastamentoRaw,
+        statusFerias,
+      });
 
       const regionId = await ensureRegion(regionName);
       const unitId = department
-        ? await ensureUnit(regionId, department, city)
+        ? await ensureUnit(regionId, department, cityRaw)
         : null;
       const jobRoleId = await ensureRole(roleName);
 
@@ -349,6 +395,7 @@ export async function syncAlterdataMirror(options?: {
       if (cpfHash) {
         if (seenCpfHashes.has(cpfHash)) {
           cpfHash = null;
+          cpfEncrypted = null;
         } else {
           const [cpfOwner] = await db
             .select({ id: employees.id, registration: employees.registration })
@@ -359,32 +406,18 @@ export async function syncAlterdataMirror(options?: {
             .limit(1);
           if (cpfOwner && cpfOwner.registration !== registration) {
             cpfHash = null;
+            cpfEncrypted = null;
           } else {
             seenCpfHashes.add(cpfHash);
           }
         }
       }
 
-      const payload = {
-        registration,
-        fullName,
-        normalizedName: normalizeText(fullName),
-        city: city || null,
-        phone: cell(row, "NrTelefone", "NrCelular") || null,
-        sex: cell(row, "TpSexo") || null,
-        admissionDate: toDate(cell(row, "DtAdmissao")),
-        dismissalDate: toDate(demissao),
-        birthDate: toDate(cell(row, "DtNascimento")),
-        functionalStatus,
-        regionId,
-        unitId,
-        jobRoleId,
-        cpfHash,
-        cpfEncrypted,
-        sourceSystem: "ALTERDATA_MIRROR",
-        alterdataId: registration,
-        updatedBy: options?.user?.id ?? null,
-      };
+      const phoneRaw = cell(row, "NrTelefone", "NrCelular");
+      const sexMapped = mapAlterdataSex(cell(row, "TpSexo"));
+      const admissionParsed = toDate(cell(row, "DtAdmissao"));
+      const dismissalParsed = toDate(demissaoRaw);
+      const birthParsed = toDate(cell(row, "DtNascimento"));
 
       const [existing] = await db
         .select()
@@ -398,45 +431,80 @@ export async function syncAlterdataMirror(options?: {
         .limit(1);
 
       if (existing) {
-        const updatePayload = { ...payload };
-        // Evita unique violation de CPF em update
-        if (
-          updatePayload.cpfHash &&
-          existing.cpfHash &&
-          updatePayload.cpfHash !== existing.cpfHash
-        ) {
+        let nextCpfHash = cpfHash ?? existing.cpfHash;
+        let nextCpfEncrypted = cpfEncrypted ?? existing.cpfEncrypted;
+
+        if (cpfHash && existing.cpfHash && cpfHash !== existing.cpfHash) {
           const [other] = await db
             .select({ id: employees.id })
             .from(employees)
             .where(
               and(
-                eq(employees.cpfHash, updatePayload.cpfHash),
+                eq(employees.cpfHash, cpfHash),
                 isNull(employees.deletedAt),
               ),
             )
             .limit(1);
           if (other && other.id !== existing.id) {
-            updatePayload.cpfHash = null;
+            nextCpfHash = existing.cpfHash;
+            nextCpfEncrypted = existing.cpfEncrypted;
           }
         }
+
         await db
           .update(employees)
-          .set(updatePayload)
+          .set({
+            registration,
+            fullName,
+            normalizedName: normalizeText(fullName),
+            city: keepText(cityRaw, existing.city),
+            phone: keepText(phoneRaw, existing.phone),
+            sex: keepText(sexMapped, existing.sex),
+            admissionDate: keepDate(admissionParsed, existing.admissionDate),
+            dismissalDate: keepDate(dismissalParsed, existing.dismissalDate),
+            birthDate: keepDate(birthParsed, existing.birthDate),
+            functionalStatus,
+            regionId: regionId || existing.regionId,
+            unitId: unitId ?? existing.unitId,
+            jobRoleId: jobRoleId ?? existing.jobRoleId,
+            cpfHash: nextCpfHash,
+            cpfEncrypted: nextCpfEncrypted,
+            sourceSystem: "ALTERDATA_MIRROR",
+            alterdataId: registration,
+            updatedBy: options?.user?.id ?? null,
+          })
           .where(eq(employees.id, existing.id));
         updated += 1;
       } else {
+        const payload = {
+          registration,
+          fullName,
+          normalizedName: normalizeText(fullName),
+          city: cityRaw || null,
+          phone: phoneRaw || null,
+          sex: sexMapped,
+          admissionDate: admissionParsed,
+          dismissalDate: dismissalParsed,
+          birthDate: birthParsed,
+          functionalStatus,
+          regionId,
+          unitId,
+          jobRoleId,
+          cpfHash,
+          cpfEncrypted,
+          sourceSystem: "ALTERDATA_MIRROR",
+          alterdataId: registration,
+          updatedBy: options?.user?.id ?? null,
+          createdBy: options?.user?.id ?? null,
+        };
         try {
-          await db.insert(employees).values({
-            ...payload,
-            createdBy: options?.user?.id ?? null,
-          });
+          await db.insert(employees).values(payload);
           imported += 1;
         } catch {
-          // Último recurso: grava sem hash de CPF (matrícula prevalece)
           await db.insert(employees).values({
             ...payload,
             cpfHash: null,
-            createdBy: options?.user?.id ?? null,
+            cpfEncrypted: null,
           });
           imported += 1;
         }
@@ -451,6 +519,7 @@ export async function syncAlterdataMirror(options?: {
     }
   }
 
+  const finishedAt = new Date().toISOString();
   await db
     .update(importBatches)
     .set({
@@ -464,6 +533,13 @@ export async function syncAlterdataMirror(options?: {
         sheetId: mirrorSheetId(),
         mode: "READ_ONLY_CSV_GET",
         officialSheetTouched: false,
+        finishedAt,
+        headers,
+        imported,
+        updated,
+        skipped,
+        errors,
+        origin: "ALTERDATA_MIRROR",
       }),
       updatedBy: options?.user?.id ?? null,
     })
@@ -480,6 +556,7 @@ export async function syncAlterdataMirror(options?: {
       skipped,
       errors,
       source: "alterdata_mirror_readonly",
+      headerCount: headers.length,
     },
   });
 
@@ -491,5 +568,6 @@ export async function syncAlterdataMirror(options?: {
     skipped,
     errors,
     batchId: batch.id,
+    headers,
   };
 }
