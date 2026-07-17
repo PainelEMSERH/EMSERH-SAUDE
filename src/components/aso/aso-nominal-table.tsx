@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
-import { ChevronRight } from "lucide-react";
+import { useMemo, useState, useTransition, type ReactNode } from "react";
+import { ChevronRight, ExternalLink } from "lucide-react";
 import { AsoJustifyDialog } from "@/components/aso/aso-justify-dialog";
 import { AsoReprogramDialog } from "@/components/aso/aso-reprogram-dialog";
 import { StatusBadge } from "@/components/feedback/status-badge";
@@ -25,6 +25,7 @@ import {
   formatRegistrationDisplay,
   formatUnitDisplayName,
   humanizeLabel,
+  initialsFromName,
   toneForFunctionalStatus,
 } from "@/lib/labels";
 import { cn } from "@/lib/utils";
@@ -114,6 +115,62 @@ function pendencyLabel(r: AsoNominalRow, effective: string): string {
   }
   if (r.alterdataStatus === "DIVERGENCIA_DATA") return "Divergência";
   return "—";
+}
+
+function displayValue(value: string | null | undefined): string {
+  const v = (value ?? "").trim();
+  if (!v || v === "—") return "—";
+  return v;
+}
+
+function DetailSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="overflow-hidden rounded-lg border border-slate-200/90 bg-white">
+      <div className="border-b border-slate-100 bg-slate-50/80 px-3.5 py-2">
+        <h4 className="text-[11px] font-semibold tracking-[0.04em] text-slate-600 uppercase">
+          {title}
+        </h4>
+      </div>
+      <dl className="divide-y divide-slate-100">{children}</dl>
+    </section>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: ReactNode;
+  mono?: boolean;
+}) {
+  const empty =
+    value == null ||
+    value === "" ||
+    value === "—" ||
+    (typeof value === "string" && !value.trim());
+
+  return (
+    <div className="flex items-start justify-between gap-4 px-3.5 py-2.5">
+      <dt className="shrink-0 pt-0.5 text-[12px] text-slate-500">{label}</dt>
+      <dd
+        className={cn(
+          "min-w-0 text-right text-[13px] leading-snug",
+          empty ? "font-normal text-slate-400" : "font-medium text-slate-900",
+          mono && !empty ? "tabular-nums tracking-tight" : "",
+        )}
+      >
+        {empty ? "—" : value}
+      </dd>
+    </div>
+  );
 }
 
 export function AsoNominalFilters({
@@ -439,185 +496,210 @@ export function AsoNominalTable({
       </div>
 
       <Sheet open={Boolean(selected)} onOpenChange={(o) => !o && setSelected(null)}>
-        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md">
+        <SheetContent
+          side="right"
+          className="w-full gap-0 overflow-hidden p-0 sm:max-w-lg"
+        >
           {selected ? (
-            <>
-              <SheetHeader>
-                <SheetTitle>{selected.employeeName}</SheetTitle>
-                <SheetDescription>
-                  Mat. {formatRegistrationDisplay(selected.registration)} ·{" "}
-                  {humanizeLabel(selected.asoType)}
-                </SheetDescription>
+            <div className="flex h-full min-h-0 flex-col">
+              <SheetHeader className="shrink-0 space-y-0 border-b border-slate-200 bg-gradient-to-b from-teal-50/70 to-white px-5 pt-5 pb-4 pr-12 text-left">
+                <div className="flex items-start gap-3">
+                  <div
+                    className="flex size-11 shrink-0 items-center justify-center rounded-full bg-teal-800 text-[13px] font-semibold tracking-wide text-white"
+                    aria-hidden
+                  >
+                    {initialsFromName(selected.employeeName)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <SheetTitle className="text-[15px] leading-snug font-semibold text-slate-900 capitalize">
+                      {selected.employeeName.toLocaleLowerCase("pt-BR")}
+                    </SheetTitle>
+                    <SheetDescription className="mt-1 text-[12px] text-slate-500">
+                      Mat. {formatRegistrationDisplay(selected.registration)}
+                      <span className="mx-1.5 text-slate-300">·</span>
+                      {humanizeLabel(selected.asoType)}
+                    </SheetDescription>
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                      <StatusBadge
+                        label={humanizeLabel(selectedEffective)}
+                        tone={toneForExecution(selectedEffective)}
+                      />
+                      <StatusBadge
+                        label={shortAlterdata(selected.alterdataStatus)}
+                        tone={toneForAlterdata(selected.alterdataStatus)}
+                      />
+                      <StatusBadge
+                        label={humanizeLabel(selected.functionalStatusSnapshot)}
+                        tone={toneForFunctionalStatus(
+                          selected.functionalStatusSnapshot,
+                        )}
+                      />
+                    </div>
+                  </div>
+                </div>
               </SheetHeader>
-              <div className="space-y-4 px-4 pb-6">
-                <section>
-                  <h4 className="mb-1.5 text-[10px] font-semibold tracking-wide text-teal-800 uppercase">
-                    Identificação
-                  </h4>
-                  <dl className="grid grid-cols-2 gap-2 text-[12px]">
-                    <div>
-                      <dt className="text-slate-500">Unidade</dt>
-                      <dd className="font-medium">{formatUnitDisplayName(selected.unitNameSnapshot)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-slate-500">Regional</dt>
-                      <dd className="font-medium">{humanizeLabel(selected.regionNameSnapshot)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-slate-500">Situação funcional</dt>
-                      <dd className="font-medium">
-                        {humanizeLabel(selected.functionalStatusSnapshot)}
-                      </dd>
-                    </div>
-                  </dl>
-                </section>
-                <section>
-                  <h4 className="mb-1.5 text-[10px] font-semibold tracking-wide text-teal-800 uppercase">
-                    Planejamento
-                  </h4>
-                  <dl className="grid grid-cols-2 gap-2 text-[12px]">
-                    <div>
-                      <dt className="text-slate-500">Competência</dt>
-                      <dd className="font-medium">
-                        {String(selected.month).padStart(2, "0")}/{selected.year}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-slate-500">Data prevista</dt>
-                      <dd className="font-medium">{formatDateBR(selected.expectedDate)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-slate-500">Origem</dt>
-                      <dd className="font-medium">
-                        {humanizeLabel(selected.predictionOrigin)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-slate-500">Elegibilidade</dt>
-                      <dd className="font-medium">{humanizeLabel(selected.eligibility)}</dd>
-                    </div>
-                  </dl>
-                </section>
-                <section>
-                  <h4 className="mb-1.5 text-[10px] font-semibold tracking-wide text-teal-800 uppercase">
-                    Realização
-                  </h4>
-                  <dl className="grid grid-cols-2 gap-2 text-[12px]">
-                    <div>
-                      <dt className="text-slate-500">Execução</dt>
-                      <dd className="font-medium">{humanizeLabel(selectedEffective)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-slate-500">Data realizada</dt>
-                      <dd className="font-medium">{formatDateBR(selected.performedDate)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-slate-500">Resultado</dt>
-                      <dd className="font-medium">{humanizeLabel(selected.result)}</dd>
-                    </div>
-                  </dl>
-                </section>
-                <section>
-                  <h4 className="mb-1.5 text-[10px] font-semibold tracking-wide text-teal-800 uppercase">
-                    Alterdata
-                  </h4>
-                  <dl className="grid grid-cols-2 gap-2 text-[12px]">
-                    <div>
-                      <dt className="text-slate-500">Conciliação</dt>
-                      <dd className="font-medium">{humanizeLabel(selected.alterdataStatus)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-slate-500">Próximo ASO</dt>
-                      <dd className="font-medium">{formatDateBR(selected.nextAsoDate)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-slate-500">Pendência</dt>
-                      <dd className="font-medium">
-                        {pendencyLabel(selected, selectedEffective)}
-                      </dd>
-                    </div>
-                  </dl>
-                </section>
-                <section className="space-y-2 border-t border-slate-100 pt-3">
-                  <h4 className="text-[10px] font-semibold tracking-wide text-teal-800 uppercase">
-                    Ações
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {canCreate &&
-                    canRegisterRealization({
-                      eligibility: selected.eligibility,
-                      executionStatus: selected.executionStatus,
-                      expectedDate: selected.expectedDate,
-                      asoRecordId: selected.asoRecordId,
-                      performedDate: selected.performedDate,
-                    }) ? (
-                      <button
-                        type="button"
-                        className={cn(
-                          buttonVariants({ variant: "default", size: "sm" }),
-                          "h-8 bg-teal-700 text-[12px] hover:bg-teal-800",
-                        )}
-                        onClick={() => {
-                          setRegisterOpen(true);
-                          setError(null);
-                        }}
-                      >
-                        Registrar realização
-                      </button>
-                    ) : null}
-                    {selected.executionStatus === "REALIZADO" || selected.asoRecordId ? (
-                      <button
-                        type="button"
-                        className={cn(
-                          buttonVariants({ variant: "outline", size: "sm" }),
-                          "h-8 text-[12px]",
-                        )}
-                        onClick={() => {
-                          setRegisterOpen(true);
-                          setError(null);
-                        }}
-                      >
-                        Ver realização
-                      </button>
-                    ) : null}
-                    {canUpdate &&
-                    selected.executionStatus !== "REALIZADO" &&
-                    !selected.asoRecordId ? (
-                      <>
-                        <AsoJustifyDialog
-                          plan={{
-                            id: selected.id,
-                            registration: selected.registration,
-                            employeeName: selected.employeeName,
-                            asoType: selected.asoType,
-                          }}
-                        />
-                        <AsoReprogramDialog
-                          plan={{
-                            id: selected.id,
-                            registration: selected.registration,
-                            employeeName: selected.employeeName,
-                            asoType: selected.asoType,
-                            expectedDate: selected.expectedDate,
-                            year: selected.year,
-                            month: selected.month,
-                          }}
-                        />
-                      </>
-                    ) : null}
-                    <Link
-                      href={`/colaboradores/${selected.employeeId}`}
+
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50/50 px-5 py-4">
+                <DetailSection title="Identificação">
+                  <DetailRow
+                    label="Unidade"
+                    value={formatUnitDisplayName(selected.unitNameSnapshot)}
+                  />
+                  <DetailRow
+                    label="Regional"
+                    value={displayValue(
+                      humanizeLabel(selected.regionNameSnapshot),
+                    )}
+                  />
+                </DetailSection>
+
+                <DetailSection title="Planejamento">
+                  <DetailRow
+                    label="Competência"
+                    value={`${String(selected.month).padStart(2, "0")}/${selected.year}`}
+                    mono
+                  />
+                  <DetailRow
+                    label="Data prevista"
+                    value={formatDateBR(selected.expectedDate)}
+                    mono
+                  />
+                  <DetailRow
+                    label="Origem"
+                    value={displayValue(
+                      humanizeLabel(selected.predictionOrigin),
+                    )}
+                  />
+                  <DetailRow
+                    label="Elegibilidade"
+                    value={displayValue(humanizeLabel(selected.eligibility))}
+                  />
+                </DetailSection>
+
+                <DetailSection title="Realização">
+                  <DetailRow
+                    label="Execução"
+                    value={
+                      <StatusBadge
+                        label={humanizeLabel(selectedEffective)}
+                        tone={toneForExecution(selectedEffective)}
+                      />
+                    }
+                  />
+                  <DetailRow
+                    label="Data realizada"
+                    value={formatDateBR(selected.performedDate)}
+                    mono
+                  />
+                  <DetailRow
+                    label="Resultado"
+                    value={displayValue(humanizeLabel(selected.result))}
+                  />
+                </DetailSection>
+
+                <DetailSection title="Alterdata">
+                  <DetailRow
+                    label="Conciliação"
+                    value={
+                      <StatusBadge
+                        label={shortAlterdata(selected.alterdataStatus)}
+                        tone={toneForAlterdata(selected.alterdataStatus)}
+                      />
+                    }
+                  />
+                  <DetailRow
+                    label="Próximo ASO"
+                    value={formatDateBR(selected.nextAsoDate)}
+                    mono
+                  />
+                  <DetailRow
+                    label="Pendência"
+                    value={pendencyLabel(selected, selectedEffective)}
+                  />
+                </DetailSection>
+              </div>
+
+              <div className="shrink-0 space-y-2 border-t border-slate-200 bg-white px-5 py-3.5">
+                <p className="text-[10px] font-semibold tracking-[0.04em] text-slate-500 uppercase">
+                  Ações
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {canCreate &&
+                  canRegisterRealization({
+                    eligibility: selected.eligibility,
+                    executionStatus: selected.executionStatus,
+                    expectedDate: selected.expectedDate,
+                    asoRecordId: selected.asoRecordId,
+                    performedDate: selected.performedDate,
+                  }) ? (
+                    <button
+                      type="button"
                       className={cn(
-                        buttonVariants({ variant: "ghost", size: "sm" }),
+                        buttonVariants({ variant: "default", size: "sm" }),
+                        "h-8 bg-teal-800 text-[12px] hover:bg-teal-900",
+                      )}
+                      onClick={() => {
+                        setRegisterOpen(true);
+                        setError(null);
+                      }}
+                    >
+                      Registrar realização
+                    </button>
+                  ) : null}
+                  {selected.executionStatus === "REALIZADO" ||
+                  selected.asoRecordId ? (
+                    <button
+                      type="button"
+                      className={cn(
+                        buttonVariants({ variant: "outline", size: "sm" }),
                         "h-8 text-[12px]",
                       )}
+                      onClick={() => {
+                        setRegisterOpen(true);
+                        setError(null);
+                      }}
                     >
-                      Abrir prontuário
-                    </Link>
-                  </div>
-                </section>
+                      Ver realização
+                    </button>
+                  ) : null}
+                  {canUpdate &&
+                  selected.executionStatus !== "REALIZADO" &&
+                  !selected.asoRecordId ? (
+                    <>
+                      <AsoJustifyDialog
+                        plan={{
+                          id: selected.id,
+                          registration: selected.registration,
+                          employeeName: selected.employeeName,
+                          asoType: selected.asoType,
+                        }}
+                      />
+                      <AsoReprogramDialog
+                        plan={{
+                          id: selected.id,
+                          registration: selected.registration,
+                          employeeName: selected.employeeName,
+                          asoType: selected.asoType,
+                          expectedDate: selected.expectedDate,
+                          year: selected.year,
+                          month: selected.month,
+                        }}
+                      />
+                    </>
+                  ) : null}
+                  <Link
+                    href={`/colaboradores/${selected.employeeId}`}
+                    className={cn(
+                      buttonVariants({ variant: "ghost", size: "sm" }),
+                      "h-8 gap-1.5 text-[12px] text-teal-800 hover:bg-teal-50 hover:text-teal-900",
+                    )}
+                  >
+                    Abrir prontuário
+                    <ExternalLink className="size-3.5 opacity-70" />
+                  </Link>
+                </div>
               </div>
-            </>
+            </div>
           ) : null}
         </SheetContent>
       </Sheet>

@@ -1,4 +1,3 @@
-import { AsoCharts } from "@/components/aso/aso-charts";
 import { AsoFilters } from "@/components/aso/aso-filters";
 import { AsoMatrix } from "@/components/aso/aso-matrix";
 import {
@@ -9,7 +8,6 @@ import { AsoPanelHeader } from "@/components/aso/aso-panel-header";
 import { AsoSummaryCards } from "@/components/aso/aso-summary-cards";
 import { Pagination } from "@/components/tables/pagination";
 import { getAsoPanelData, type AsoPanelParams } from "@/db/queries/aso-panel";
-import { MONTH_NAMES } from "@/lib/aso/constants";
 import { requirePermission, userCan } from "@/lib/auth/guard";
 
 export default async function AsosPage({
@@ -104,12 +102,6 @@ export default async function AsosPage({
         current={current}
         unitCount={data.matrixUnitCount}
         unitSelected={Boolean(data.unitId)}
-      />
-
-      <AsoCharts
-        series={data.chartSeries}
-        distribution={data.distribution}
-        competenceLabel={`${MONTH_NAMES[data.month - 1]}/${data.year}`}
       />
 
       <AsoNominalFilters

@@ -32,7 +32,6 @@ import {
   yearMonthFromDate,
 } from "@/lib/aso/planning";
 import { resolveTrustedPeriodicNext } from "@/lib/aso/prediction";
-import { MONTH_LABELS } from "@/lib/aso/constants";
 import {
   isOpenWorkload,
   isPlanOverdue,
@@ -482,37 +481,6 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
     matrixUnitCount = unitRows.length;
   }
 
-  // Série anual para gráfico (escopo atual)
-  const chartSeries = Array.from({ length: 12 }, (_, i) => {
-    const m = i + 1;
-    const subset = yearPlans.filter((p) => p.month === m);
-    const isFuture =
-      year > now.getFullYear() ||
-      (year === now.getFullYear() && m > now.getMonth() + 1);
-    const met = computeCompetenceMetrics(
-      subset.map((s) => ({
-        eligibility: s.eligibility,
-        executionStatus: s.executionStatus,
-        expectedDate: s.expectedDate,
-        asoRecordId: s.asoRecordId,
-      })),
-      targetsYear.find(
-        (t) =>
-          t.month === m &&
-          t.scopeType ===
-            (unitId ? "UNIT" : regionId ? "REGION" : "EMSERH"),
-      )?.targetPercent ?? null,
-    );
-    return {
-      month: m,
-      label: MONTH_LABELS[i],
-      resultado: isFuture ? null : met.aderenciaPercent,
-      meta: met.metaPercent,
-      realizados: met.realizados,
-      elegiveis: met.previstosElegiveis,
-    };
-  });
-
   // Relação nominal filtrada (competência atual)
   let nominal = planRows;
   if (params.q?.trim()) {
@@ -623,14 +591,6 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
     weightedCheck,
     matrixRows,
     matrixUnitCount,
-    chartSeries,
-    distribution: {
-      realizadoConfirmado: metrics.confirmadosAlterdata,
-      realizadoPendente: metrics.pendentesAlterdata,
-      naoRealizado: metrics.naoRealizados,
-      justificado: metrics.justificados,
-      vencido: metrics.vencidos,
-    },
     nominal: {
       rows: pageRows,
       total,
