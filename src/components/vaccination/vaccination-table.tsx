@@ -19,7 +19,11 @@ import {
   humanizeLabel,
   initialsFromName,
 } from "@/lib/labels";
-import { situationTone, VACCINE_DEFS } from "@/lib/vaccination/constants";
+import {
+  situationCompactLabel,
+  situationTone,
+  VACCINE_DEFS,
+} from "@/lib/vaccination/constants";
 import { cn } from "@/lib/utils";
 
 function DetailSection({
@@ -76,13 +80,21 @@ function KitCellBadge({
   kind: "ok" | "partial" | "attention" | "refusal" | "unknown";
 }) {
   if (!situation) {
-    return <span className="text-[10px] text-slate-400">—</span>;
+    return <span className="text-[10px] tabular-nums text-slate-400">—</span>;
   }
-  const short =
-    situation.length > 18 ? `${situation.slice(0, 16)}…` : situation;
   return (
-    <StatusBadge label={short} tone={situationTone(kind)} />
+    <StatusBadge
+      label={situationCompactLabel(situation)}
+      tone={situationTone(kind)}
+    />
   );
+}
+
+function kitCompactLabel(row: VaccinationListRow): string {
+  if (row.kit.kitComplete) return "Completo";
+  if (row.kit.refusalCount > 0) return "Recusa";
+  if (row.kit.attentionCount > 0) return "Atenção";
+  return "Incomp.";
 }
 
 export function VaccinationTable({ rows }: { rows: VaccinationListRow[] }) {
@@ -100,29 +112,33 @@ export function VaccinationTable({ rows }: { rows: VaccinationListRow[] }) {
       </div>
       <div className="rounded-lg border border-slate-200 bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] table-fixed border-collapse text-left text-[11px]">
+          <table className="w-full min-w-[980px] table-fixed border-collapse text-left text-[11px]">
             <colgroup>
-              <col className="w-[16%]" />
-              <col className="w-[10%]" />
+              <col className="w-[18%]" />
+              <col className="w-[8%]" />
+              <col className="w-[12%]" />
               <col className="w-[11%]" />
-              <col className="w-[11%]" />
-              <col className="w-[11%]" />
+              <col className="w-[12%]" />
               <col className="w-[10%]" />
-              <col className="w-[9%]" />
-              <col className="w-[9%]" />
               <col className="w-[10%]" />
-              <col className="w-[3%]" />
+              <col className="w-[10%]" />
+              <col className="w-[2.5%]" />
             </colgroup>
             <thead className="sticky top-0 z-[1] bg-slate-50 text-[10px] font-semibold tracking-wide text-slate-500 uppercase">
               <tr className="border-b border-slate-200">
-                <th className="px-2.5 py-2.5 text-left font-semibold">Colaborador</th>
-                <th className="px-2 py-2.5 text-center font-semibold">Kit</th>
+                <th className="px-3 py-2.5 text-left font-semibold">
+                  Colaborador
+                </th>
+                <th className="px-1.5 py-2.5 text-center font-semibold">Kit</th>
                 {VACCINE_DEFS.map((v) => (
-                  <th key={v.code} className="px-1.5 py-2.5 text-center font-semibold">
+                  <th
+                    key={v.code}
+                    className="px-1 py-2.5 text-center font-semibold"
+                  >
                     {v.shortLabel}
                   </th>
                 ))}
-                <th className="px-1 py-2.5" aria-hidden />
+                <th className="w-8 px-0 py-2.5" aria-hidden />
               </tr>
             </thead>
             <tbody>
@@ -141,7 +157,7 @@ export function VaccinationTable({ rows }: { rows: VaccinationListRow[] }) {
                     }
                   }}
                 >
-                  <td className="px-2.5 py-2 text-left">
+                  <td className="px-3 py-2 text-left">
                     <p className="truncate font-medium text-slate-900 capitalize">
                       {r.fullName.toLocaleLowerCase("pt-BR")}
                     </p>
@@ -149,17 +165,23 @@ export function VaccinationTable({ rows }: { rows: VaccinationListRow[] }) {
                       {formatRegistrationDisplay(r.registration)}
                     </p>
                   </td>
-                  <td className="px-2 py-2 text-center">
+                  <td className="px-1.5 py-2 text-center">
                     <div className="flex flex-col items-center gap-0.5">
-                      <StatusBadge label={r.kit.kitLabel} tone={r.kit.kitTone} />
+                      <StatusBadge
+                        label={kitCompactLabel(r)}
+                        tone={r.kit.kitTone}
+                      />
                       <span className="text-[10px] tabular-nums text-slate-500">
                         {r.kit.okCount}/{r.kit.totalVaccines}
                       </span>
                     </div>
                   </td>
                   {r.kit.cells.map((cell) => (
-                    <td key={cell.code} className="px-1.5 py-2 text-center">
-                      <div className="flex justify-center" title={cell.situation ?? "Sem registro"}>
+                    <td key={cell.code} className="px-1 py-2 text-center">
+                      <div
+                        className="flex justify-center"
+                        title={cell.situation ?? "Sem registro"}
+                      >
                         <KitCellBadge
                           situation={cell.situation}
                           kind={cell.kind}
@@ -167,14 +189,17 @@ export function VaccinationTable({ rows }: { rows: VaccinationListRow[] }) {
                       </div>
                     </td>
                   ))}
-                  <td className="px-1 py-2 text-slate-400">
-                    <ChevronRight className="mx-auto size-4" aria-hidden />
+                  <td className="w-8 pr-2.5 pl-0 py-2 text-right text-slate-400">
+                    <ChevronRight className="ml-auto size-3.5" aria-hidden />
                   </td>
                 </tr>
               ))}
               {!rows.length ? (
                 <tr>
-                  <td colSpan={10} className="px-3 py-10 text-center text-slate-500">
+                  <td
+                    colSpan={9}
+                    className="px-3 py-10 text-center text-slate-500"
+                  >
                     Nenhum colaborador com os filtros atuais.
                   </td>
                 </tr>
@@ -184,8 +209,14 @@ export function VaccinationTable({ rows }: { rows: VaccinationListRow[] }) {
         </div>
       </div>
 
-      <Sheet open={Boolean(selected)} onOpenChange={(o) => !o && setSelected(null)}>
-        <SheetContent side="right" className="w-full gap-0 overflow-hidden p-0 sm:max-w-lg">
+      <Sheet
+        open={Boolean(selected)}
+        onOpenChange={(o) => !o && setSelected(null)}
+      >
+        <SheetContent
+          side="right"
+          className="w-full gap-0 overflow-hidden p-0 sm:max-w-lg"
+        >
           {selected ? (
             <div className="flex h-full min-h-0 flex-col">
               <SheetHeader className="shrink-0 space-y-0 border-b border-slate-200 bg-gradient-to-b from-teal-50/70 to-white px-5 pt-5 pb-4 pr-12 text-left">

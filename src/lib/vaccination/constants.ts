@@ -114,6 +114,51 @@ export function situationTone(
   }
 }
 
+/** Rótulo curto pra tabela — valor completo fica no tooltip / detalhe. */
+const SITUATION_COMPACT: Record<string, string> = {
+  "1  dose": "1 dose",
+  "1 e 2 dose": "1 e 2",
+  "1,2 e 3 dose": "1,2 e 3",
+  "Dose de reforço mais de 10 anos": "Reforço >10a",
+  "Dose de reforço menos de 10 anos": "Reforço <10a",
+  "Termo de Recusa": "Recusa",
+  "Ant Hbs Reagente": "Ant HBs+",
+  "1  dose Maior de 29 anos": "1 dose >29a",
+  "1 dose menor de 29 anos": "1 dose <29a",
+  "2 doses menor de 29 anos": "2 doses <29a",
+  "Maior de 60": ">60a",
+  "1 dose menos de um ano": "<1 ano",
+  "1 dose a mais de um ano": ">1 ano",
+};
+
+export function situationCompactLabel(
+  situation: string | null | undefined,
+): string {
+  const raw = (situation ?? "").trim();
+  if (!raw) return "—";
+  if (SITUATION_COMPACT[raw]) return SITUATION_COMPACT[raw];
+  const key = Object.keys(SITUATION_COMPACT).find(
+    (k) => k.toLowerCase() === raw.toLowerCase(),
+  );
+  if (key) return SITUATION_COMPACT[key];
+  // fallback heurístico pra valores fora do mapa
+  const s = raw.toLowerCase();
+  if (s.includes("termo de recusa")) return "Recusa";
+  if (s.includes("reforço") && s.includes("mais de 10")) return "Reforço >10a";
+  if (s.includes("reforço") && s.includes("menos de 10")) return "Reforço <10a";
+  if (s.includes("ant hbs")) return "Ant HBs+";
+  if (s.includes("1,2 e 3")) return "1,2 e 3";
+  if (s.includes("1 e 2")) return "1 e 2";
+  if (s.includes("menos de um ano")) return "<1 ano";
+  if (s.includes("a mais de um ano") || s.includes("mais de um ano"))
+    return ">1 ano";
+  if (s.includes("maior de 29")) return "1 dose >29a";
+  if (s.includes("menor de 29") && s.includes("2")) return "2 doses <29a";
+  if (s.includes("menor de 29")) return "1 dose <29a";
+  if (s.includes("maior de 60")) return ">60a";
+  return raw.length > 14 ? `${raw.slice(0, 12)}…` : raw;
+}
+
 export type KitCell = {
   code: VaccineCode;
   label: string;

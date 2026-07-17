@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   classifySituation,
   parseVaccinationNotes,
+  situationCompactLabel,
   summarizeVaccinationKit,
 } from "@/lib/vaccination/constants";
 
@@ -48,5 +49,22 @@ describe("summarizeVaccinationKit", () => {
     });
     expect(kit.kitComplete).toBe(false);
     expect(kit.missingCount).toBe(4);
+  });
+});
+
+describe("situationCompactLabel", () => {
+  it("abrevia rótulos longos da planilha", () => {
+    expect(situationCompactLabel("Dose de reforço menos de 10 anos")).toBe(
+      "Reforço <10a",
+    );
+    expect(situationCompactLabel("Dose de reforço mais de 10 anos")).toBe(
+      "Reforço >10a",
+    );
+    expect(situationCompactLabel("1 dose menos de um ano")).toBe("<1 ano");
+    expect(situationCompactLabel("1  dose Maior de 29 anos")).toBe(
+      "1 dose >29a",
+    );
+    expect(situationCompactLabel("Termo de Recusa")).toBe("Recusa");
+    expect(situationCompactLabel("Ant Hbs Reagente")).toBe("Ant HBs+");
   });
 });
