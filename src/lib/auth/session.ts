@@ -206,3 +206,13 @@ export async function revokeCurrentSession() {
   }
   await clearSessionCookie();
 }
+
+/** Revoga todas as sessões ativas de um usuário (ex.: desativação). */
+export async function revokeAllUserSessions(userId: string) {
+  if (!process.env.DATABASE_URL) return;
+  const db = getDb();
+  await db
+    .update(sessions)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
+}

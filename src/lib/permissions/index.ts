@@ -65,8 +65,8 @@ export const ROLE_PERMISSIONS: PermissionMatrix = {
     indicators: ["view", "update", "export", "manage"],
     reports: ["view", "export"],
     imports: ["view", "create", "manage", "sync_global"],
-    admin: ["view", "update"],
-    audit: ["view"],
+    admin: ["view", "create", "update", "manage"],
+    audit: ["view", "export"],
     files: ["view", "create"],
   },
   COORDENACAO_REGIONAL: {
@@ -143,6 +143,7 @@ export const ROLE_PERMISSIONS: PermissionMatrix = {
     attendances: READ,
     indicators: READ,
     reports: READ,
+    admin: READ,
     audit: ["view", "export"],
     files: READ,
   },
