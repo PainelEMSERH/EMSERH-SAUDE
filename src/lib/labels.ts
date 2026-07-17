@@ -71,6 +71,8 @@ const LABELS: Record<string, string> = {
 
   // Origens
   ALTERDATA_NEXT_ASO: "Próximo ASO Alterdata",
+  RECOMPUTED_FROM_LAST_ASO: "Recalculado pelo atestado",
+  RECOMPUTED_FROM_ADMISSION: "Recalculado pela admissão",
   ADMISSION: "Admissão",
   DISMISSAL: "Desligamento",
   RETURN: "Retorno ao trabalho",

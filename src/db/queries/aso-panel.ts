@@ -29,6 +29,7 @@ import {
   eligibilityFromFunctionalStatus,
   yearMonthFromDate,
 } from "@/lib/aso/planning";
+import { resolveTrustedPeriodicNext } from "@/lib/aso/prediction";
 import { MONTH_LABELS } from "@/lib/aso/constants";
 import {
   isDueWithinDays,
@@ -805,34 +806,67 @@ export async function generateAsoPlanningForYear(
     .select({
       employeeId: asoAlterdataSnapshots.employeeId,
       nextAsoDate: asoAlterdataSnapshots.nextAsoDate,
+      lastAsoDate: asoAlterdataSnapshots.lastAsoDate,
+      periodicityMonths: asoAlterdataSnapshots.periodicityMonths,
       syncedAt: asoAlterdataSnapshots.syncedAt,
     })
     .from(asoAlterdataSnapshots)
     .orderBy(desc(asoAlterdataSnapshots.syncedAt));
 
-  const snapMap = new Map<string, string | null>();
+  const snapMap = new Map<
+    string,
+    {
+      nextAsoDate: string | null;
+      lastAsoDate: string | null;
+      periodicityMonths: number | null;
+    }
+  >();
   for (const r of snapRows) {
-    if (!snapMap.has(r.employeeId)) snapMap.set(r.employeeId, r.nextAsoDate);
+    if (!snapMap.has(r.employeeId)) {
+      snapMap.set(r.employeeId, {
+        nextAsoDate: r.nextAsoDate,
+        lastAsoDate: r.lastAsoDate,
+        periodicityMonths: r.periodicityMonths,
+      });
+    }
   }
 
-  // Fallback: next from aso_records
+  // Fallback: next/last from aso_records
   const nextFromRecords = await db
     .select({
       employeeId: asoRecords.employeeId,
       nextAsoDate: asoRecords.nextAsoDate,
-      asoType: asoRecords.asoType,
+      lastAsoDate: asoRecords.lastAsoDate,
+      performedDate: asoRecords.performedDate,
+      periodicityMonths: asoRecords.periodicityMonths,
     })
     .from(asoRecords)
-    .where(and(isNull(asoRecords.deletedAt), sql`${asoRecords.nextAsoDate} is not null`));
+    .where(and(isNull(asoRecords.deletedAt)));
 
   for (const rec of nextFromRecords) {
-    if (rec.nextAsoDate && !snapMap.has(rec.employeeId)) {
-      snapMap.set(rec.employeeId, rec.nextAsoDate);
+    const existing = snapMap.get(rec.employeeId);
+    if (!existing) {
+      snapMap.set(rec.employeeId, {
+        nextAsoDate: rec.nextAsoDate,
+        lastAsoDate: rec.lastAsoDate ?? rec.performedDate,
+        periodicityMonths: rec.periodicityMonths,
+      });
+      continue;
+    }
+    if (!existing.nextAsoDate && rec.nextAsoDate) {
+      existing.nextAsoDate = rec.nextAsoDate;
+    }
+    if (!existing.lastAsoDate && (rec.lastAsoDate || rec.performedDate)) {
+      existing.lastAsoDate = rec.lastAsoDate ?? rec.performedDate;
+    }
+    if (!existing.periodicityMonths && rec.periodicityMonths) {
+      existing.periodicityMonths = rec.periodicityMonths;
     }
   }
 
   let upserted = 0;
   let skipped = 0;
+  let cleaned = 0;
 
   async function upsertPlan(input: {
     employeeId: string;
@@ -848,6 +882,9 @@ export async function generateAsoPlanningForYear(
     unitName: string | null;
     functionalStatus: string | null;
     origin: string;
+    /** Quando true, marca admissional como realizado por evidência Alterdata. */
+    markRealizedFromAlterdata?: boolean;
+    alterdataPerformedDate?: string | null;
   }) {
     if (closedMonths.has(input.month) && input.asoType === "PERIODICO") {
       skipped += 1;
@@ -873,6 +910,50 @@ export async function generateAsoPlanningForYear(
       return;
     }
 
+    const preserveManual =
+      existing?.executionStatus === "REALIZADO" ||
+      existing?.executionStatus === "JUSTIFICADO" ||
+      existing?.executionStatus === "DISPENSADO" ||
+      existing?.executionStatus === "REPROGRAMADO" ||
+      existing?.executionStatus === "AGENDADO";
+
+    let executionStatus: string = preserveManual
+      ? existing!.executionStatus
+      : elig.eligibility === "JUSTIFICADO"
+        ? "JUSTIFICADO"
+        : "PREVISTO";
+    let alterdataStatus = existing?.alterdataStatus ?? "NAO_APLICAVEL";
+    let asoRecordId = existing?.asoRecordId ?? null;
+
+    if (
+      input.markRealizedFromAlterdata &&
+      !preserveManual &&
+      input.alterdataPerformedDate
+    ) {
+      executionStatus = "REALIZADO";
+      alterdataStatus = "CONFIRMADO";
+      // Garante registro interno mínimo vinculado ao plano (evita duplicidade operacional)
+      if (!asoRecordId) {
+        const [created] = await db
+          .insert(asoRecords)
+          .values({
+            employeeId: input.employeeId,
+            asoType: input.asoType,
+            expectedDate: input.expectedDate,
+            performedDate: input.alterdataPerformedDate,
+            lastAsoDate: input.alterdataPerformedDate,
+            origin: "SYNC",
+            regionId: input.regionId,
+            unitId: input.unitId,
+            planId: existing?.id,
+            createdBy: user.id,
+            updatedBy: user.id,
+          })
+          .returning({ id: asoRecords.id });
+        asoRecordId = created.id;
+      }
+    }
+
     const payload = {
       registration: input.registration,
       employeeName: input.employeeName,
@@ -888,16 +969,9 @@ export async function generateAsoPlanningForYear(
         : elig.eligibility,
       justificationReason:
         existing?.justificationReason || elig.reason || null,
-      executionStatus:
-        existing?.executionStatus === "REALIZADO" ||
-        existing?.executionStatus === "JUSTIFICADO" ||
-        existing?.executionStatus === "DISPENSADO" ||
-        existing?.executionStatus === "REPROGRAMADO" ||
-        existing?.executionStatus === "AGENDADO"
-          ? existing.executionStatus
-          : elig.eligibility === "JUSTIFICADO"
-            ? "JUSTIFICADO"
-            : "PREVISTO",
+      executionStatus,
+      alterdataStatus,
+      asoRecordId,
       updatedBy: user.id,
     };
 
@@ -906,22 +980,44 @@ export async function generateAsoPlanningForYear(
         .update(asoMonthlyPlans)
         .set(payload)
         .where(eq(asoMonthlyPlans.id, existing.id));
+      if (asoRecordId && !existing.asoRecordId) {
+        await db
+          .update(asoRecords)
+          .set({ planId: existing.id, updatedBy: user.id })
+          .where(eq(asoRecords.id, asoRecordId));
+      }
     } else {
-      await db.insert(asoMonthlyPlans).values({
-        employeeId: input.employeeId,
-        asoType: input.asoType,
-        year: input.year,
-        month: input.month,
-        ...payload,
-        alterdataStatus: "NAO_APLICAVEL",
-        createdBy: user.id,
-      });
+      const [created] = await db
+        .insert(asoMonthlyPlans)
+        .values({
+          employeeId: input.employeeId,
+          asoType: input.asoType,
+          year: input.year,
+          month: input.month,
+          ...payload,
+          createdBy: user.id,
+        })
+        .returning({ id: asoMonthlyPlans.id });
+      if (asoRecordId) {
+        await db
+          .update(asoRecords)
+          .set({ planId: created.id, updatedBy: user.id })
+          .where(eq(asoRecords.id, asoRecordId));
+      }
     }
     upserted += 1;
   }
 
   for (const emp of empRows) {
-    const next = snapMap.get(emp.id) ?? null;
+    const snap = snapMap.get(emp.id);
+    const trusted = resolveTrustedPeriodicNext({
+      admissionDate: emp.admissionDate,
+      lastAsoDate: snap?.lastAsoDate ?? null,
+      alterdataNextDate: snap?.nextAsoDate ?? null,
+      periodicityMonths: snap?.periodicityMonths ?? 12,
+    });
+
+    const next = trusted.nextPeriodicDate;
     const ym = yearMonthFromDate(next);
     if (ym && ym.year === year) {
       await upsertPlan({
@@ -937,8 +1033,53 @@ export async function generateAsoPlanningForYear(
         regionName: emp.regionName,
         unitName: emp.unitName,
         functionalStatus: emp.functionalStatus,
-        origin: "ALTERDATA_NEXT_ASO",
+        origin:
+          trusted.trust === "ALTERDATA"
+            ? "ALTERDATA_NEXT_ASO"
+            : trusted.trust === "RECOMPUTED_FROM_LAST"
+              ? "RECOMPUTED_FROM_LAST_ASO"
+              : "RECOMPUTED_FROM_ADMISSION",
       });
+    }
+
+    // Remove periódicos órfãos do ano gerados por Proximo_aso inválido
+    // (mantém realizados/justificados/agendados/reprogramados).
+    const obsolete = await db
+      .select({ id: asoMonthlyPlans.id, month: asoMonthlyPlans.month })
+      .from(asoMonthlyPlans)
+      .where(
+        and(
+          eq(asoMonthlyPlans.employeeId, emp.id),
+          eq(asoMonthlyPlans.asoType, "PERIODICO"),
+          eq(asoMonthlyPlans.year, year),
+          isNull(asoMonthlyPlans.deletedAt),
+          eq(asoMonthlyPlans.frozen, false),
+          inArray(asoMonthlyPlans.executionStatus, [
+            "PREVISTO",
+            "VENCIDO",
+            "NAO_REALIZADO",
+          ]),
+          sql`${asoMonthlyPlans.asoRecordId} is null`,
+        ),
+      );
+    for (const row of obsolete) {
+      const keepMonth = ym && ym.year === year ? ym.month : null;
+      if (keepMonth != null && row.month === keepMonth) continue;
+      // Só limpa origens derivadas do espelho / recálculo automático
+      await db
+        .update(asoMonthlyPlans)
+        .set({ deletedAt: new Date(), updatedBy: user.id })
+        .where(
+          and(
+            eq(asoMonthlyPlans.id, row.id),
+            inArray(asoMonthlyPlans.predictionOrigin, [
+              "ALTERDATA_NEXT_ASO",
+              "RECOMPUTED_FROM_LAST_ASO",
+              "RECOMPUTED_FROM_ADMISSION",
+            ]),
+          ),
+        );
+      cleaned += 1;
     }
 
     const adm = yearMonthFromDate(emp.admissionDate);
@@ -957,6 +1098,8 @@ export async function generateAsoPlanningForYear(
         unitName: emp.unitName,
         functionalStatus: emp.functionalStatus,
         origin: "ADMISSION",
+        markRealizedFromAlterdata: trusted.admissionAsoEvidence,
+        alterdataPerformedDate: snap?.lastAsoDate ?? null,
       });
     }
 
@@ -1018,7 +1161,7 @@ export async function generateAsoPlanningForYear(
     });
   }
 
-  return { upserted, skipped, year };
+  return { upserted, skipped, cleaned, year };
 }
 
 /** Atualiza alterdataStatus dos planos abertos com realização. */

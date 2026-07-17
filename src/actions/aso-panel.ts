@@ -50,7 +50,7 @@ export async function generatePlanningAction(
     revalidatePath("/asos");
     return {
       ok: true,
-      message: `Planejamento ${year}: ${result.upserted} itens · ${result.skipped} ignorados (fechados/congelados). Migração de registros existentes: ${migration.linked} vinculados.`,
+      message: `Planejamento ${year}: ${result.upserted} itens · ${result.skipped} ignorados (fechados/congelados) · ${result.cleaned ?? 0} previsões inconsistentes removidas. Migração de registros existentes: ${migration.linked} vinculados.`,
     };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Falha ao gerar planejamento." };
