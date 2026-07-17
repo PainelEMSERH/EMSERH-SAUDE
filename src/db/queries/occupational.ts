@@ -699,25 +699,85 @@ export async function listVaccinations(
   };
 }
 
+export type PregnancyListParams = {
+  q?: string;
+  status?: string;
+  /** 1 = só insalubre; 0 = sem insalubridade */
+  hazardous?: string;
+  /** 1 = insalubre sem realocação (alerta operacional) */
+  alert?: string;
+  page?: string;
+};
+
+export type PregnancyListRow = {
+  id: string;
+  employeeId: string;
+  registration: string;
+  fullName: string;
+  unitName: string | null;
+  regionName: string | null;
+  status: string;
+  hazardousActivity: boolean | null;
+  relocationNeeded: boolean | null;
+  relocationDate: string | null;
+  communicationDate: string | null;
+  proofType: string | null;
+  dueDate: string | null;
+  originSector: string | null;
+  destinationSector: string | null;
+  leaveStartDate: string | null;
+  maternityLeave: boolean | null;
+  returnDate: string | null;
+  notes: string | null;
+};
+
+export type PregnancyMetrics = {
+  total: number;
+  emAcompanhamento: number;
+  licenca: number;
+  encerrados: number;
+  insalubre: number;
+  semRealocacao: number;
+};
+
 export async function listPregnancies(
   user: SessionUser,
-  params: { q?: string; status?: string; page?: string },
+  params: PregnancyListParams,
 ) {
   const page = parsePage(params.page);
   const pageSize = parsePageSize(undefined);
   const db = getDb();
   const scope = empJoinScope(user);
-  const where = and(
+
+  const baseWhere = and(
     isNull(pregnancyCases.deletedAt),
     isNull(employees.deletedAt),
     scope,
-    params.status && params.status !== "ALL"
-      ? eq(pregnancyCases.status, params.status)
-      : undefined,
     params.q
       ? or(
           ilike(employees.fullName, `%${params.q}%`),
           ilike(employees.registration, `%${params.q}%`),
+          ilike(pregnancyCases.originSector, `%${params.q}%`),
+          ilike(pregnancyCases.destinationSector, `%${params.q}%`),
+        )
+      : undefined,
+  );
+
+  const listWhere = and(
+    baseWhere,
+    params.status && params.status !== "ALL"
+      ? eq(pregnancyCases.status, params.status)
+      : undefined,
+    params.hazardous === "1"
+      ? eq(pregnancyCases.hazardousActivity, true)
+      : params.hazardous === "0"
+        ? eq(pregnancyCases.hazardousActivity, false)
+        : undefined,
+    params.alert === "1"
+      ? and(
+          eq(pregnancyCases.hazardousActivity, true),
+          isNull(pregnancyCases.relocationDate),
+          eq(pregnancyCases.status, "EM_ACOMPANHAMENTO"),
         )
       : undefined,
   );
@@ -726,30 +786,80 @@ export async function listPregnancies(
     .select({ value: count() })
     .from(pregnancyCases)
     .innerJoin(employees, eq(pregnancyCases.employeeId, employees.id))
-    .where(where);
+    .where(listWhere);
 
-  const rows = await db
+  const [metricsRow] = await db
     .select({
-      id: pregnancyCases.id,
-      registration: employees.registration,
-      fullName: employees.fullName,
-      status: pregnancyCases.status,
-      hazardousActivity: pregnancyCases.hazardousActivity,
-      relocationDate: pregnancyCases.relocationDate,
-      communicationDate: pregnancyCases.communicationDate,
-      originSector: pregnancyCases.originSector,
-      destinationSector: pregnancyCases.destinationSector,
+      total: count(),
+      emAcompanhamento: sql<number>`count(*) filter (where ${pregnancyCases.status} = 'EM_ACOMPANHAMENTO')::int`,
+      licenca: sql<number>`count(*) filter (where ${pregnancyCases.status} = 'LICENCA')::int`,
+      encerrados: sql<number>`count(*) filter (where ${pregnancyCases.status} = 'APTO')::int`,
+      insalubre: sql<number>`count(*) filter (where ${pregnancyCases.hazardousActivity} = true)::int`,
+      semRealocacao: sql<number>`count(*) filter (where ${pregnancyCases.hazardousActivity} = true and ${pregnancyCases.relocationDate} is null and ${pregnancyCases.status} = 'EM_ACOMPANHAMENTO')::int`,
     })
     .from(pregnancyCases)
     .innerJoin(employees, eq(pregnancyCases.employeeId, employees.id))
-    .where(where)
+    .where(baseWhere);
+
+  const rawRows = await db
+    .select({
+      id: pregnancyCases.id,
+      employeeId: pregnancyCases.employeeId,
+      registration: employees.registration,
+      fullName: employees.fullName,
+      unitName: units.name,
+      regionName: regions.name,
+      status: pregnancyCases.status,
+      hazardousActivity: pregnancyCases.hazardousActivity,
+      relocationNeeded: pregnancyCases.relocationNeeded,
+      relocationDate: pregnancyCases.relocationDate,
+      communicationDate: pregnancyCases.communicationDate,
+      proofType: pregnancyCases.proofType,
+      dueDate: pregnancyCases.dueDate,
+      originSector: pregnancyCases.originSector,
+      destinationSector: pregnancyCases.destinationSector,
+      leaveStartDate: pregnancyCases.leaveStartDate,
+      maternityLeave: pregnancyCases.maternityLeave,
+      returnDate: pregnancyCases.returnDate,
+      notes: pregnancyCases.notes,
+    })
+    .from(pregnancyCases)
+    .innerJoin(employees, eq(pregnancyCases.employeeId, employees.id))
+    .leftJoin(units, eq(employees.unitId, units.id))
+    .leftJoin(regions, eq(employees.regionId, regions.id))
+    .where(listWhere)
     .orderBy(desc(pregnancyCases.createdAt))
     .limit(pageSize)
     .offset((page - 1) * pageSize);
 
+  const rows: PregnancyListRow[] = rawRows.map((r) => ({
+    ...r,
+    relocationDate: r.relocationDate
+      ? String(r.relocationDate).slice(0, 10)
+      : null,
+    communicationDate: r.communicationDate
+      ? String(r.communicationDate).slice(0, 10)
+      : null,
+    dueDate: r.dueDate ? String(r.dueDate).slice(0, 10) : null,
+    leaveStartDate: r.leaveStartDate
+      ? String(r.leaveStartDate).slice(0, 10)
+      : null,
+    returnDate: r.returnDate ? String(r.returnDate).slice(0, 10) : null,
+  }));
+
   const total = totalRow?.value ?? 0;
+  const metrics: PregnancyMetrics = {
+    total: metricsRow?.total ?? 0,
+    emAcompanhamento: metricsRow?.emAcompanhamento ?? 0,
+    licenca: metricsRow?.licenca ?? 0,
+    encerrados: metricsRow?.encerrados ?? 0,
+    insalubre: metricsRow?.insalubre ?? 0,
+    semRealocacao: metricsRow?.semRealocacao ?? 0,
+  };
+
   return {
     rows,
+    metrics,
     total,
     page,
     pageSize,

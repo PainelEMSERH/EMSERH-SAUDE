@@ -442,6 +442,7 @@ export async function createPregnancyAction(
       registration: z.string().min(1),
       communicationDate: z.string().optional(),
       proofType: z.string().optional(),
+      dueDate: z.string().optional(),
       hazardousActivity: z.enum(["true", "false"]).optional(),
       originSector: z.string().optional(),
       destinationSector: z.string().optional(),
@@ -453,6 +454,7 @@ export async function createPregnancyAction(
       registration: formData.get("registration"),
       communicationDate: formData.get("communicationDate") || undefined,
       proofType: formData.get("proofType") || undefined,
+      dueDate: formData.get("dueDate") || undefined,
       hazardousActivity: formData.get("hazardousActivity") || undefined,
       originSector: formData.get("originSector") || undefined,
       destinationSector: formData.get("destinationSector") || undefined,
@@ -470,6 +472,7 @@ export async function createPregnancyAction(
         employeeId,
         communicationDate: data.communicationDate || null,
         proofType: data.proofType || null,
+        dueDate: data.dueDate || null,
         hazardousActivity: hazardous,
         relocationNeeded: hazardous,
         originSector: data.originSector || null,
@@ -494,6 +497,81 @@ export async function createPregnancyAction(
   } catch (e) {
     return {
       error: e instanceof Error ? e.message : "Falha ao salvar gestante.",
+    };
+  }
+}
+
+export async function updatePregnancyAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const user = await requirePermission("pregnancy", "update");
+    const schema = z.object({
+      pregnancyId: z.string().uuid(),
+      status: z.enum(["EM_ACOMPANHAMENTO", "LICENCA", "APTO"]),
+      destinationSector: z.string().optional(),
+      relocationDate: z.string().optional(),
+      leaveStartDate: z.string().optional(),
+      returnDate: z.string().optional(),
+      notes: z.string().optional(),
+    });
+    const data = schema.parse({
+      pregnancyId: formData.get("pregnancyId"),
+      status: formData.get("status"),
+      destinationSector: formData.get("destinationSector") || undefined,
+      relocationDate: formData.get("relocationDate") || undefined,
+      leaveStartDate: formData.get("leaveStartDate") || undefined,
+      returnDate: formData.get("returnDate") || undefined,
+      notes: formData.get("notes") || undefined,
+    });
+
+    const db = getDb();
+    const [existing] = await db
+      .select({
+        id: pregnancyCases.id,
+        employeeId: pregnancyCases.employeeId,
+        hazardousActivity: pregnancyCases.hazardousActivity,
+      })
+      .from(pregnancyCases)
+      .where(eq(pregnancyCases.id, data.pregnancyId))
+      .limit(1);
+
+    if (!existing) return { error: "Caso não encontrado." };
+    await requireEmployeeInUserScope(user, { employeeId: existing.employeeId });
+
+    await db
+      .update(pregnancyCases)
+      .set({
+        status: data.status,
+        destinationSector: data.destinationSector || null,
+        relocationDate: data.relocationDate || null,
+        relocationNeeded: Boolean(
+          existing.hazardousActivity || data.relocationDate,
+        ),
+        leaveStartDate: data.leaveStartDate || null,
+        maternityLeave: data.status === "LICENCA",
+        returnDate: data.returnDate || null,
+        notes: data.notes || null,
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      })
+      .where(eq(pregnancyCases.id, data.pregnancyId));
+
+    await writeAuditLog({
+      user,
+      action: "UPDATE",
+      entityType: "pregnancy_case",
+      entityId: data.pregnancyId,
+      metadata: { status: data.status },
+    });
+    revalidatePath("/gestantes");
+    revalidatePath("/dashboard");
+    revalidatePath(`/colaboradores/${existing.employeeId}`);
+    return { ok: true };
+  } catch (e) {
+    return {
+      error: e instanceof Error ? e.message : "Falha ao atualizar gestante.",
     };
   }
 }

@@ -147,7 +147,7 @@ export function AppSidebar({ user }: { user: SessionUser }) {
   return (
     <aside
       className={cn(
-        "hidden h-dvh shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 lg:flex",
+        "hidden h-[calc(100dvh/0.9)] shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 lg:flex",
         collapsed ? "w-[64px]" : "w-[236px]",
       )}
     >
