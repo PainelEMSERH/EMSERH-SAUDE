@@ -1,7 +1,11 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAuthConfigured, isDatabaseConfigured } from "@/lib/env";
-import { AppSidebar, MobileNav } from "@/components/layout/app-sidebar";
+import {
+  AppSidebar,
+  AppTopbar,
+  MobileNav,
+} from "@/components/layout/app-sidebar";
 import { SetupBanner } from "@/components/feedback/setup-banner";
 
 export default async function ProtectedLayout({
@@ -26,10 +30,11 @@ export default async function ProtectedLayout({
   }
 
   return (
-    <div className="flex h-svh overflow-hidden bg-slate-50">
+    <div className="flex h-svh overflow-hidden bg-slate-50 dark:bg-slate-950">
       <AppSidebar user={user} />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <MobileNav user={user} />
+        <AppTopbar user={user} />
         <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-[13px] leading-snug [zoom:0.9] md:px-5 md:py-5">
           {children}
         </main>

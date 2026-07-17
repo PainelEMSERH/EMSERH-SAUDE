@@ -14,6 +14,7 @@ import {
   appointments,
   asoAlterdataSnapshots,
   asoRecords,
+  biologicalAccidentFollowups,
   biologicalAccidents,
   employeeVaccinations,
   employees,
@@ -35,6 +36,11 @@ import {
   parseVaccinationNotes,
   summarizeVaccinationKit,
 } from "@/lib/vaccination/constants";
+import {
+  resolveFollowupDisplay,
+  summarizeFollowups,
+  type BioFollowupView,
+} from "@/lib/biological/constants";
 import {
   employeeScopeCondition,
   parsePage,
@@ -751,14 +757,55 @@ export async function listPregnancies(
   };
 }
 
+export type BiologicalListParams = {
+  q?: string;
+  status?: string;
+  /** 1 = só com PEP; 0 = sem PEP */
+  pep?: string;
+  /** pending | overdue | done */
+  followup?: string;
+  page?: string;
+};
+
+export type BiologicalListRow = {
+  id: string;
+  employeeId: string;
+  registration: string;
+  fullName: string;
+  unitName: string | null;
+  regionName: string | null;
+  occurredAt: Date | string;
+  exposureType: string | null;
+  bodyPart: string | null;
+  description: string | null;
+  pepStarted: boolean | null;
+  pepStartDate: string | null;
+  catNumber: string | null;
+  status: string;
+  conclusion: string | null;
+  followups: BioFollowupView[];
+  followupSummary: ReturnType<typeof summarizeFollowups>;
+};
+
+export type BiologicalMetrics = {
+  total: number;
+  emAcompanhamento: number;
+  concluidos: number;
+  comPep: number;
+  followupsPendentes: number;
+  followupsAtrasados: number;
+};
+
 export async function listBiologicalAccidents(
   user: SessionUser,
-  params: { q?: string; status?: string; page?: string },
+  params: BiologicalListParams,
 ) {
   const page = parsePage(params.page);
   const pageSize = parsePageSize(undefined);
   const db = getDb();
   const scope = empJoinScope(user);
+  const today = new Date().toISOString().slice(0, 10);
+
   const where = and(
     isNull(biologicalAccidents.deletedAt),
     isNull(employees.deletedAt),
@@ -766,45 +813,141 @@ export async function listBiologicalAccidents(
     params.status && params.status !== "ALL"
       ? eq(biologicalAccidents.status, params.status)
       : undefined,
+    params.pep === "1"
+      ? eq(biologicalAccidents.pepStarted, true)
+      : params.pep === "0"
+        ? eq(biologicalAccidents.pepStarted, false)
+        : undefined,
     params.q
       ? or(
           ilike(employees.fullName, `%${params.q}%`),
           ilike(employees.registration, `%${params.q}%`),
+          ilike(biologicalAccidents.exposureType, `%${params.q}%`),
+          ilike(biologicalAccidents.catNumber, `%${params.q}%`),
         )
       : undefined,
   );
 
-  const [totalRow] = await db
-    .select({ value: count() })
-    .from(biologicalAccidents)
-    .innerJoin(employees, eq(biologicalAccidents.employeeId, employees.id))
-    .where(where);
-
-  const rows = await db
+  const rawRows = await db
     .select({
       id: biologicalAccidents.id,
+      employeeId: biologicalAccidents.employeeId,
       registration: employees.registration,
       fullName: employees.fullName,
+      unitName: units.name,
+      regionName: regions.name,
       occurredAt: biologicalAccidents.occurredAt,
       exposureType: biologicalAccidents.exposureType,
-      status: biologicalAccidents.status,
+      bodyPart: biologicalAccidents.bodyPart,
+      description: biologicalAccidents.description,
       pepStarted: biologicalAccidents.pepStarted,
+      pepStartDate: biologicalAccidents.pepStartDate,
       catNumber: biologicalAccidents.catNumber,
-      pendingFollowups: sql<number>`(
-        select count(*)::int from occupational.biological_accident_followups f
-        where f.accident_id = ${biologicalAccidents.id} and f.status = 'PENDENTE'
-      )`,
+      status: biologicalAccidents.status,
+      conclusion: biologicalAccidents.conclusion,
     })
     .from(biologicalAccidents)
     .innerJoin(employees, eq(biologicalAccidents.employeeId, employees.id))
+    .leftJoin(units, eq(employees.unitId, units.id))
+    .leftJoin(regions, eq(employees.regionId, regions.id))
     .where(where)
-    .orderBy(desc(biologicalAccidents.occurredAt))
-    .limit(pageSize)
-    .offset((page - 1) * pageSize);
+    .orderBy(desc(biologicalAccidents.occurredAt));
 
-  const total = totalRow?.value ?? 0;
+  const accidentIds = rawRows.map((r) => r.id);
+  const followupRows =
+    accidentIds.length > 0
+      ? await db
+          .select({
+            id: biologicalAccidentFollowups.id,
+            accidentId: biologicalAccidentFollowups.accidentId,
+            dayOffset: biologicalAccidentFollowups.dayOffset,
+            dueDate: biologicalAccidentFollowups.dueDate,
+            performedAt: biologicalAccidentFollowups.performedAt,
+            status: biologicalAccidentFollowups.status,
+            notes: biologicalAccidentFollowups.notes,
+          })
+          .from(biologicalAccidentFollowups)
+          .where(inArray(biologicalAccidentFollowups.accidentId, accidentIds))
+          .orderBy(biologicalAccidentFollowups.dayOffset)
+      : [];
+
+  const followupsByAccident = new Map<string, BioFollowupView[]>();
+  for (const f of followupRows) {
+    const due = String(f.dueDate).slice(0, 10);
+    const resolved = resolveFollowupDisplay(f.status, due, today);
+    const view: BioFollowupView = {
+      id: f.id,
+      dayOffset: f.dayOffset,
+      dueDate: due,
+      performedAt: f.performedAt ? String(f.performedAt).slice(0, 10) : null,
+      status: f.status,
+      notes: f.notes,
+      overdue: resolved.overdue,
+      displayStatus: resolved.displayStatus,
+    };
+    const list = followupsByAccident.get(f.accidentId) ?? [];
+    list.push(view);
+    followupsByAccident.set(f.accidentId, list);
+  }
+
+  let rows: BiologicalListRow[] = rawRows.map((r) => {
+    const followups = followupsByAccident.get(r.id) ?? [];
+    return {
+      id: r.id,
+      employeeId: r.employeeId,
+      registration: r.registration,
+      fullName: r.fullName,
+      unitName: r.unitName,
+      regionName: r.regionName,
+      occurredAt: r.occurredAt,
+      exposureType: r.exposureType,
+      bodyPart: r.bodyPart,
+      description: r.description,
+      pepStarted: r.pepStarted,
+      pepStartDate: r.pepStartDate
+        ? String(r.pepStartDate).slice(0, 10)
+        : null,
+      catNumber: r.catNumber,
+      status: r.status,
+      conclusion: r.conclusion,
+      followups,
+      followupSummary: summarizeFollowups(followups),
+    };
+  });
+
+  const followupFilter = (params.followup ?? "ALL").trim();
+  if (followupFilter === "overdue") {
+    rows = rows.filter((r) => r.followupSummary.overdueCount > 0);
+  } else if (followupFilter === "pending") {
+    rows = rows.filter((r) => r.followupSummary.pendingCount > 0);
+  } else if (followupFilter === "done") {
+    rows = rows.filter(
+      (r) =>
+        r.followups.length > 0 && r.followupSummary.pendingCount === 0,
+    );
+  }
+
+  // Métricas no universo filtrado por q/status/pep (antes do filtro de followup)
+  const metricsBase = rawRows.map((r) => {
+    const followups = followupsByAccident.get(r.id) ?? [];
+    return summarizeFollowups(followups);
+  });
+  const metrics: BiologicalMetrics = {
+    total: rawRows.length,
+    emAcompanhamento: rawRows.filter((r) => r.status === "EM_ACOMPANHAMENTO")
+      .length,
+    concluidos: rawRows.filter((r) => r.status === "CONCLUIDO").length,
+    comPep: rawRows.filter((r) => r.pepStarted).length,
+    followupsPendentes: metricsBase.reduce((a, s) => a + s.pendingCount, 0),
+    followupsAtrasados: metricsBase.reduce((a, s) => a + s.overdueCount, 0),
+  };
+
+  const total = rows.length;
+  const pageRows = rows.slice((page - 1) * pageSize, page * pageSize);
+
   return {
-    rows,
+    rows: pageRows,
+    metrics,
     total,
     page,
     pageSize,
@@ -827,3 +970,4 @@ export async function findEmployeeIdByRegistration(registration: string) {
     .limit(1);
   return row?.id ?? null;
 }
+

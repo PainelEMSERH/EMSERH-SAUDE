@@ -575,3 +575,133 @@ export async function createBiologicalAccidentAction(
     };
   }
 }
+
+export async function completeBiologicalFollowupAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const user = await requirePermission("biological", "update");
+    const schema = z.object({
+      followupId: z.string().uuid(),
+      performedAt: z.string().optional(),
+      notes: z.string().optional(),
+    });
+    const data = schema.parse({
+      followupId: formData.get("followupId"),
+      performedAt: formData.get("performedAt") || undefined,
+      notes: formData.get("notes") || undefined,
+    });
+
+    const db = getDb();
+    const [existing] = await db
+      .select({
+        id: biologicalAccidentFollowups.id,
+        accidentId: biologicalAccidentFollowups.accidentId,
+        status: biologicalAccidentFollowups.status,
+      })
+      .from(biologicalAccidentFollowups)
+      .where(eq(biologicalAccidentFollowups.id, data.followupId))
+      .limit(1);
+
+    if (!existing) return { error: "Follow-up não encontrado." };
+
+    const [accident] = await db
+      .select({
+        id: biologicalAccidents.id,
+        employeeId: biologicalAccidents.employeeId,
+      })
+      .from(biologicalAccidents)
+      .where(eq(biologicalAccidents.id, existing.accidentId))
+      .limit(1);
+
+    if (!accident) return { error: "Acidente não encontrado." };
+    await requireEmployeeInUserScope(user, { employeeId: accident.employeeId });
+
+    const performedAt =
+      data.performedAt || new Date().toISOString().slice(0, 10);
+
+    await db
+      .update(biologicalAccidentFollowups)
+      .set({
+        status: "REALIZADO",
+        performedAt,
+        notes: data.notes || null,
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      })
+      .where(eq(biologicalAccidentFollowups.id, data.followupId));
+
+    await writeAuditLog({
+      user,
+      action: "UPDATE",
+      entityType: "biological_accident_followup",
+      entityId: data.followupId,
+      metadata: { performedAt, accidentId: existing.accidentId },
+    });
+    revalidatePath("/material-biologico");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (e) {
+    return {
+      error:
+        e instanceof Error ? e.message : "Falha ao registrar follow-up.",
+    };
+  }
+}
+
+export async function concludeBiologicalAccidentAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const user = await requirePermission("biological", "update");
+    const schema = z.object({
+      accidentId: z.string().uuid(),
+      conclusion: z.string().optional(),
+    });
+    const data = schema.parse({
+      accidentId: formData.get("accidentId"),
+      conclusion: formData.get("conclusion") || undefined,
+    });
+
+    const db = getDb();
+    const [existing] = await db
+      .select({
+        id: biologicalAccidents.id,
+        employeeId: biologicalAccidents.employeeId,
+        status: biologicalAccidents.status,
+      })
+      .from(biologicalAccidents)
+      .where(eq(biologicalAccidents.id, data.accidentId))
+      .limit(1);
+
+    if (!existing) return { error: "Acidente não encontrado." };
+    await requireEmployeeInUserScope(user, { employeeId: existing.employeeId });
+
+    await db
+      .update(biologicalAccidents)
+      .set({
+        status: "CONCLUIDO",
+        conclusion: data.conclusion || null,
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      })
+      .where(eq(biologicalAccidents.id, data.accidentId));
+
+    await writeAuditLog({
+      user,
+      action: "UPDATE",
+      entityType: "biological_accident",
+      entityId: data.accidentId,
+      metadata: { concluded: true },
+    });
+    revalidatePath("/material-biologico");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (e) {
+    return {
+      error: e instanceof Error ? e.message : "Falha ao concluir acidente.",
+    };
+  }
+}
