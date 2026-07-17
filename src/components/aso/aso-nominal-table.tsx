@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import { ChevronRight } from "lucide-react";
 import { AsoJustifyDialog } from "@/components/aso/aso-justify-dialog";
 import { AsoReprogramDialog } from "@/components/aso/aso-reprogram-dialog";
 import { StatusBadge } from "@/components/feedback/status-badge";
@@ -22,6 +23,7 @@ import {
 import { formatDateBR } from "@/lib/dates";
 import {
   formatRegistrationDisplay,
+  formatUnitDisplayName,
   humanizeLabel,
   toneForFunctionalStatus,
 } from "@/lib/labels";
@@ -291,19 +293,20 @@ export function AsoNominalTable({
         <h3 className="text-[13px] font-semibold text-slate-800">Relação nominal</h3>
         <p className="text-[11px] text-slate-500">Clique na linha para ver detalhes</p>
       </div>
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <div className="rounded-lg border border-slate-200 bg-white">
         <table className="w-full table-fixed border-collapse text-[12px]">
           <colgroup>
-            <col className="w-[22%]" />
+            <col className="w-[21%]" />
             <col className="w-[9%]" />
-            <col className="w-[20%]" />
-            <col className="w-[10%]" />
+            <col className="w-[19%]" />
+            <col className="w-[9%]" />
             <col className="w-[10%]" />
             <col className="w-[11%]" />
             <col className="w-[10%]" />
             <col className="w-[8%]" />
+            <col className="w-[3%]" />
           </colgroup>
-          <thead className="sticky top-0 z-20 bg-slate-50 shadow-[0_1px_0_0_rgb(226_232_240)]">
+          <thead className="sticky top-0 z-30 border-b border-slate-200 bg-white shadow-[0_1px_0_0_rgb(226_232_240)]">
             <tr>
               {[
                 "Colaborador",
@@ -314,12 +317,18 @@ export function AsoNominalTable({
                 "Sit. funcional",
                 "Execução",
                 "Alterdata",
-              ].map((h) => (
+                "",
+              ].map((h, idx) => (
                 <th
-                  key={h}
-                  className="border-b border-slate-200 bg-slate-50 px-2 py-2 text-center font-semibold tracking-wide text-slate-500 uppercase"
+                  key={h || `chevron-${idx}`}
+                  scope="col"
+                  className={cn(
+                    "border-b border-slate-200 bg-white px-2 py-2 font-semibold tracking-wide text-slate-500 uppercase",
+                    idx === 0 ? "text-left" : "text-center",
+                  )}
                 >
                   {h}
+                  {!h ? <span className="sr-only">Detalhes</span> : null}
                 </th>
               ))}
             </tr>
@@ -335,11 +344,26 @@ export function AsoNominalTable({
                   performedDate: r.performedDate,
                 }),
               );
+              const isOpen = selected?.id === r.id;
               return (
                 <tr
                   key={r.id}
-                  className="cursor-pointer border-b border-slate-100 hover:bg-teal-50/40"
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isOpen}
+                  aria-label={`Abrir detalhes de ${r.employeeName}`}
+                  className={cn(
+                    "cursor-pointer border-b border-slate-100 outline-none transition-colors",
+                    "hover:bg-teal-50/70 focus-visible:bg-teal-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500",
+                    isOpen ? "bg-teal-50/90 ring-1 ring-inset ring-teal-200" : "",
+                  )}
                   onClick={() => setSelected(r)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelected(r);
+                    }
+                  }}
                 >
                   <td className="px-2 py-1.5 text-left font-medium text-slate-900">
                     <span className="block truncate" title={r.employeeName}>
@@ -351,6 +375,7 @@ export function AsoNominalTable({
                       href={`/colaboradores/${r.employeeId}`}
                       className="font-semibold text-teal-800 hover:underline"
                       onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
                     >
                       {formatRegistrationDisplay(r.registration)}
                     </Link>
@@ -360,7 +385,7 @@ export function AsoNominalTable({
                       className="block truncate text-slate-600"
                       title={r.unitNameSnapshot ?? undefined}
                     >
-                      {humanizeLabel(r.unitNameSnapshot)}
+                      {formatUnitDisplayName(r.unitNameSnapshot)}
                     </span>
                   </td>
                   <td className="px-2 py-1.5 text-center">{humanizeLabel(r.asoType)}</td>
@@ -387,12 +412,21 @@ export function AsoNominalTable({
                       />
                     </span>
                   </td>
+                  <td className="px-1 py-1.5 text-center text-slate-400">
+                    <ChevronRight
+                      className={cn(
+                        "mx-auto h-4 w-4 transition-transform",
+                        isOpen ? "translate-x-0.5 text-teal-700" : "",
+                      )}
+                      aria-hidden
+                    />
+                  </td>
                 </tr>
               );
             })}
             {!rows.length ? (
               <tr>
-                <td colSpan={8} className="px-3 py-8 text-center text-slate-500">
+                <td colSpan={9} className="px-3 py-8 text-center text-slate-500">
                   Nenhum colaborador nesta competência com os filtros atuais.
                 </td>
               </tr>
@@ -420,7 +454,7 @@ export function AsoNominalTable({
                   <dl className="grid grid-cols-2 gap-2 text-[12px]">
                     <div>
                       <dt className="text-slate-500">Unidade</dt>
-                      <dd className="font-medium">{humanizeLabel(selected.unitNameSnapshot)}</dd>
+                      <dd className="font-medium">{formatUnitDisplayName(selected.unitNameSnapshot)}</dd>
                     </div>
                     <div>
                       <dt className="text-slate-500">Regional</dt>
@@ -597,7 +631,7 @@ export function AsoNominalTable({
               {selected.employeeName} · Mat.{" "}
               {formatRegistrationDisplay(selected.registration)} ·{" "}
               {humanizeLabel(selected.asoType)} ·{" "}
-              {humanizeLabel(selected.unitNameSnapshot)} ·{" "}
+              {formatUnitDisplayName(selected.unitNameSnapshot)} ·{" "}
               {String(selected.month).padStart(2, "0")}/{selected.year} · Previsto{" "}
               {formatDateBR(selected.expectedDate)}
             </p>

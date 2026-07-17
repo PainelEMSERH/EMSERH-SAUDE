@@ -9,6 +9,7 @@ import {
 } from "@/db/queries/employees";
 import { upsertRegionAction, upsertUnitAction } from "@/actions/employees";
 import { requirePermission } from "@/lib/auth/guard";
+import { formatUnitDisplayName } from "@/lib/labels";
 
 export default async function AdministracaoPage() {
   const user = await requirePermission("admin", "view");
@@ -133,7 +134,7 @@ export default async function AdministracaoPage() {
                       key={u.id}
                       className="border-b border-slate-200/80 py-1 text-slate-800"
                     >
-                      {u.name}
+                      {formatUnitDisplayName(u.name)}
                       {u.city ? (
                         <span className="text-slate-500"> · {u.city}</span>
                       ) : null}

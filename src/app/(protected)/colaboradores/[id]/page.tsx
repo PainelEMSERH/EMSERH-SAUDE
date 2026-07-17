@@ -30,6 +30,7 @@ import { formatDateBR, formatDateTimeBR } from "@/lib/dates";
 import { formatPhoneBR } from "@/lib/employees/cpf-display";
 import {
   formatRegistrationDisplay,
+  formatUnitDisplayName,
   humanizeLabel,
   initialsFromName,
   toneForDeadlineStatus,
@@ -206,7 +207,7 @@ export default async function ColaboradorDetailPage({
                   {formatRegistrationDisplay(emp.registration)}
                 </span>
                 <span className="mx-1.5 text-slate-300">·</span>
-                {humanizeLabel(data.unitName)}
+                {formatUnitDisplayName(data.unitName)}
                 <span className="mx-1.5 text-slate-300">·</span>
                 {humanizeLabel(data.regionName)}
               </p>
@@ -334,7 +335,7 @@ export default async function ColaboradorDetailPage({
                 />
                 <Meta
                   label="Unidade"
-                  value={humanizeLabel(data.unitName)}
+                  value={formatUnitDisplayName(data.unitName)}
                   className="md:col-span-2"
                   clamp={2}
                 />

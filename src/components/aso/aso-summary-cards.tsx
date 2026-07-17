@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { StatusBadge } from "@/components/feedback/status-badge";
 import type { CompetenceMetrics } from "@/lib/aso/indicators";
+import { formatAdherencePercent } from "@/lib/aso/format-percent";
 import { buildAsoUrl } from "@/lib/aso/planning";
 import { humanizeLabel } from "@/lib/labels";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,8 @@ function Card({
   tone = "default",
   href,
   emphasis,
+  compact,
+  valueClassName,
 }: {
   label: string;
   value: string;
@@ -30,6 +33,8 @@ function Card({
   tone?: "default" | "danger" | "warn" | "ok";
   href?: string;
   emphasis?: boolean;
+  compact?: boolean;
+  valueClassName?: string;
 }) {
   const toneClasses: Record<string, string> = {
     default: "text-slate-900",
@@ -40,21 +45,67 @@ function Card({
   const body = (
     <div
       className={cn(
-        "rounded-lg border border-slate-200 bg-white p-3",
+        "rounded-lg border border-slate-200 bg-white",
+        compact ? "px-2.5 py-1.5" : "p-3",
         emphasis ? "ring-1 ring-teal-200" : "",
         href ? "transition-colors hover:border-teal-300 hover:bg-teal-50/30" : "",
       )}
     >
-      <p className="text-[11px] font-medium tracking-wide text-slate-500 uppercase">
+      <p
+        className={cn(
+          "font-medium tracking-wide text-slate-500 uppercase",
+          compact ? "text-[10px]" : "text-[11px]",
+        )}
+      >
         {label}
       </p>
-      <p className={`mt-1 text-2xl font-semibold tabular-nums ${toneClasses[tone]}`}>
+      <p
+        className={cn(
+          "font-semibold tabular-nums",
+          compact ? "mt-0.5 text-base" : "mt-1 text-2xl",
+          toneClasses[tone],
+          valueClassName,
+        )}
+      >
         {value}
       </p>
-      {hint ? <p className="mt-0.5 text-[11px] text-slate-500">{hint}</p> : null}
+      {hint ? (
+        <p className={cn("text-slate-500", compact ? "mt-0 text-[10px]" : "mt-0.5 text-[11px]")}>
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
   return href ? <Link href={href}>{body}</Link> : body;
+}
+
+function ImpactItem({
+  label,
+  value,
+  href,
+  tone,
+}: {
+  label: string;
+  value: number;
+  href?: string;
+  tone?: string;
+}) {
+  const content = (
+    <div className="min-w-0">
+      <p className="text-[10px] font-medium tracking-wide text-slate-500 uppercase">{label}</p>
+      <p className={cn("mt-0.5 text-lg font-semibold tabular-nums", tone ?? "text-slate-800")}>
+        {value}
+      </p>
+    </div>
+  );
+  if (href) {
+    return (
+      <Link href={href} className="rounded-md px-1 py-0.5 transition-colors hover:bg-slate-50">
+        {content}
+      </Link>
+    );
+  }
+  return <div className="px-1 py-0.5">{content}</div>;
 }
 
 export function AsoSummaryCards({
@@ -79,6 +130,14 @@ export function AsoSummaryCards({
           ? "warn"
           : "danger";
 
+  const pctLabel =
+    pct == null
+      ? "—"
+      : formatAdherencePercent(pct, {
+          realizados: metrics.realizados,
+          elegiveis: metrics.previstosElegiveis,
+        });
+
   return (
     <div className="mb-3 space-y-2">
       {asoType === "ALL" ? (
@@ -93,78 +152,72 @@ export function AsoSummaryCards({
         <Card
           label="Elegíveis"
           value={String(metrics.previstosElegiveis)}
-          hint={`${metrics.previstosBrutos} brutos · ${metrics.justificados} justificados`}
           emphasis
           href={buildAsoUrl("/asos", current, { pendingOnly: "1", page: undefined })}
         />
         <Card
           label="Realizados"
           value={String(metrics.realizados)}
-          hint={`${metrics.confirmadosAlterdata} confirmados no Alterdata`}
           tone="ok"
           emphasis
           href={buildAsoUrl("/asos", current, { execution: "REALIZADO", page: undefined })}
         />
         <Card
           label="Aderência"
-          value={pct == null ? "—" : `${pct.toFixed(1)}%`}
+          value={
+            !metaDefined && pct != null
+              ? `${pctLabel} de execução operacional`
+              : pctLabel
+          }
           hint={
             metaDefined
-              ? `Meta: ${metrics.metaPercent}%`
-              : "Indicador sem parâmetro institucional"
+              ? `Meta institucional: ${metrics.metaPercent}%`
+              : "Meta institucional ainda não cadastrada"
           }
           tone={pctTone}
           emphasis
+          valueClassName={!metaDefined && pct != null ? "text-lg leading-snug" : undefined}
         />
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white ring-1 ring-teal-200">
-          <div className="grid h-full grid-cols-2 divide-x divide-slate-200">
-            <Link
-              href={buildAsoUrl("/asos", current, {
-                functional: "AFASTADO",
-                page: undefined,
-              })}
-              className="p-3 transition-colors hover:bg-amber-50/50"
-            >
-              <p className="text-[11px] font-medium tracking-wide text-slate-500 uppercase">
-                Afastados
-              </p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-amber-800">
-                {metrics.afastados}
-              </p>
-            </Link>
-            <Link
-              href={buildAsoUrl("/asos", current, {
-                functional: "FERIAS",
-                page: undefined,
-              })}
-              className="p-3 transition-colors hover:bg-sky-50/50"
-            >
-              <p className="text-[11px] font-medium tracking-wide text-slate-500 uppercase">
-                Férias
-              </p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-sky-800">
-                {metrics.ferias}
-              </p>
-            </Link>
-          </div>
-        </div>
+        <Card
+          label={metaDefined ? "Faltam para a meta" : "Meta não definida"}
+          value={
+            metaDefined && metrics.faltamParaMeta != null
+              ? String(metrics.faltamParaMeta)
+              : "Meta não definida"
+          }
+          hint={
+            metaDefined
+              ? `Meta: ${metrics.metaPercent}%`
+              : undefined
+          }
+          tone={
+            metaDefined && metrics.faltamParaMeta != null && metrics.faltamParaMeta > 0
+              ? "warn"
+              : "default"
+          }
+          emphasis
+          valueClassName={!metaDefined ? "text-base leading-snug" : undefined}
+        />
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-        <Card label="Previstos brutos" value={String(metrics.previstosBrutos)} />
-        <Card label="Justificados" value={String(metrics.justificados)} tone="warn" />
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-5">
+        <Card compact label="Previstos brutos" value={String(metrics.previstosBrutos)} />
+        <Card compact label="Justificados" value={String(metrics.justificados)} tone="warn" />
         <Card
+          compact
           label="Não realizados"
           value={String(metrics.naoRealizados)}
           href={buildAsoUrl("/asos", current, { pendingOnly: "1", page: undefined })}
         />
         <Card
-          label="Confirmados Alterdata"
+          compact
+          label="Confirmados no Alterdata"
           value={String(metrics.confirmadosAlterdata)}
           tone="ok"
         />
         <Card
-          label="Pendentes Alterdata"
+          compact
+          label="Pendentes no Alterdata"
           value={String(metrics.pendentesAlterdata)}
           tone="warn"
           href={buildAsoUrl("/asos", current, {
@@ -172,6 +225,49 @@ export function AsoSummaryCards({
             page: undefined,
           })}
         />
+      </div>
+
+      <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+        <p className="mb-1 text-[11px] font-semibold text-slate-700">
+          Impactos da competência
+        </p>
+        <p className="mb-2 text-[10px] text-slate-500">
+          Situações que podem afetar o planejamento e a elegibilidade nesta competência.
+        </p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <ImpactItem
+            label="Afastados"
+            value={metrics.afastados}
+            tone={metrics.afastados ? "text-amber-800" : "text-slate-400"}
+            href={buildAsoUrl("/asos", current, {
+              functional: "AFASTADO",
+              page: undefined,
+            })}
+          />
+          <ImpactItem
+            label="Férias"
+            value={metrics.ferias}
+            tone={metrics.ferias ? "text-sky-800" : "text-slate-400"}
+            href={buildAsoUrl("/asos", current, {
+              functional: "FERIAS",
+              page: undefined,
+            })}
+          />
+          <ImpactItem
+            label="Demitidos"
+            value={metrics.demitidos}
+            tone={metrics.demitidos ? "text-slate-700" : "text-slate-400"}
+            href={buildAsoUrl("/asos", current, {
+              functional: "DEMITIDO",
+              page: undefined,
+            })}
+          />
+          <ImpactItem
+            label="Outros justificados"
+            value={metrics.outrosJustificados}
+            tone={metrics.outrosJustificados ? "text-slate-600" : "text-slate-400"}
+          />
+        </div>
       </div>
 
       {closureStatus ? (

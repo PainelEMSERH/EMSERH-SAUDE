@@ -18,6 +18,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatUnitDisplayName } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
 const initial: ActionState = {};
@@ -189,7 +190,7 @@ export function EmployeeForm({
               <option value="">—</option>
               {filteredUnits.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {u.name}
+                  {formatUnitDisplayName(u.name)}
                 </option>
               ))}
             </select>

@@ -38,7 +38,7 @@ import {
   isPlanOverdue,
 } from "@/lib/aso/execution";
 import { reconcileAlterdataStatus } from "@/lib/aso/reconciliation";
-import { humanizeLabel } from "@/lib/labels";
+import { humanizeLabel, formatUnitDisplayName } from "@/lib/labels";
 import { employeeScopeCondition, parsePage, parsePageSize } from "@/lib/scope";
 import type { SessionUser } from "@/types";
 
@@ -470,7 +470,7 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
         "Unidade";
       matrixRows.push({
         key: uid,
-        label: humanizeLabel(label),
+        label: formatUnitDisplayName(label),
         regionId: regionId || null,
         unitId: uid,
         cells: buildCells(subset, regionId || null, uid),

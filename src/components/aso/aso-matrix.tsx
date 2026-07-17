@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { MONTH_LABELS, MONTH_NAMES } from "@/lib/aso/constants";
+import { formatAdherencePercent } from "@/lib/aso/format-percent";
 import { buildAsoUrl } from "@/lib/aso/planning";
 import { cn } from "@/lib/utils";
 
@@ -45,7 +46,10 @@ function cellLabel(cell: AsoMatrixCell): string {
   if (cell.tone === "future") return "Planejado";
   if (!cell.elegiveis) return "—";
   if (cell.percent == null) return "—";
-  return `${cell.percent.toFixed(0)}%`;
+  return formatAdherencePercent(cell.percent, {
+    realizados: cell.realizados,
+    elegiveis: cell.elegiveis,
+  });
 }
 
 function cellSub(cell: AsoMatrixCell): string {
@@ -55,11 +59,16 @@ function cellSub(cell: AsoMatrixCell): string {
 }
 
 function cellTitle(cell: AsoMatrixCell): string {
-  if (cell.tone === "future") return "Competência futura";
+  if (cell.tone === "future") return "Competência futura · Planejado";
   if (cell.elegiveis > 0) {
-    return `${cell.realizados}/${cell.elegiveis} realizados${
-      cell.meta != null ? ` · meta ${cell.meta}%` : " · sem meta"
-    }`;
+    const pct = formatAdherencePercent(cell.percent, {
+      realizados: cell.realizados,
+      elegiveis: cell.elegiveis,
+    });
+    if (cell.meta != null) {
+      return `${cell.realizados} realizados de ${cell.elegiveis} elegíveis · ${pct} · meta ${cell.meta}%`;
+    }
+    return `${cell.realizados} realizados de ${cell.elegiveis} elegíveis · ${pct} de execução · meta não cadastrada`;
   }
   return "Sem previstos elegíveis";
 }
@@ -285,7 +294,7 @@ export function AsoMatrix({
                               "flex h-[40px] w-full flex-col items-center justify-center rounded px-0.5 leading-none transition-colors",
                               TONE_CLASSES[cell.tone],
                               isSelected
-                                ? "ring-2 ring-teal-500 ring-offset-1"
+                                ? "bg-teal-100/80 ring-2 ring-teal-600 ring-offset-1"
                                 : isApplied
                                   ? "ring-1 ring-teal-300"
                                   : "",

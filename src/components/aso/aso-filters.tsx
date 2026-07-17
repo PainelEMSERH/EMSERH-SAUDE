@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ASO_TYPE_TABS, MONTH_NAMES } from "@/lib/aso/constants";
 import { buildAsoUrl } from "@/lib/aso/planning";
+import { formatUnitDisplayName } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
 type Opt = { id: string; name: string; code?: string | null };
@@ -133,7 +134,7 @@ export function AsoFilters({
                 .filter((u) => !params.regionId || u.regionId === params.regionId)
                 .map((u) => (
                   <option key={u.id} value={u.id}>
-                    {u.name}
+                    {formatUnitDisplayName(u.name)}
                   </option>
                 ))}
             </select>

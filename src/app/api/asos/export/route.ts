@@ -3,7 +3,8 @@ import * as XLSX from "xlsx";
 import { requirePermission, userCan } from "@/lib/auth/guard";
 import { getAsoPanelData } from "@/db/queries/aso-panel";
 import { ASO_ADHERENCE_RULE, MONTH_NAMES } from "@/lib/aso/constants";
-import { humanizeLabel } from "@/lib/labels";
+import { formatAdherencePercent } from "@/lib/aso/format-percent";
+import { humanizeLabel, formatUnitDisplayName } from "@/lib/labels";
 
 export async function GET(request: Request) {
   const user = await requirePermission("asos", "view");
@@ -34,6 +35,10 @@ export async function GET(request: Request) {
       confirmados_alterdata: m.confirmadosAlterdata,
       pendentes_alterdata: m.pendentesAlterdata,
       percentual: m.aderenciaPercent,
+      percentual_formatado: formatAdherencePercent(m.aderenciaPercent, {
+        realizados: m.realizados,
+        elegiveis: m.previstosElegiveis,
+      }),
       meta: m.metaPercent,
       faltam_para_meta: m.faltamParaMeta,
       numerador: m.numerador,
@@ -46,9 +51,14 @@ export async function GET(request: Request) {
     const out: Record<string, string | number> = { Escopo: row.label };
     for (const cell of row.cells) {
       out[MONTH_NAMES[cell.month - 1]] =
-        cell.percent == null
-          ? `— (${cell.realizados}/${cell.elegiveis})`
-          : `${cell.percent}% (${cell.realizados}/${cell.elegiveis})`;
+        cell.percent == null && cell.tone === "future"
+          ? "Planejado"
+          : cell.percent == null
+            ? `— (${cell.realizados}/${cell.elegiveis})`
+            : `${formatAdherencePercent(cell.percent, {
+                realizados: cell.realizados,
+                elegiveis: cell.elegiveis,
+              })} (${cell.realizados}/${cell.elegiveis})`;
     }
     return out;
   });
@@ -56,7 +66,7 @@ export async function GET(request: Request) {
   const nominalSheet = data.nominal.rows.map((r) => ({
     Colaborador: r.employeeName,
     Matricula: r.registration,
-    Unidade: r.unitNameSnapshot ?? "",
+    Unidade: formatUnitDisplayName(r.unitNameSnapshot, ""),
     Regional: r.regionNameSnapshot ?? "",
     Tipo: humanizeLabel(r.asoType),
     Previsto: r.expectedDate ?? "",

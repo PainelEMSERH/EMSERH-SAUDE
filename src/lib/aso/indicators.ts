@@ -23,6 +23,8 @@ export type CompetenceMetrics = {
   justificados: number;
   afastados: number;
   ferias: number;
+  demitidos: number;
+  outrosJustificados: number;
   previstosElegiveis: number;
   realizados: number;
   confirmadosAlterdata: number;
@@ -48,6 +50,8 @@ export function computeCompetenceMetrics(
   let justificados = 0;
   let afastados = 0;
   let ferias = 0;
+  let demitidos = 0;
+  let outrosJustificados = 0;
   let previstosElegiveis = 0;
   let realizados = 0;
   let confirmadosAlterdata = 0;
@@ -92,6 +96,12 @@ export function computeCompetenceMetrics(
         continue;
       }
       justificados += 1;
+      if (leaveTag === "DEMITIDO") demitidos += 1;
+      else if (leaveTag === "AFASTADO" || leaveTag === "FERIAS") {
+        // já contabilizados em afastados/ferias
+      } else {
+        outrosJustificados += 1;
+      }
       continue;
     }
 
@@ -142,6 +152,8 @@ export function computeCompetenceMetrics(
     justificados,
     afastados,
     ferias,
+    demitidos,
+    outrosJustificados,
     previstosElegiveis,
     realizados,
     confirmadosAlterdata,

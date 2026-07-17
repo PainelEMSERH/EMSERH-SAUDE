@@ -57,6 +57,25 @@ describe("computeCompetenceMetrics", () => {
     expect(m.justificados).toBe(3);
     expect(m.afastados).toBe(1);
     expect(m.ferias).toBe(2);
+    expect(m.demitidos).toBe(0);
+    expect(m.outrosJustificados).toBe(0);
+  });
+
+  it("conta demitidos e outros justificados nos impactos", () => {
+    const m = computeCompetenceMetrics([
+      {
+        eligibility: "JUSTIFICADO",
+        executionStatus: "JUSTIFICADO",
+        justificationReason: "DEMITIDO",
+      },
+      {
+        eligibility: "JUSTIFICADO",
+        executionStatus: "JUSTIFICADO",
+        justificationReason: "OUTROS",
+      },
+    ]);
+    expect(m.demitidos).toBe(1);
+    expect(m.outrosJustificados).toBe(1);
   });
 });
 

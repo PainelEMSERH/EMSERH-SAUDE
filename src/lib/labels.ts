@@ -164,3 +164,26 @@ export function formatRegistrationDisplay(
   }
   return raw;
 }
+
+/**
+ * Abrevia nomes longos de unidade só na UI (maiúsculas, padrão do sistema).
+ * Ex.: "AGENCIA TRANSFUSIONAL BACABAL" → "AG. TRANSF. BACABAL"
+ */
+export function formatUnitDisplayName(
+  value: string | null | undefined,
+  fallback = "—",
+): string {
+  if (value == null || String(value).trim() === "") return fallback;
+  const raw = String(value).trim();
+  const match = raw.match(
+    /^(ag[eê]ncia)\s+transfusional(?:\s+de)?\s+(.+)$/i,
+  );
+  if (match?.[2]) {
+    const place = match[2]
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLocaleUpperCase("pt-BR");
+    return `AG. TRANSF. ${place}`;
+  }
+  return humanizeLabel(raw, fallback);
+}

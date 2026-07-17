@@ -10,6 +10,7 @@ import { formatDateBR } from "@/lib/dates";
 import {
   humanizeLabel,
   formatRegistrationDisplay,
+  formatUnitDisplayName,
   toneForFunctionalStatus,
 } from "@/lib/labels";
 import {
@@ -155,7 +156,7 @@ export default async function ColaboradoresPage({
                 className="block truncate text-slate-600"
                 title={r.unitName ?? undefined}
               >
-                {humanizeLabel(r.unitName)}
+                {formatUnitDisplayName(r.unitName)}
               </span>
             ),
           },

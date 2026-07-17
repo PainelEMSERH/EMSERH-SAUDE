@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatUnitDisplayName } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
 type Opt = { id: string; name: string };
@@ -125,7 +126,7 @@ export function EmployeeFilters({
               {!lockUnit ? <option value="ALL">Todas</option> : null}
               {filteredUnits.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {u.name}
+                  {formatUnitDisplayName(u.name)}
                 </option>
               ))}
             </select>
