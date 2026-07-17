@@ -80,4 +80,10 @@ describe("matrixCellTone", () => {
       matrixCellTone({ percent: 50, metaPercent: 80, hasDenominator: true, isFuture: false }),
     ).toBe("below");
   });
+
+  it("usa tom neutro quando não há meta definida", () => {
+    expect(
+      matrixCellTone({ percent: 90, metaPercent: null, hasDenominator: true, isFuture: false }),
+    ).toBe("neutral");
+  });
 });

@@ -5,11 +5,15 @@ import {
   type Eligibility,
   type ExecutionStatus,
 } from "./constants";
+import { effectiveExecutionStatus, isPlanOverdue } from "./execution";
 
 export type PlanMetricRow = {
   eligibility: Eligibility | string;
   executionStatus: ExecutionStatus | string;
   alterdataStatus?: string | null;
+  expectedDate?: string | null;
+  asoRecordId?: string | null;
+  performedDate?: string | null;
 };
 
 export type CompetenceMetrics = {
@@ -28,11 +32,13 @@ export type CompetenceMetrics = {
   numerador: number;
   denominador: number;
   rule: typeof ASO_ADHERENCE_RULE;
+  metaDefined: boolean;
 };
 
 export function computeCompetenceMetrics(
   rows: PlanMetricRow[],
   metaPercent: number | null = null,
+  today: Date = new Date(),
 ): CompetenceMetrics {
   const previstosBrutos = rows.length;
   let justificados = 0;
@@ -43,12 +49,36 @@ export function computeCompetenceMetrics(
   let naoRealizados = 0;
   let vencidos = 0;
 
+  const day = new Date(today);
+  day.setHours(0, 0, 0, 0);
+
   for (const r of rows) {
     const elig = String(r.eligibility || "").toUpperCase();
     const exec = String(r.executionStatus || "").toUpperCase();
     const alt = String(r.alterdataStatus || "").toUpperCase();
+    const effective = effectiveExecutionStatus(
+      {
+        eligibility: elig,
+        executionStatus: exec,
+        expectedDate: r.expectedDate,
+        asoRecordId: r.asoRecordId,
+        performedDate: r.performedDate,
+      },
+      day,
+    );
 
-    if (JUSTIFIED_ELIGIBILITY.has(elig as Eligibility) || exec === "JUSTIFICADO" || exec === "DISPENSADO") {
+    if (
+      JUSTIFIED_ELIGIBILITY.has(elig as Eligibility) ||
+      exec === "JUSTIFICADO" ||
+      exec === "DISPENSADO"
+    ) {
+      // JUSTIFICADO com elegibilidade ELEGIVEL (recusa/falta) permanece no denominador
+      if (elig === "ELEGIVEL" && exec === "JUSTIFICADO") {
+        previstosElegiveis += 1;
+        naoRealizados += 1;
+        if (isPlanOverdue(r, day) || effective === "VENCIDO") vencidos += 1;
+        continue;
+      }
       justificados += 1;
       continue;
     }
@@ -64,7 +94,7 @@ export function computeCompetenceMetrics(
       ) {
         pendentesAlterdata += 1;
       }
-    } else if (exec === "VENCIDO") {
+    } else if (effective === "VENCIDO" || isPlanOverdue(r, day)) {
       vencidos += 1;
       naoRealizados += 1;
     } else {
@@ -88,9 +118,10 @@ export function computeCompetenceMetrics(
     }
   }
 
+  const metaDefined = metaPercent != null;
   let faltamParaMeta: number | null = null;
-  if (metaPercent != null && denominador > 0) {
-    const needed = Math.ceil((metaPercent / 100) * denominador);
+  if (metaDefined && denominador > 0) {
+    const needed = Math.ceil((metaPercent! / 100) * denominador);
     faltamParaMeta = Math.max(0, needed - realizados);
   }
 
@@ -110,6 +141,7 @@ export function computeCompetenceMetrics(
     numerador,
     denominador,
     rule: ASO_ADHERENCE_RULE,
+    metaDefined,
   };
 }
 
@@ -136,10 +168,12 @@ export function matrixCellTone(input: {
   metaPercent: number | null;
   hasDenominator: boolean;
   isFuture: boolean;
-}): "ok" | "near" | "below" | "empty" | "future" {
+}): "ok" | "near" | "below" | "empty" | "future" | "neutral" {
   if (input.isFuture) return "future";
   if (!input.hasDenominator || input.percent == null) return "empty";
-  const meta = input.metaPercent ?? 80;
+  // Sem meta cadastrada: tom neutro — nunca usar 80% silencioso
+  if (input.metaPercent == null) return "neutral";
+  const meta = input.metaPercent;
   if (input.percent >= meta) return "ok";
   if (input.percent >= meta - 10) return "near";
   return "below";

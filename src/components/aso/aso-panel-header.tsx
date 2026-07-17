@@ -2,12 +2,19 @@
 
 import { useActionState, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { CalendarClock, ClipboardCheck, Download, RefreshCw } from "lucide-react";
-import { generatePlanningAction, syncAlterdataAsoAction } from "@/actions/aso-panel";
+import { CalendarClock, ClipboardCheck, Download, Loader2, RefreshCw } from "lucide-react";
+import {
+  cancelStaleMirrorSyncAction,
+  generatePlanningAction,
+  syncAlterdataAsoAction,
+} from "@/actions/aso-panel";
 import { AsoRegisterDialog } from "@/components/aso/aso-register-dialog";
 import { Button } from "@/components/ui/button";
 import { formatDateTimeBR } from "@/lib/dates";
-import { humanizeLabel } from "@/lib/labels";
+import {
+  humanizeImportBatchStatus,
+  isSyncPossiblyStale,
+} from "@/lib/aso/execution";
 
 type PlanningState = { error?: string; ok?: boolean; message?: string };
 const planningInitial: PlanningState = {};
@@ -20,6 +27,17 @@ export type LastSyncInfo = {
   updatedRows: number | null;
   errorRows: number | null;
 } | null;
+
+function elapsedLabel(createdAt: Date | string | null | undefined): string | null {
+  if (!createdAt) return null;
+  const start = new Date(createdAt).getTime();
+  if (Number.isNaN(start)) return null;
+  const mins = Math.floor((Date.now() - start) / 60_000);
+  if (mins < 1) return "menos de 1 min";
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  return `${h} h ${mins % 60} min`;
+}
 
 export function AsoPanelHeader({
   lastSync,
@@ -39,6 +57,7 @@ export function AsoPanelHeader({
   canExport: boolean;
 }) {
   const [pending, startTransition] = useTransition();
+  const [cancelPending, startCancel] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [planningState, planningAction, planningPending] = useActionState(
@@ -52,6 +71,13 @@ export function AsoPanelHeader({
       setError(planningState.error ?? null);
     }
   }, [planningState]);
+
+  const status = lastSync?.status?.toUpperCase() ?? "";
+  const isRunning = status === "RUNNING";
+  const isStale = isSyncPossiblyStale(lastSync?.createdAt, lastSync?.status);
+  const syncBlocked = (isRunning && !isStale) || pending;
+  const processed =
+    (lastSync?.importedRows ?? 0) + (lastSync?.updatedRows ?? 0);
 
   return (
     <div className="mb-3 space-y-2">
@@ -73,11 +99,36 @@ export function AsoPanelHeader({
         <div className="flex flex-wrap items-center gap-2">
           {lastSync ? (
             <span
-              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600"
+              className={
+                isRunning
+                  ? "inline-flex max-w-md flex-col gap-0.5 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-medium text-sky-900"
+                  : "inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600"
+              }
               title={lastSync.updatedAt ? formatDateTimeBR(lastSync.updatedAt) : undefined}
             >
-              Última sinc.: {lastSync.updatedAt ? formatDateTimeBR(lastSync.updatedAt) : "—"} ·{" "}
-              {humanizeLabel(lastSync.status)}
+              {isRunning ? (
+                <>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Loader2 className="size-3 animate-spin" />
+                    {isStale
+                      ? "Possivelmente interrompida"
+                      : "Sincronização em andamento"}
+                  </span>
+                  <span className="font-normal text-sky-800">
+                    Início: {lastSync.createdAt ? formatDateTimeBR(lastSync.createdAt) : "—"}
+                    {elapsedLabel(lastSync.createdAt)
+                      ? ` · decorridos ${elapsedLabel(lastSync.createdAt)}`
+                      : ""}
+                    {processed > 0 ? ` · processados ${processed}` : ""}
+                  </span>
+                </>
+              ) : (
+                <>
+                  Última sinc.:{" "}
+                  {lastSync.updatedAt ? formatDateTimeBR(lastSync.updatedAt) : "—"} ·{" "}
+                  {humanizeImportBatchStatus(lastSync.status)}
+                </>
+              )}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800">
@@ -85,12 +136,33 @@ export function AsoPanelHeader({
             </span>
           )}
 
+          {canSync && isStale ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={cancelPending}
+              className="h-8 gap-1.5 text-[13px] text-amber-900"
+              onClick={() => {
+                setError(null);
+                setMessage(null);
+                startCancel(async () => {
+                  const result = await cancelStaleMirrorSyncAction();
+                  if (result.error) setError(result.error);
+                  if (result.ok && result.message) setMessage(result.message);
+                });
+              }}
+            >
+              {cancelPending ? "Cancelando..." : "Cancelar lote interrompido"}
+            </Button>
+          ) : null}
+
           {canSync ? (
             <Button
               type="button"
               size="sm"
               variant="outline"
-              disabled={pending}
+              disabled={syncBlocked}
               className="h-8 gap-1.5 text-[13px]"
               onClick={() => {
                 setError(null);
@@ -103,7 +175,11 @@ export function AsoPanelHeader({
               }}
             >
               <RefreshCw className={pending ? "size-3.5 animate-spin" : "size-3.5"} />
-              {pending ? "Sincronizando..." : "Sincronizar espelho"}
+              {pending
+                ? "Sincronizando..."
+                : isRunning && !isStale
+                  ? "Aguarde sincronização"
+                  : "Sincronizar espelho"}
             </Button>
           ) : null}
 

@@ -38,10 +38,11 @@ export function AsoCharts({
   series: AsoChartSeriesPoint[];
   distribution: AsoDistribution;
 }) {
+  const hasAnyMeta = series.some((s) => s.meta != null);
   const lineData = series.map((s) => ({
     name: s.label,
     resultado: s.resultado,
-    meta: s.meta,
+    ...(hasAnyMeta ? { meta: s.meta } : {}),
   }));
 
   const pieData = [
@@ -53,11 +54,16 @@ export function AsoCharts({
   ].filter((d) => d.value > 0);
 
   return (
-    <div className="grid gap-3 lg:grid-cols-3">
-      <div className="rounded-lg border border-slate-200 bg-white p-3 lg:col-span-2">
+    <div className="mb-3 grid gap-3 lg:grid-cols-2">
+      <div className="rounded-lg border border-slate-200 bg-white p-3">
         <p className="mb-2 text-[12px] font-semibold text-slate-800">
           Aderência anual × meta
         </p>
+        {!hasAnyMeta ? (
+          <p className="mb-2 text-[11px] text-amber-700">
+            Sem meta cadastrada — linha de meta não exibida.
+          </p>
+        ) : null}
         <div className="h-56">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={lineData}>
@@ -66,14 +72,17 @@ export function AsoCharts({
               <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
               <Tooltip />
               <Legend />
-              <Line
-                type="monotone"
-                dataKey="meta"
-                name="Meta"
-                stroke="#94a3b8"
-                strokeDasharray="4 4"
-                dot={false}
-              />
+              {hasAnyMeta ? (
+                <Line
+                  type="monotone"
+                  dataKey="meta"
+                  name="Meta"
+                  stroke="#94a3b8"
+                  strokeDasharray="4 4"
+                  dot={false}
+                  connectNulls={false}
+                />
+              ) : null}
               <Line
                 type="monotone"
                 dataKey="resultado"

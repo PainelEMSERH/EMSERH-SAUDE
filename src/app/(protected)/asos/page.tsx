@@ -1,7 +1,10 @@
 import { AsoCharts } from "@/components/aso/aso-charts";
 import { AsoFilters } from "@/components/aso/aso-filters";
 import { AsoMatrix } from "@/components/aso/aso-matrix";
-import { AsoNominalTable } from "@/components/aso/aso-nominal-table";
+import {
+  AsoNominalFilters,
+  AsoNominalTable,
+} from "@/components/aso/aso-nominal-table";
 import { AsoPanelHeader } from "@/components/aso/aso-panel-header";
 import { AsoPrioritiesPanel } from "@/components/aso/aso-priorities";
 import { AsoSummaryCards } from "@/components/aso/aso-summary-cards";
@@ -21,7 +24,8 @@ export default async function AsosPage({
   const canCreate = userCan(user, "asos", "create");
   const canUpdate = userCan(user, "asos", "update");
   const canSync = userCan(user, "imports", "sync_global") || canUpdate;
-  const canExport = userCan(user, "reports", "export") || userCan(user, "asos", "export");
+  const canExport =
+    userCan(user, "reports", "export") || userCan(user, "asos", "export");
 
   const hideRegion = user.scopeLevel === "UNIT";
   const lockRegion = user.scopeLevel === "REGION";
@@ -38,6 +42,9 @@ export default async function AsosPage({
     execution: params.execution,
     alterdata: params.alterdata,
     functional: params.functional,
+    pendingOnly: params.pendingOnly,
+    divergencesOnly: params.divergencesOnly,
+    priority: params.priority,
   };
 
   const exportParams = new URLSearchParams();
@@ -49,7 +56,9 @@ export default async function AsosPage({
   const exportHref = `/api/asos/export?${exportParams.toString()}`;
 
   const activeMatrixKey =
-    data.unitId ?? data.regionId ?? (user.scopeLevel === "EMSERH" ? "EMSERH" : undefined);
+    data.unitId ??
+    data.regionId ??
+    (user.scopeLevel === "EMSERH" ? "EMSERH" : undefined);
 
   return (
     <div>
@@ -81,29 +90,45 @@ export default async function AsosPage({
         lockUnit={lockUnit}
       />
 
-      <AsoSummaryCards metrics={data.metrics} closureStatus={data.closure?.status} />
+      <AsoSummaryCards
+        metrics={data.metrics}
+        closureStatus={data.closure?.status}
+        current={current}
+        asoType={data.asoType}
+      />
 
       <AsoPrioritiesPanel
         priorities={data.priorities}
+        yearPriorities={data.yearPriorities}
         current={current}
         activePriority={params.priority}
       />
 
-      <div className="mb-3 grid gap-3 lg:grid-cols-5">
-        <div className="lg:col-span-2">
-          <AsoMatrix
-            rows={data.matrixRows}
-            activeMonth={data.month}
-            activeKey={activeMatrixKey}
-            current={current}
-          />
-        </div>
-        <div className="lg:col-span-3">
-          <AsoCharts series={data.chartSeries} distribution={data.distribution} />
-        </div>
-      </div>
+      <AsoMatrix
+        rows={data.matrixRows}
+        activeMonth={data.month}
+        activeKey={activeMatrixKey}
+        current={current}
+      />
 
-      <AsoNominalTable rows={data.nominal.rows} />
+      <AsoCharts series={data.chartSeries} distribution={data.distribution} />
+
+      <AsoNominalFilters
+        current={current}
+        params={{
+          execution: params.execution,
+          alterdata: params.alterdata,
+          functional: params.functional,
+          pendingOnly: params.pendingOnly,
+          divergencesOnly: params.divergencesOnly,
+        }}
+      />
+
+      <AsoNominalTable
+        rows={data.nominal.rows}
+        canCreate={canCreate}
+        canUpdate={canUpdate}
+      />
 
       <Pagination
         page={data.nominal.page}
@@ -123,6 +148,8 @@ export default async function AsosPage({
           execution: params.execution,
           alterdata: params.alterdata,
           functional: params.functional,
+          pendingOnly: params.pendingOnly,
+          divergencesOnly: params.divergencesOnly,
           priority: params.priority,
         }}
       />

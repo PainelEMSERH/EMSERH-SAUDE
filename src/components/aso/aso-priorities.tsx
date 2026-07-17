@@ -14,41 +14,22 @@ export type AsoPriorities = {
   competenciasAguardando: number;
 };
 
-export function AsoPrioritiesPanel({
-  priorities,
+function ChipRow({
+  title,
+  items,
   current,
   activePriority,
 }: {
-  priorities: AsoPriorities;
-  current: Record<string, string | number | undefined>;
-  activePriority?: string;
-}) {
-  const items: Array<{
+  title: string;
+  items: Array<{
     key: string;
     label: string;
     value: number;
     tone: "danger" | "warn" | "info" | "muted";
-  }> = [
-    { key: "vencidos", label: "Vencidos", value: priorities.vencidos, tone: "danger" },
-    { key: "vencendo7", label: "Vencendo em 7 dias", value: priorities.vencendo7, tone: "warn" },
-    { key: "vencendo30", label: "Vencendo em 30 dias", value: priorities.vencendo30, tone: "warn" },
-    {
-      key: "pendentesAlterdata",
-      label: "Pendentes Alterdata",
-      value: priorities.pendentesAlterdata,
-      tone: "info",
-    },
-    { key: "divergencias", label: "Divergências de data", value: priorities.divergencias, tone: "danger" },
-    {
-      key: "atualizadoSemRegistro",
-      label: "Atualizado sem registro",
-      value: priorities.atualizadoSemRegistro,
-      tone: "info",
-    },
-    { key: "semProximoAso", label: "Sem próximo ASO", value: priorities.semProximoAso, tone: "muted" },
-    { key: "afastadosRetorno", label: "Afastados", value: priorities.afastadosRetorno, tone: "muted" },
-  ];
-
+  }>;
+  current: Record<string, string | number | undefined>;
+  activePriority?: string;
+}) {
   const toneClasses: Record<string, string> = {
     danger: "border-red-200 bg-red-50 text-red-800 hover:bg-red-100",
     warn: "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100",
@@ -56,11 +37,25 @@ export function AsoPrioritiesPanel({
     muted: "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100",
   };
 
+  const visible = items.filter((i) => i.value > 0);
+  if (!visible.length) {
+    return (
+      <div>
+        <p className="mb-1 text-[10px] font-semibold tracking-wide text-slate-500 uppercase">
+          {title}
+        </p>
+        <p className="text-[12px] text-slate-400">Nenhuma prioridade neste escopo.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="mb-3 flex flex-wrap gap-1.5">
-      {items
-        .filter((i) => i.value > 0)
-        .map((item) => (
+    <div>
+      <p className="mb-1.5 text-[10px] font-semibold tracking-wide text-slate-500 uppercase">
+        {title}
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {visible.map((item) => (
           <Link
             key={item.key}
             href={buildAsoUrl("/asos", current, {
@@ -79,11 +74,101 @@ export function AsoPrioritiesPanel({
             </span>
           </Link>
         ))}
-      {priorities.competenciasAguardando > 0 ? (
-        <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-100 px-2.5 py-1 text-[12px] font-medium text-amber-900">
-          Competência em conferência
-        </span>
-      ) : null}
+      </div>
+    </div>
+  );
+}
+
+export function AsoPrioritiesPanel({
+  priorities,
+  yearPriorities,
+  current,
+  activePriority,
+}: {
+  priorities: AsoPriorities;
+  yearPriorities: AsoPriorities;
+  current: Record<string, string | number | undefined>;
+  activePriority?: string;
+}) {
+  const competenceItems = [
+    { key: "vencidos", label: "Vencidos na competência", value: priorities.vencidos, tone: "danger" as const },
+    { key: "vencendo7", label: "Vencendo em 7 dias", value: priorities.vencendo7, tone: "warn" as const },
+    { key: "vencendo30", label: "Vencendo em 30 dias", value: priorities.vencendo30, tone: "warn" as const },
+    {
+      key: "pendentesAlterdata",
+      label: "Pendentes no Alterdata",
+      value: priorities.pendentesAlterdata,
+      tone: "info" as const,
+    },
+    { key: "divergencias", label: "Divergências", value: priorities.divergencias, tone: "danger" as const },
+  ];
+
+  const yearItems = [
+    {
+      key: "year_vencidos",
+      label: "Vencidos no ano",
+      value: yearPriorities.vencidos,
+      tone: "danger" as const,
+      patch: { priority: "vencidos", mode: "accumulated", month: 12 },
+    },
+    {
+      key: "year_pendentes",
+      label: "Pendentes Alterdata (ano)",
+      value: yearPriorities.pendentesAlterdata,
+      tone: "info" as const,
+      patch: {
+        priority: "pendentesAlterdata",
+        mode: "accumulated",
+        month: 12,
+      },
+    },
+  ];
+
+  return (
+    <div className="mb-3 space-y-3 rounded-lg border border-slate-200 bg-white p-3">
+      <ChipRow
+        title="Prioridades da competência"
+        items={competenceItems}
+        current={current}
+        activePriority={activePriority}
+      />
+      <div className="border-t border-slate-100 pt-3">
+        <p className="mb-1.5 text-[10px] font-semibold tracking-wide text-slate-500 uppercase">
+          Visão anual
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {yearItems
+            .filter((i) => i.value > 0)
+            .map((item) => (
+              <Link
+                key={item.key}
+                href={buildAsoUrl("/asos", current, {
+                  ...item.patch,
+                  page: undefined,
+                })}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[12px] font-medium transition-colors",
+                  item.tone === "danger"
+                    ? "border-red-200 bg-red-50 text-red-800 hover:bg-red-100"
+                    : "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100",
+                )}
+              >
+                {item.label}
+                <span className="rounded-full bg-white/70 px-1.5 py-0 text-[11px] font-semibold">
+                  {item.value}
+                </span>
+              </Link>
+            ))}
+          {!yearItems.some((i) => i.value > 0) ? (
+            <p className="text-[12px] text-slate-400">Nenhuma prioridade anual neste escopo.</p>
+          ) : null}
+        </div>
+        {yearPriorities.competenciasAguardando > 0 || priorities.competenciasAguardando > 0 ? (
+          <span className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-100 px-2.5 py-1 text-[12px] font-medium text-amber-900">
+            Competência em conferência
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }

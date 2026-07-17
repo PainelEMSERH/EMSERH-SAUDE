@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, like, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getDb } from "@/db";
@@ -11,6 +11,7 @@ import {
   asoSchedules,
   asoTargetHistory,
   asoTargets,
+  importBatches,
 } from "@/db/schemas";
 import {
   generateAsoPlanningForYear,
@@ -18,11 +19,16 @@ import {
 } from "@/db/queries/aso-panel";
 import { writeAuditLog } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth/guard";
+import {
+  JUSTIFY_REASONS,
+  reasonExcludesDenominator,
+  resolveJustificationEligibility,
+} from "@/lib/aso/execution";
+import { migrateExistingAsoRecordsToPlans } from "@/lib/aso/migrate-existing";
+import { yearMonthFromDate } from "@/lib/aso/planning";
 import { addRealMonths, computeDeadlineStatus } from "@/lib/dates";
 import { requireEmployeeInUserScope } from "@/lib/scope";
 import { syncAlterdataAsoSnapshots } from "@/lib/sheets/mirror-sync";
-import { yearMonthFromDate } from "@/lib/aso/planning";
-import { migrateExistingAsoRecordsToPlans } from "@/lib/aso/migrate-existing";
 
 export type AsoActionState = { error?: string; ok?: boolean; message?: string };
 
@@ -83,6 +89,59 @@ export async function syncAlterdataAsoAction(): Promise<AsoActionState> {
   }
 }
 
+/** Cancela lote de espelho preso em RUNNING (possível interrupção). */
+export async function cancelStaleMirrorSyncAction(): Promise<AsoActionState> {
+  try {
+    const user = await requirePermission("asos", "update");
+    const db = getDb();
+    const [running] = await db
+      .select({
+        id: importBatches.id,
+        createdAt: importBatches.createdAt,
+        status: importBatches.status,
+      })
+      .from(importBatches)
+      .where(
+        and(
+          eq(importBatches.status, "RUNNING"),
+          or(
+            like(importBatches.sourceName, "mirror:%"),
+            like(importBatches.sourceName, "mirror-aso:%"),
+            like(importBatches.sourceName, "mirror-fast:%"),
+          ),
+        ),
+      )
+      .orderBy(desc(importBatches.createdAt))
+      .limit(1);
+
+    if (!running) {
+      return { error: "Não há sincronização em andamento." };
+    }
+
+    await db
+      .update(importBatches)
+      .set({
+        status: "CANCELLED",
+        updatedBy: user.id,
+      })
+      .where(eq(importBatches.id, running.id));
+
+    await writeAuditLog({
+      user,
+      action: "CANCEL_MIRROR_SYNC",
+      entityType: "import_batch",
+      entityId: running.id,
+      metadata: { previousStatus: "RUNNING" },
+    });
+    revalidatePath("/asos");
+    return { ok: true, message: "Lote de sincronização cancelado." };
+  } catch (e) {
+    return {
+      error: e instanceof Error ? e.message : "Falha ao cancelar sincronização.",
+    };
+  }
+}
+
 export async function registerAsoRealizationAction(
   _prev: AsoActionState,
   formData: FormData,
@@ -95,6 +154,7 @@ export async function registerAsoRealizationAction(
       result: z.string().optional(),
       periodicityMonths: z.coerce.number().int().positive().optional(),
       adminNotes: z.string().optional(),
+      correctionReason: z.string().optional(),
     });
     const data = schema.parse({
       planId: formData.get("planId"),
@@ -102,6 +162,7 @@ export async function registerAsoRealizationAction(
       result: formData.get("result") || undefined,
       periodicityMonths: formData.get("periodicityMonths") || undefined,
       adminNotes: formData.get("adminNotes") || undefined,
+      correctionReason: formData.get("correctionReason") || undefined,
     });
 
     const db = getDb();
@@ -118,6 +179,18 @@ export async function registerAsoRealizationAction(
     }
 
     await requireEmployeeInUserScope(user, { employeeId: plan.employeeId });
+
+    const alreadyRealized =
+      plan.executionStatus === "REALIZADO" || Boolean(plan.asoRecordId);
+    if (alreadyRealized) {
+      if (!data.correctionReason?.trim()) {
+        return {
+          error:
+            "Este item já possui realização. Informe o motivo da correção para alterar.",
+        };
+      }
+      await requirePermission("asos", "update");
+    }
 
     const periodicity = data.periodicityMonths ?? 12;
     const base = new Date(`${data.performedDate}T12:00:00`);
@@ -186,13 +259,20 @@ export async function registerAsoRealizationAction(
 
     await writeAuditLog({
       user,
-      action: "REGISTER_ASO_REALIZATION",
+      action: alreadyRealized
+        ? "CORRECT_ASO_REALIZATION"
+        : "REGISTER_ASO_REALIZATION",
       entityType: "aso_record",
       entityId: recordId!,
-      metadata: { planId: plan.id, performedDate: data.performedDate },
+      metadata: {
+        planId: plan.id,
+        performedDate: data.performedDate,
+        correctionReason: data.correctionReason || null,
+        previousRecordId: plan.asoRecordId,
+      },
     });
     revalidatePath("/asos");
-    return { ok: true };
+    return { ok: true, message: "Realização salva com sucesso." };
   } catch (e) {
     return {
       error: e instanceof Error ? e.message : "Falha ao registrar realização.",
@@ -207,9 +287,14 @@ export async function justifyAsoPlanAction(
   try {
     const user = await requirePermission("asos", "update");
     const planId = String(formData.get("planId") || "");
-    const reason = String(formData.get("reason") || "").trim();
+    const reason = String(formData.get("reason") || "").trim().toUpperCase();
     const notes = String(formData.get("notes") || "").trim();
+    const excludeRaw = String(formData.get("excludeDenominator") || "");
     if (!planId || !reason) return { error: "Informe o motivo da justificativa." };
+    if (!notes) return { error: "Informe a observação da justificativa." };
+
+    const allowed = JUSTIFY_REASONS.some((r) => r.value === reason);
+    if (!allowed) return { error: "Motivo de justificativa inválido." };
 
     const db = getDb();
     const [plan] = await db
@@ -219,15 +304,26 @@ export async function justifyAsoPlanAction(
       .limit(1);
     if (!plan) return { error: "Item não encontrado." };
     if (plan.frozen) return { error: "Competência fechada." };
+    if (plan.executionStatus === "REALIZADO" || plan.asoRecordId) {
+      return { error: "Não é possível justificar um item já realizado." };
+    }
     await requireEmployeeInUserScope(user, { employeeId: plan.employeeId });
+
+    const resolved = resolveJustificationEligibility(reason);
+    // Servidor valida: recusa/falta nunca excluem. Usuário pode manter no denominador.
+    const finalEligibility =
+      reasonExcludesDenominator(reason) && excludeRaw === "0"
+        ? "ELEGIVEL"
+        : resolved.eligibility;
+    const executionStatus = resolved.executionStatus;
 
     await db
       .update(asoMonthlyPlans)
       .set({
-        eligibility: "JUSTIFICADO",
-        executionStatus: "JUSTIFICADO",
+        eligibility: finalEligibility,
+        executionStatus,
         justificationReason: reason,
-        justificationNotes: notes || null,
+        justificationNotes: notes,
         justifiedAt: new Date(),
         justifiedBy: user.id,
         updatedBy: user.id,
@@ -239,10 +335,19 @@ export async function justifyAsoPlanAction(
       action: "JUSTIFY_ASO_PLAN",
       entityType: "aso_monthly_plan",
       entityId: planId,
-      metadata: { reason },
+      metadata: {
+        reason,
+        notes,
+        previous: {
+          eligibility: plan.eligibility,
+          executionStatus: plan.executionStatus,
+        },
+        next: { eligibility: finalEligibility, executionStatus },
+        excludesDenominator: reasonExcludesDenominator(reason),
+      },
     });
     revalidatePath("/asos");
-    return { ok: true };
+    return { ok: true, message: "Justificativa registrada." };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Falha ao justificar." };
   }
@@ -257,7 +362,9 @@ export async function reprogramAsoPlanAction(
     const planId = String(formData.get("planId") || "");
     const newDate = String(formData.get("newDate") || "").trim();
     const reason = String(formData.get("reason") || "").trim();
+    const notes = String(formData.get("notes") || "").trim();
     if (!planId || !newDate) return { error: "Informe a nova data." };
+    if (!reason) return { error: "Informe o motivo da reprogramação." };
 
     const ym = yearMonthFromDate(newDate);
     if (!ym) return { error: "Data inválida." };
@@ -270,19 +377,25 @@ export async function reprogramAsoPlanAction(
       .limit(1);
     if (!plan) return { error: "Item não encontrado." };
     if (plan.frozen) return { error: "Competência fechada." };
+    if (plan.executionStatus === "REALIZADO" || plan.asoRecordId) {
+      return { error: "Não é possível reprogramar um item já realizado." };
+    }
     await requireEmployeeInUserScope(user, { employeeId: plan.employeeId });
+
+    const originalExpected = plan.expectedDate;
 
     await db
       .update(asoMonthlyPlans)
       .set({
         executionStatus: "REPROGRAMADO",
         reprogrammedToDate: newDate,
-        reprogrammedReason: reason || null,
+        reprogrammedReason: `${reason}${notes ? ` — ${notes}` : ""}`,
+        // Mantém expectedDate/competência originais para aderência histórica
         updatedBy: user.id,
       })
       .where(eq(asoMonthlyPlans.id, planId));
 
-    // Cria/atualiza item na nova competência (aberta)
+    // Cria/atualiza item na nova competência (aberta) — sem apagar o original
     const [existing] = await db
       .select()
       .from(asoMonthlyPlans)
@@ -297,7 +410,7 @@ export async function reprogramAsoPlanAction(
       )
       .limit(1);
 
-    if (existing && !existing.frozen) {
+    if (existing && existing.id !== plan.id && !existing.frozen) {
       await db
         .update(asoMonthlyPlans)
         .set({
@@ -335,10 +448,17 @@ export async function reprogramAsoPlanAction(
       action: "REPROGRAM_ASO_PLAN",
       entityType: "aso_monthly_plan",
       entityId: planId,
-      metadata: { newDate, reason },
+      metadata: {
+        newDate,
+        reason,
+        notes,
+        originalExpected,
+        originalCompetence: `${plan.year}-${String(plan.month).padStart(2, "0")}`,
+        targetCompetence: `${ym.year}-${String(ym.month).padStart(2, "0")}`,
+      },
     });
     revalidatePath("/asos");
-    return { ok: true };
+    return { ok: true, message: "Reprogramação registrada. Competência original preservada." };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Falha ao reprogramar." };
   }

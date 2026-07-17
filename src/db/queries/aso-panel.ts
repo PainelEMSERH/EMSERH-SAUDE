@@ -30,7 +30,12 @@ import {
   yearMonthFromDate,
 } from "@/lib/aso/planning";
 import { MONTH_LABELS } from "@/lib/aso/constants";
+import {
+  isDueWithinDays,
+  isPlanOverdue,
+} from "@/lib/aso/execution";
 import { reconcileAlterdataStatus } from "@/lib/aso/reconciliation";
+import { humanizeLabel } from "@/lib/labels";
 import { employeeScopeCondition, parsePage, parsePageSize } from "@/lib/scope";
 import type { SessionUser } from "@/types";
 
@@ -87,6 +92,7 @@ export async function getLastMirrorSync() {
     .where(
       or(
         sql`${importBatches.sourceName} like 'mirror:%'`,
+        sql`${importBatches.sourceName} like 'mirror-aso:%'`,
         sql`${importBatches.sourceName} like 'mirror-fast:%'`,
       ),
     )
@@ -293,6 +299,9 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
       eligibility: p.eligibility,
       executionStatus: p.executionStatus,
       alterdataStatus: p.alterdataStatus,
+      expectedDate: p.expectedDate,
+      asoRecordId: p.asoRecordId,
+      performedDate: p.performedDate,
     })),
     target?.targetPercent ?? null,
   );
@@ -307,6 +316,8 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
       unitName: asoMonthlyPlans.unitNameSnapshot,
       eligibility: asoMonthlyPlans.eligibility,
       executionStatus: asoMonthlyPlans.executionStatus,
+      expectedDate: asoMonthlyPlans.expectedDate,
+      asoRecordId: asoMonthlyPlans.asoRecordId,
     })
     .from(asoMonthlyPlans)
     .where(
@@ -333,6 +344,7 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
     label: string;
     regionId: string | null;
     unitId: string | null;
+    cadastralAlert?: boolean;
     cells: Array<{
       month: number;
       realizados: number;
@@ -355,6 +367,8 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
         subset.map((s) => ({
           eligibility: s.eligibility,
           executionStatus: s.executionStatus,
+          expectedDate: s.expectedDate,
+          asoRecordId: s.asoRecordId,
         })),
         targetsYear.find(
           (t) =>
@@ -377,16 +391,26 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
         month: m,
         realizados: met.realizados,
         elegiveis: met.previstosElegiveis,
-        percent: met.aderenciaPercent,
+        percent: isFuture ? null : met.aderenciaPercent,
         meta: met.metaPercent,
         tone: matrixCellTone({
-          percent: met.aderenciaPercent,
+          percent: isFuture ? null : met.aderenciaPercent,
           metaPercent: met.metaPercent,
           hasDenominator: met.previstosElegiveis > 0,
           isFuture,
         }),
       };
     });
+  }
+
+  function scopeLabel(raw: string | null | undefined, fallback: string) {
+    const name = (raw || "").trim();
+    if (!name) return fallback;
+    const upper = name.toUpperCase().replace(/\s+/g, "_");
+    if (upper === "NAO_INFORMADA" || upper === "NAO_INFORMADO") {
+      return "Regional não informada";
+    }
+    return humanizeLabel(name);
   }
 
   const matrixRows: MatrixRow[] = [];
@@ -400,25 +424,30 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
     });
     for (const reg of regionRows) {
       const subset = yearPlans.filter((p) => p.regionId === reg.id);
+      const label = scopeLabel(reg.name, "Regional");
       matrixRows.push({
         key: reg.id,
-        label: reg.name,
+        label,
         regionId: reg.id,
         unitId: null,
         cells: buildCells(subset, reg.id, null),
+        cadastralAlert: label === "Regional não informada",
       });
     }
   } else {
-    const regLabel =
+    const regLabel = scopeLabel(
       regionRows.find((r) => r.id === regionId)?.name ||
-      yearPlans.find((p) => p.regionId === regionId)?.regionName ||
-      "Regional";
+        yearPlans.find((p) => p.regionId === regionId)?.regionName ||
+        "Regional",
+      "Regional",
+    );
     matrixRows.push({
       key: regionId || "region",
       label: regLabel,
       regionId: regionId || null,
       unitId: null,
       cells: buildCells(yearPlans, regionId || null, null),
+      cadastralAlert: regLabel === "Regional não informada",
     });
     const unitIds = [...new Set(yearPlans.map((p) => p.unitId).filter(Boolean))] as string[];
     for (const uid of unitIds) {
@@ -429,7 +458,7 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
         "Unidade";
       matrixRows.push({
         key: uid,
-        label,
+        label: humanizeLabel(label),
         regionId: regionId || null,
         unitId: uid,
         cells: buildCells(subset, regionId || null, uid),
@@ -441,10 +470,15 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
   const chartSeries = Array.from({ length: 12 }, (_, i) => {
     const m = i + 1;
     const subset = yearPlans.filter((p) => p.month === m);
+    const isFuture =
+      year > now.getFullYear() ||
+      (year === now.getFullYear() && m > now.getMonth() + 1);
     const met = computeCompetenceMetrics(
       subset.map((s) => ({
         eligibility: s.eligibility,
         executionStatus: s.executionStatus,
+        expectedDate: s.expectedDate,
+        asoRecordId: s.asoRecordId,
       })),
       targetsYear.find(
         (t) =>
@@ -456,21 +490,23 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
     return {
       month: m,
       label: MONTH_LABELS[i],
-      resultado: met.aderenciaPercent,
+      resultado: isFuture ? null : met.aderenciaPercent,
       meta: met.metaPercent,
       realizados: met.realizados,
       elegiveis: met.previstosElegiveis,
     };
   });
 
-  // Prioridades (ano corrente, escopo)
-  const allOpen = await db
+  // Prioridades: competência selecionada × visão anual (mesmo ano/tipo/escopo)
+  const yearOpen = await db
     .select({
+      month: asoMonthlyPlans.month,
       executionStatus: asoMonthlyPlans.executionStatus,
       alterdataStatus: asoMonthlyPlans.alterdataStatus,
       expectedDate: asoMonthlyPlans.expectedDate,
       eligibility: asoMonthlyPlans.eligibility,
       functionalStatusSnapshot: asoMonthlyPlans.functionalStatusSnapshot,
+      asoRecordId: asoMonthlyPlans.asoRecordId,
       frozen: asoMonthlyPlans.frozen,
     })
     .from(asoMonthlyPlans)
@@ -480,7 +516,7 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
           user,
           regionId,
           unitId,
-          "ALL",
+          asoType,
           year,
           [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
         ),
@@ -489,51 +525,78 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const inDays = (d: string | null, days: number) => {
-    if (!d) return false;
-    const x = new Date(`${d}T12:00:00`);
-    const diff = Math.round((x.getTime() - today.getTime()) / 86400000);
-    return diff >= 0 && diff <= days;
-  };
-  const overdue = (d: string | null) => {
-    if (!d) return false;
-    return new Date(`${d}T12:00:00`) < today;
-  };
 
+  function countPriorities(
+    rows: Array<{
+      executionStatus: string;
+      alterdataStatus: string;
+      expectedDate: string | null;
+      eligibility: string;
+      functionalStatusSnapshot: string | null;
+      asoRecordId: string | null;
+    }>,
+  ) {
+    return {
+      vencidos: rows.filter((p) =>
+        isPlanOverdue(
+          {
+            eligibility: p.eligibility,
+            executionStatus: p.executionStatus,
+            expectedDate: p.expectedDate,
+            asoRecordId: p.asoRecordId,
+          },
+          today,
+        ),
+      ).length,
+      vencendo7: rows.filter((p) =>
+        isDueWithinDays(
+          {
+            eligibility: p.eligibility,
+            executionStatus: p.executionStatus,
+            expectedDate: p.expectedDate,
+            asoRecordId: p.asoRecordId,
+          },
+          7,
+          today,
+        ),
+      ).length,
+      vencendo30: rows.filter((p) =>
+        isDueWithinDays(
+          {
+            eligibility: p.eligibility,
+            executionStatus: p.executionStatus,
+            expectedDate: p.expectedDate,
+            asoRecordId: p.asoRecordId,
+          },
+          30,
+          today,
+        ),
+      ).length,
+      pendentesAlterdata: rows.filter(
+        (p) =>
+          p.alterdataStatus === "PENDENTE_ATUALIZACAO" ||
+          p.alterdataStatus === "AGUARDANDO_SINCRONIZACAO",
+      ).length,
+      divergencias: rows.filter((p) => p.alterdataStatus === "DIVERGENCIA_DATA")
+        .length,
+      atualizadoSemRegistro: rows.filter(
+        (p) => p.alterdataStatus === "ATUALIZADO_SEM_REGISTRO",
+      ).length,
+      semProximoAso: rows.filter((p) => !p.expectedDate).length,
+      afastadosRetorno: rows.filter(
+        (p) => p.functionalStatusSnapshot === "AFASTADO",
+      ).length,
+      competenciasAguardando: 0,
+    };
+  }
+
+  const competenceRows = yearOpen.filter((p) => p.month === month);
   const priorities = {
-    vencidos: allOpen.filter(
-      (p) =>
-        p.executionStatus === "VENCIDO" ||
-        (p.executionStatus !== "REALIZADO" &&
-          p.eligibility === "ELEGIVEL" &&
-          overdue(p.expectedDate)),
-    ).length,
-    vencendo7: allOpen.filter(
-      (p) =>
-        p.executionStatus !== "REALIZADO" &&
-        p.eligibility === "ELEGIVEL" &&
-        inDays(p.expectedDate, 7),
-    ).length,
-    vencendo30: allOpen.filter(
-      (p) =>
-        p.executionStatus !== "REALIZADO" &&
-        p.eligibility === "ELEGIVEL" &&
-        inDays(p.expectedDate, 30),
-    ).length,
-    pendentesAlterdata: allOpen.filter(
-      (p) =>
-        p.alterdataStatus === "PENDENTE_ATUALIZACAO" ||
-        p.alterdataStatus === "AGUARDANDO_SINCRONIZACAO",
-    ).length,
-    divergencias: allOpen.filter((p) => p.alterdataStatus === "DIVERGENCIA_DATA")
-      .length,
-    atualizadoSemRegistro: allOpen.filter(
-      (p) => p.alterdataStatus === "ATUALIZADO_SEM_REGISTRO",
-    ).length,
-    semProximoAso: allOpen.filter((p) => !p.expectedDate).length,
-    afastadosRetorno: allOpen.filter(
-      (p) => p.functionalStatusSnapshot === "AFASTADO",
-    ).length,
+    ...countPriorities(competenceRows),
+    competenciasAguardando: closure?.status === "EM_CONFERENCIA" ? 1 : 0,
+  };
+  const yearPriorities = {
+    ...countPriorities(yearOpen),
     competenciasAguardando: closure?.status === "EM_CONFERENCIA" ? 1 : 0,
   };
 
@@ -571,10 +634,47 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
     nominal = nominal.filter((p) => p.alterdataStatus === "DIVERGENCIA_DATA");
   }
   if (params.overdueOnly === "1" || params.priority === "vencidos") {
-    nominal = nominal.filter(
-      (p) =>
-        p.executionStatus === "VENCIDO" ||
-        (p.executionStatus !== "REALIZADO" && overdue(p.expectedDate)),
+    nominal = nominal.filter((p) =>
+      isPlanOverdue(
+        {
+          eligibility: p.eligibility,
+          executionStatus: p.executionStatus,
+          expectedDate: p.expectedDate,
+          asoRecordId: p.asoRecordId,
+          performedDate: p.performedDate,
+        },
+        today,
+      ),
+    );
+  }
+  if (params.priority === "vencendo7") {
+    nominal = nominal.filter((p) =>
+      isDueWithinDays(
+        {
+          eligibility: p.eligibility,
+          executionStatus: p.executionStatus,
+          expectedDate: p.expectedDate,
+          asoRecordId: p.asoRecordId,
+          performedDate: p.performedDate,
+        },
+        7,
+        today,
+      ),
+    );
+  }
+  if (params.priority === "vencendo30") {
+    nominal = nominal.filter((p) =>
+      isDueWithinDays(
+        {
+          eligibility: p.eligibility,
+          executionStatus: p.executionStatus,
+          expectedDate: p.expectedDate,
+          asoRecordId: p.asoRecordId,
+          performedDate: p.performedDate,
+        },
+        30,
+        today,
+      ),
     );
   }
   if (params.priority === "pendentesAlterdata") {
@@ -602,6 +702,9 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
         subset.map((s) => ({
           eligibility: s.eligibility,
           executionStatus: s.executionStatus,
+          expectedDate: s.expectedDate,
+          asoRecordId: s.asoRecordId,
+          performedDate: s.performedDate,
         })),
       );
       byRegion.set(reg.id, {
@@ -634,6 +737,7 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
     matrixRows,
     chartSeries,
     priorities,
+    yearPriorities,
     distribution: {
       realizadoConfirmado: metrics.confirmadosAlterdata,
       realizadoPendente: metrics.pendentesAlterdata,

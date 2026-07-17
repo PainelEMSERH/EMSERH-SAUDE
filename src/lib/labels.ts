@@ -52,6 +52,23 @@ const LABELS: Record<string, string> = {
   EM_CONFERENCIA: "Em conferência",
   FECHADA: "Fechada",
 
+  // Lotes de importação / sync
+  RUNNING: "Em andamento",
+  COMPLETED: "Concluída",
+  COMPLETED_WITH_ERRORS: "Concluída com erros",
+  FAILED: "Falhou",
+  CANCELLED: "Cancelada",
+  CANCELED: "Cancelada",
+
+  // Justificativas
+  RECUSA: "Recusa",
+  FALTA: "Falta",
+  DISPENSA: "Dispensa",
+  REPROGRAMACAO: "Reprogramação",
+  TRANSFERIDO: "Transferido",
+  OUTRO: "Outro",
+  AFASTADO_JUSTIFICATIVA: "Afastado",
+
   // Origens
   ALTERDATA_NEXT_ASO: "Próximo ASO Alterdata",
   ADMISSION: "Admissão",
