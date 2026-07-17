@@ -1008,7 +1008,7 @@ export async function generateAsoPlanningForYear(
       });
     }
 
-    // Remove periódicos órfãos / fantasmas de demissão.
+    // Remove periódicos órfãos / fantasmas (demissão, mês errado, next já em outro ano).
     const obsolete = await db
       .select({
         id: asoMonthlyPlans.id,
@@ -1025,7 +1025,6 @@ export async function generateAsoPlanningForYear(
           eq(asoMonthlyPlans.year, year),
           isNull(asoMonthlyPlans.deletedAt),
           eq(asoMonthlyPlans.frozen, false),
-          sql`${asoMonthlyPlans.asoRecordId} is null`,
         ),
       );
     for (const row of obsolete) {
@@ -1034,11 +1033,15 @@ export async function generateAsoPlanningForYear(
       const isGhostDismissed =
         row.justificationReason === "DEMITIDO" ||
         dismissedBeforeCompetence(emp.dismissalDate, year, row.month);
+      // Next confiável fora do ano/mês → plano fantasma (ex.: ASO 2026 em out com next em 2027)
+      const isStaleVsAlterdata =
+        keepMonth == null || row.month !== keepMonth;
       const isOpenStatus = [
         "PREVISTO",
         "VENCIDO",
         "NAO_REALIZADO",
         "JUSTIFICADO",
+        "REALIZADO",
       ].includes(String(row.executionStatus || ""));
       if (keepMonth != null && row.month === keepMonth && !isGhostDismissed) {
         continue;
@@ -1046,12 +1049,22 @@ export async function generateAsoPlanningForYear(
       if (!isOpenStatus && !isGhostDismissed) continue;
       if (
         !isGhostDismissed &&
+        !isStaleVsAlterdata &&
         ![
           "ALTERDATA_NEXT_ASO",
           "RECOMPUTED_FROM_LAST_ASO",
           "RECOMPUTED_FROM_ADMISSION",
           "MIGRATION",
+          "ASO_2026_CONTROL",
         ].includes(String(row.predictionOrigin || ""))
+      ) {
+        continue;
+      }
+      // Mantém REALIZADO só se for o mês correto do next (já continuou acima).
+      // Fantasma em outro mês/ano: remove mesmo REALIZADO (antecipação já cumprida).
+      if (
+        !isGhostDismissed &&
+        !isStaleVsAlterdata
       ) {
         continue;
       }
