@@ -40,4 +40,4 @@ Alterdata/planilhas → scripts de importação locais → Neon → painel (esco
 
 ## Estado atual
 
-Base técnica, modelagem e shells protegidos prontos. Conexão Neon e migração inicial ficam para a etapa de configuração combinada (sem consumir créditos/API agora).
+Neon conectado em produção; migração inicial aplicada. Auth, RBAC em TypeScript, listagens com escopo e sync do espelho Alterdata (somente leitura) operacionais. Ver `docs/TECHNICAL_AUDIT_2026-07-16.md` para lacunas e correções P0.

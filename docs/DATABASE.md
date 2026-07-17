@@ -36,4 +36,4 @@ Criados via Drizzle `pgSchema`: `auth`, `core`, `occupational`, `files`, `report
 
 ## Pendência
 
-Aplicação das migrações no Neon de produção será feita quando as variáveis forem configuradas.
+Aplicação das migrações no Neon de produção: migração inicial `0000_init` já aplicada. Novas migrações seguem o fluxo expand/contract documentado acima.
