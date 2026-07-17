@@ -65,4 +65,27 @@ describe("reconcileAlterdataStatus", () => {
     });
     expect(status).toBe("SEM_HISTORICO");
   });
+
+  it("cenário 7: um snapshot após realização com ciclo coerente → confirmado (caso 011612)", () => {
+    const status = reconcileAlterdataStatus({
+      performedDate: "2026-01-07",
+      periodicityMonths: 12,
+      snapshots: [
+        { nextAsoDate: "2027-01-07", syncedAt: "2026-07-17T12:00:00Z" },
+      ],
+    });
+    expect(status).toBe("CONFIRMADO");
+  });
+
+  it("cenário 8: vários snapshots só depois da realização — usa o mais recente", () => {
+    const status = reconcileAlterdataStatus({
+      performedDate: "2026-01-07",
+      periodicityMonths: 12,
+      snapshots: [
+        { nextAsoDate: "2027-07-01", syncedAt: "2026-07-17T11:00:00Z" },
+        { nextAsoDate: "2027-01-07", syncedAt: "2026-07-17T13:00:00Z" },
+      ],
+    });
+    expect(status).toBe("CONFIRMADO");
+  });
 });

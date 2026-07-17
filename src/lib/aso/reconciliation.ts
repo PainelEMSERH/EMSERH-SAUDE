@@ -37,8 +37,15 @@ function daysBetween(a: Date, b: Date): number {
 }
 
 /**
- * Concilia realização interna com histórico de próximo ASO do Alterdata.
- * Nunca marca CONFIRMADO só porque a data atual está no futuro.
+ * Concilia realização interna com o espelho Alterdata.
+ *
+ * Com realização:
+ * - sem sync depois da data → AGUARDANDO
+ * - com próximo ASO coerente (realização + periodicidade) → CONFIRMADO
+ * - sem avançar o ciclo → PENDENTE
+ * - data incoerente → DIVERGENCIA
+ *
+ * Sem realização: só detecta avanço no espelho (ATUALIZADO_SEM_REGISTRO).
  */
 export function reconcileAlterdataStatus(
   input: ReconciliationInput,
@@ -47,9 +54,10 @@ export function reconcileAlterdataStatus(
     (a, b) => toTime(a.syncedAt) - toTime(b.syncedAt),
   );
   const performed = parseDay(input.performedDate);
-  const periodicity = input.periodicityMonths && input.periodicityMonths > 0
-    ? input.periodicityMonths
-    : 12;
+  const periodicity =
+    input.periodicityMonths && input.periodicityMonths > 0
+      ? input.periodicityMonths
+      : 12;
   const tolerance = input.cycleToleranceDays ?? 45;
 
   if (!performed) {
@@ -65,38 +73,31 @@ export function reconcileAlterdataStatus(
     return "SEM_HISTORICO";
   }
 
+  if (!snaps.length) {
+    return "AGUARDANDO_SINCRONIZACAO";
+  }
+
   const after = snaps.filter((s) => toTime(s.syncedAt) > performed.getTime());
   if (!after.length) {
     return "AGUARDANDO_SINCRONIZACAO";
   }
 
-  const before = snaps.filter((s) => toTime(s.syncedAt) <= performed.getTime());
-  const baseline =
-    before.length > 0
-      ? before[before.length - 1]
-      : snaps.length >= 2
-        ? snaps[snaps.length - 2]
-        : snaps[0];
-
-  if (!baseline || snaps.length < 2) {
-    // Só um snapshot após realização → sem baseline confiável
-    if (before.length === 0 && snaps.length === 1) return "SEM_HISTORICO";
-  }
-
-  const baselineDate = parseDay(baseline?.nextAsoDate ?? null);
   const latest = after[after.length - 1];
   const latestDate = parseDay(latest.nextAsoDate);
+  if (!latestDate) return "SEM_HISTORICO";
 
-  if (!baselineDate || !latestDate) {
-    return "SEM_HISTORICO";
-  }
-
-  if (latestDate.getTime() <= baselineDate.getTime()) {
-    return "PENDENTE_ATUALIZACAO";
+  // Baseline só conta se existia espelho ANTES da realização.
+  // Não usar outro snapshot posterior como baseline (gera falso "pendente"/"sem histórico").
+  const before = snaps.filter((s) => toTime(s.syncedAt) <= performed.getTime());
+  if (before.length > 0) {
+    const baselineDate = parseDay(before[before.length - 1].nextAsoDate);
+    if (baselineDate && latestDate.getTime() <= baselineDate.getTime()) {
+      return "PENDENTE_ATUALIZACAO";
+    }
   }
 
   if (latestDate.getTime() <= performed.getTime()) {
-    return "DIVERGENCIA_DATA";
+    return "PENDENTE_ATUALIZACAO";
   }
 
   const expected = addRealMonths(performed, periodicity);
