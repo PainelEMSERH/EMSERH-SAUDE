@@ -17,95 +17,95 @@ function toneForClosure(status?: string | null) {
   }
 }
 
-function Card({
+function Kpi({
   label,
   value,
   hint,
   tone = "default",
   href,
-  emphasis,
-  compact,
-  valueClassName,
+  compactValue,
 }: {
   label: string;
   value: string;
   hint?: string;
   tone?: "default" | "danger" | "warn" | "ok";
   href?: string;
-  emphasis?: boolean;
-  compact?: boolean;
-  valueClassName?: string;
+  compactValue?: boolean;
 }) {
-  const toneClasses: Record<string, string> = {
+  const toneClasses = {
     default: "text-slate-900",
     danger: "text-red-700",
     warn: "text-amber-700",
     ok: "text-teal-800",
-  };
+  } as const;
+
   const body = (
     <div
       className={cn(
-        "rounded-lg border border-slate-200 bg-white",
-        compact ? "px-2.5 py-1.5" : "p-3",
-        emphasis ? "ring-1 ring-teal-200" : "",
-        href ? "transition-colors hover:border-teal-300 hover:bg-teal-50/30" : "",
+        "flex h-full min-w-0 flex-col justify-center px-3 py-2.5",
+        href ? "transition-colors hover:bg-teal-50/40" : "",
       )}
     >
-      <p
-        className={cn(
-          "font-medium tracking-wide text-slate-500 uppercase",
-          compact ? "text-[10px]" : "text-[11px]",
-        )}
-      >
+      <p className="text-[10px] font-semibold tracking-[0.06em] text-slate-500 uppercase">
         {label}
       </p>
       <p
         className={cn(
-          "font-semibold tabular-nums",
-          compact ? "mt-0.5 text-base" : "mt-1 text-2xl",
+          "mt-0.5 leading-none font-semibold tracking-tight tabular-nums",
+          compactValue ? "text-[16px]" : "text-[22px]",
           toneClasses[tone],
-          valueClassName,
         )}
       >
         {value}
       </p>
       {hint ? (
-        <p className={cn("text-slate-500", compact ? "mt-0 text-[10px]" : "mt-0.5 text-[11px]")}>
+        <p className="mt-1 truncate text-[10px] leading-tight text-slate-500" title={hint}>
           {hint}
         </p>
-      ) : null}
+      ) : (
+        <span className="mt-1 block h-[14px]" aria-hidden />
+      )}
     </div>
   );
-  return href ? <Link href={href}>{body}</Link> : body;
+
+  return href ? <Link href={href} className="min-w-0">{body}</Link> : body;
 }
 
-function ImpactItem({
+function StripItem({
   label,
   value,
   href,
   tone,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   href?: string;
-  tone?: string;
+  tone?: "default" | "warn" | "ok" | "muted";
 }) {
+  const valueClass =
+    tone === "warn"
+      ? "text-amber-700"
+      : tone === "ok"
+        ? "text-teal-800"
+        : tone === "muted"
+          ? "text-slate-400"
+          : "text-slate-800";
+
   const content = (
-    <div className="min-w-0">
-      <p className="text-[10px] font-medium tracking-wide text-slate-500 uppercase">{label}</p>
-      <p className={cn("mt-0.5 text-lg font-semibold tabular-nums", tone ?? "text-slate-800")}>
-        {value}
-      </p>
-    </div>
+    <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
+      <span className="text-slate-500">{label}</span>
+      <span className={cn("font-semibold tabular-nums", valueClass)}>{value}</span>
+    </span>
   );
+
   if (href) {
     return (
-      <Link href={href} className="rounded-md px-1 py-0.5 transition-colors hover:bg-slate-50">
+      <Link href={href} className="rounded px-0.5 hover:bg-white/80 hover:text-teal-900">
         {content}
       </Link>
     );
   }
-  return <div className="px-1 py-0.5">{content}</div>;
+  return content;
 }
 
 export function AsoSummaryCards({
@@ -138,144 +138,154 @@ export function AsoSummaryCards({
           elegiveis: metrics.previstosElegiveis,
         });
 
+  const adherenceHint = metaDefined
+    ? `Meta institucional: ${metrics.metaPercent}%`
+    : "Execução operacional · meta não cadastrada";
+
   return (
     <div className="mb-3 space-y-2">
       {asoType === "ALL" ? (
-        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
+        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12px] text-slate-600">
           <strong className="font-semibold text-slate-800">Consolidado operacional</strong>
           {" · "}
-          cada tipo de ASO possui denominador próprio. Status: pendente de validação institucional.
+          cada tipo de ASO possui denominador próprio.
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-        <Card
-          label="Elegíveis"
-          value={String(metrics.previstosElegiveis)}
-          emphasis
-          href={buildAsoUrl("/asos", current, { pendingOnly: "1", page: undefined })}
-        />
-        <Card
-          label="Realizados"
-          value={String(metrics.realizados)}
-          tone="ok"
-          emphasis
-          href={buildAsoUrl("/asos", current, { execution: "REALIZADO", page: undefined })}
-        />
-        <Card
-          label="Aderência"
-          value={
-            !metaDefined && pct != null
-              ? `${pctLabel} de execução operacional`
-              : pctLabel
-          }
-          hint={
-            metaDefined
-              ? `Meta institucional: ${metrics.metaPercent}%`
-              : "Meta institucional ainda não cadastrada"
-          }
-          tone={pctTone}
-          emphasis
-          valueClassName={!metaDefined && pct != null ? "text-lg leading-snug" : undefined}
-        />
-        <Card
-          label={metaDefined ? "Faltam para a meta" : "Meta não definida"}
-          value={
-            metaDefined && metrics.faltamParaMeta != null
-              ? String(metrics.faltamParaMeta)
-              : "Meta não definida"
-          }
-          hint={
-            metaDefined
-              ? `Meta: ${metrics.metaPercent}%`
-              : undefined
-          }
-          tone={
-            metaDefined && metrics.faltamParaMeta != null && metrics.faltamParaMeta > 0
-              ? "warn"
-              : "default"
-          }
-          emphasis
-          valueClassName={!metaDefined ? "text-base leading-snug" : undefined}
-        />
-      </div>
+      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <div className="grid grid-cols-2 divide-x divide-y divide-slate-100 lg:grid-cols-4 lg:divide-y-0">
+          <Kpi
+            label="Elegíveis"
+            value={String(metrics.previstosElegiveis)}
+            hint={`${metrics.previstosBrutos} previstos brutos`}
+            href={buildAsoUrl("/asos", current, { pendingOnly: "1", page: undefined })}
+          />
+          <Kpi
+            label="Realizados"
+            value={String(metrics.realizados)}
+            hint={`${metrics.confirmadosAlterdata} confirmados no Alterdata`}
+            tone="ok"
+            href={buildAsoUrl("/asos", current, { execution: "REALIZADO", page: undefined })}
+          />
+          <Kpi
+            label="Aderência"
+            value={pctLabel}
+            hint={adherenceHint}
+            tone={pctTone}
+          />
+          {metaDefined ? (
+            <Kpi
+              label="Faltam para a meta"
+              value={String(metrics.faltamParaMeta ?? 0)}
+              hint={`Meta: ${metrics.metaPercent}%`}
+              tone={
+                metrics.faltamParaMeta != null && metrics.faltamParaMeta > 0 ? "warn" : "ok"
+              }
+            />
+          ) : (
+            <Kpi
+              label="Meta"
+              value="Não cadastrada"
+              hint="Cadastro institucional pendente"
+              compactValue
+            />
+          )}
+        </div>
 
-      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-5">
-        <Card compact label="Previstos brutos" value={String(metrics.previstosBrutos)} />
-        <Card compact label="Justificados" value={String(metrics.justificados)} tone="warn" />
-        <Card
-          compact
-          label="Não realizados"
-          value={String(metrics.naoRealizados)}
-          href={buildAsoUrl("/asos", current, { pendingOnly: "1", page: undefined })}
-        />
-        <Card
-          compact
-          label="Confirmados no Alterdata"
-          value={String(metrics.confirmadosAlterdata)}
-          tone="ok"
-        />
-        <Card
-          compact
-          label="Pendentes no Alterdata"
-          value={String(metrics.pendentesAlterdata)}
-          tone="warn"
-          href={buildAsoUrl("/asos", current, {
-            priority: "pendentesAlterdata",
-            page: undefined,
-          })}
-        />
-      </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 bg-slate-50/90 px-3 py-1.5 text-[11px]">
+          <StripItem label="Previstos brutos" value={metrics.previstosBrutos} />
+          <span className="text-slate-300" aria-hidden>
+            ·
+          </span>
+          <StripItem label="Justificados" value={metrics.justificados} tone="warn" />
+          <span className="text-slate-300" aria-hidden>
+            ·
+          </span>
+          <StripItem
+            label="Não realizados"
+            value={metrics.naoRealizados}
+            href={buildAsoUrl("/asos", current, { pendingOnly: "1", page: undefined })}
+          />
+          <span className="text-slate-300" aria-hidden>
+            ·
+          </span>
+          <StripItem
+            label="Confirmados no Alterdata"
+            value={metrics.confirmadosAlterdata}
+            tone="ok"
+          />
+          <span className="text-slate-300" aria-hidden>
+            ·
+          </span>
+          <StripItem
+            label="Pendentes no Alterdata"
+            value={metrics.pendentesAlterdata}
+            tone={metrics.pendentesAlterdata > 0 ? "warn" : "muted"}
+            href={buildAsoUrl("/asos", current, {
+              priority: "pendentesAlterdata",
+              page: undefined,
+            })}
+          />
+        </div>
 
-      <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-        <p className="mb-1 text-[11px] font-semibold text-slate-700">
-          Impactos da competência
-        </p>
-        <p className="mb-2 text-[10px] text-slate-500">
-          Situações que podem afetar o planejamento e a elegibilidade nesta competência.
-        </p>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <ImpactItem
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 px-3 py-1.5 text-[11px]">
+          <span className="font-semibold text-slate-600">Impactos da competência</span>
+          <StripItem
             label="Afastados"
             value={metrics.afastados}
-            tone={metrics.afastados ? "text-amber-800" : "text-slate-400"}
+            tone={metrics.afastados ? "warn" : "muted"}
             href={buildAsoUrl("/asos", current, {
               functional: "AFASTADO",
               page: undefined,
             })}
           />
-          <ImpactItem
+          <span className="text-slate-300" aria-hidden>
+            ·
+          </span>
+          <StripItem
             label="Férias"
             value={metrics.ferias}
-            tone={metrics.ferias ? "text-sky-800" : "text-slate-400"}
+            tone={metrics.ferias ? "default" : "muted"}
             href={buildAsoUrl("/asos", current, {
               functional: "FERIAS",
               page: undefined,
             })}
           />
-          <ImpactItem
+          <span className="text-slate-300" aria-hidden>
+            ·
+          </span>
+          <StripItem
             label="Demitidos"
             value={metrics.demitidos}
-            tone={metrics.demitidos ? "text-slate-700" : "text-slate-400"}
+            tone={metrics.demitidos ? "default" : "muted"}
             href={buildAsoUrl("/asos", current, {
               functional: "DEMITIDO",
               page: undefined,
             })}
           />
-          <ImpactItem
+          <span className="text-slate-300" aria-hidden>
+            ·
+          </span>
+          <StripItem
             label="Outros justificados"
             value={metrics.outrosJustificados}
-            tone={metrics.outrosJustificados ? "text-slate-600" : "text-slate-400"}
+            tone={metrics.outrosJustificados ? "default" : "muted"}
           />
-        </div>
-      </div>
 
-      {closureStatus ? (
-        <div className="flex items-center gap-2 text-[12px] text-slate-500">
-          <span>Situação da competência:</span>
-          <StatusBadge label={humanizeLabel(closureStatus)} tone={toneForClosure(closureStatus)} />
+          {closureStatus ? (
+            <>
+              <span className="ml-auto hidden sm:inline" />
+              <span className="inline-flex items-center gap-1.5 text-slate-500">
+                Competência
+                <StatusBadge
+                  label={humanizeLabel(closureStatus)}
+                  tone={toneForClosure(closureStatus)}
+                />
+              </span>
+            </>
+          ) : null}
         </div>
-      ) : null}
+      </section>
     </div>
   );
 }
