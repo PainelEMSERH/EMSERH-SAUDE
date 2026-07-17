@@ -102,6 +102,8 @@ export default async function AsosPage({
         activeMonth={data.month}
         activeKey={activeMatrixKey}
         current={current}
+        unitCount={data.matrixUnitCount}
+        unitSelected={Boolean(data.unitId)}
       />
 
       <AsoCharts

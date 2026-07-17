@@ -95,11 +95,16 @@ export function AsoMatrix({
   activeMonth,
   activeKey,
   current,
+  unitCount = 0,
+  unitSelected = false,
 }: {
   rows: AsoMatrixRow[];
   activeMonth: number;
   activeKey?: string;
   current: Record<string, string | number | undefined>;
+  /** Unidades disponíveis no filtro (quando regional sem unidade). */
+  unitCount?: number;
+  unitSelected?: boolean;
 }) {
   const initial = useMemo(
     () => resolveInitialSelection(rows, activeMonth, activeKey),
@@ -149,8 +154,11 @@ export function AsoMatrix({
             Matriz anual
           </h3>
           <p className="text-[11px] text-slate-500">
-            Clique para selecionar. Use &quot;Abrir competência&quot; para filtrar
-            a página. Sem meta, o tom fica neutro.
+            {unitSelected
+              ? "Detalhe da unidade selecionada. Clique na célula e use Abrir competência."
+              : unitCount > 1
+                ? `Consolidado da regional · ${unitCount} unidades. Selecione uma unidade no filtro para ver o detalhe.`
+                : "Clique para selecionar. Use Abrir competência para filtrar a página."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -191,6 +199,14 @@ export function AsoMatrix({
           <span className="tabular-nums text-slate-500">
             {cellTitle(selectedCell)}
           </span>
+        </div>
+      ) : null}
+
+      {!unitSelected && unitCount > 1 ? (
+        <div className="border-b border-teal-100 bg-teal-50/60 px-3 py-1.5 text-[11px] text-teal-900">
+          Para ver a matriz por unidade, escolha a <strong>Unidade</strong> no
+          filtro acima. Aqui fica só o consolidado da regional — sem lista
+          interminável.
         </div>
       ) : null}
 

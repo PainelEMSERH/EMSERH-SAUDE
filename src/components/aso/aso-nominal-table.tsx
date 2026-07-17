@@ -156,9 +156,13 @@ export function AsoNominalFilters({
     page: undefined,
   });
 
+  function submitOnChange(el: HTMLElement) {
+    el.closest("form")?.requestSubmit();
+  }
+
   return (
     <div className="mb-2 rounded-lg border border-slate-200 bg-white p-2.5">
-      <form className="flex flex-wrap items-end gap-2" method="get">
+      <form action="/asos" className="flex flex-wrap items-end gap-2" method="get">
         {Object.entries(current).map(([k, v]) => {
           if (
             v == null ||
@@ -173,6 +177,7 @@ export function AsoNominalFilters({
           <select
             name="functional"
             defaultValue={params.functional || "ALL"}
+            onChange={(e) => submitOnChange(e.currentTarget)}
             className="mt-0.5 block h-8 min-w-[140px] rounded-md border border-slate-200 px-2 text-[12px]"
           >
             <option value="ALL">Todas</option>
@@ -187,6 +192,7 @@ export function AsoNominalFilters({
           <select
             name="execution"
             defaultValue={params.execution || "ALL"}
+            onChange={(e) => submitOnChange(e.currentTarget)}
             className="mt-0.5 block h-8 min-w-[140px] rounded-md border border-slate-200 px-2 text-[12px]"
           >
             <option value="ALL">Todas</option>
@@ -203,6 +209,7 @@ export function AsoNominalFilters({
           <select
             name="alterdata"
             defaultValue={params.alterdata || "ALL"}
+            onChange={(e) => submitOnChange(e.currentTarget)}
             className="mt-0.5 block h-8 min-w-[160px] rounded-md border border-slate-200 px-2 text-[12px]"
           >
             <option value="ALL">Todas</option>
@@ -218,6 +225,7 @@ export function AsoNominalFilters({
             name="pendingOnly"
             value="1"
             defaultChecked={params.pendingOnly === "1"}
+            onChange={(e) => submitOnChange(e.currentTarget)}
           />
           Somente pendentes
         </label>
@@ -227,15 +235,10 @@ export function AsoNominalFilters({
             name="divergencesOnly"
             value="1"
             defaultChecked={params.divergencesOnly === "1"}
+            onChange={(e) => submitOnChange(e.currentTarget)}
           />
           Somente divergências
         </label>
-        <button
-          type="submit"
-          className="h-8 rounded-md bg-teal-700 px-3 text-[12px] font-medium text-white hover:bg-teal-800"
-        >
-          Filtrar
-        </button>
       </form>
       {active.length ? (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">

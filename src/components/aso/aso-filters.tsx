@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ASO_TYPE_TABS, MONTH_NAMES } from "@/lib/aso/constants";
@@ -18,6 +21,10 @@ export type AsoFiltersParams = {
   q?: string;
 };
 
+function submitForm(el: HTMLElement) {
+  el.closest("form")?.requestSubmit();
+}
+
 export function AsoFilters({
   years,
   regions,
@@ -37,6 +44,19 @@ export function AsoFilters({
   hideUnit?: boolean;
   lockUnit?: boolean;
 }) {
+  const [selectedRegion, setSelectedRegion] = useState(params.regionId || "ALL");
+  const [selectedUnit, setSelectedUnit] = useState(params.unitId || "ALL");
+
+  useEffect(() => {
+    setSelectedRegion(params.regionId || "ALL");
+    setSelectedUnit(params.unitId || "ALL");
+  }, [params.regionId, params.unitId]);
+
+  const filteredUnits = useMemo(() => {
+    if (!selectedRegion || selectedRegion === "ALL") return units;
+    return units.filter((u) => u.regionId === selectedRegion);
+  }, [units, selectedRegion]);
+
   const current: Record<string, string | number | undefined> = {
     year: params.year,
     month: params.month,
@@ -65,6 +85,7 @@ export function AsoFilters({
             id="aso-year"
             name="year"
             defaultValue={params.year}
+            onChange={(e) => submitForm(e.currentTarget)}
             className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-[13px] outline-none focus-visible:border-teal-600"
           >
             {years.map((y) => (
@@ -83,6 +104,7 @@ export function AsoFilters({
             id="aso-month"
             name="month"
             defaultValue={params.month}
+            onChange={(e) => submitForm(e.currentTarget)}
             className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-[13px] outline-none focus-visible:border-teal-600"
           >
             {MONTH_NAMES.map((name, idx) => (
@@ -101,8 +123,19 @@ export function AsoFilters({
             <select
               id="aso-region"
               name="regionId"
-              defaultValue={params.regionId || "ALL"}
+              value={selectedRegion}
               disabled={lockRegion}
+              onChange={(e) => {
+                const form = e.currentTarget.form;
+                const next = e.target.value;
+                setSelectedRegion(next);
+                setSelectedUnit("ALL");
+                const unitEl = form?.elements.namedItem("unitId");
+                if (unitEl instanceof HTMLSelectElement) {
+                  unitEl.value = "ALL";
+                }
+                form?.requestSubmit();
+              }}
               className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-[13px] outline-none focus-visible:border-teal-600 disabled:bg-slate-50"
             >
               {!lockRegion ? <option value="ALL">Todas</option> : null}
@@ -125,18 +158,20 @@ export function AsoFilters({
             <select
               id="aso-unit"
               name="unitId"
-              defaultValue={params.unitId || "ALL"}
+              value={selectedUnit}
               disabled={lockUnit}
+              onChange={(e) => {
+                setSelectedUnit(e.target.value);
+                submitForm(e.currentTarget);
+              }}
               className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-[13px] outline-none focus-visible:border-teal-600 disabled:bg-slate-50"
             >
               {!lockUnit ? <option value="ALL">Todas</option> : null}
-              {units
-                .filter((u) => !params.regionId || u.regionId === params.regionId)
-                .map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {formatUnitDisplayName(u.name)}
-                  </option>
-                ))}
+              {filteredUnits.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {formatUnitDisplayName(u.name)}
+                </option>
+              ))}
             </select>
           </div>
         ) : params.unitId ? (
@@ -151,7 +186,7 @@ export function AsoFilters({
             id="aso-q"
             name="q"
             defaultValue={params.q ?? ""}
-            placeholder="Nome ou matrícula"
+            placeholder="Nome ou matrícula — Enter para buscar"
             className="h-8 w-full rounded-md border border-slate-200 px-2.5 text-[13px] outline-none focus-visible:border-teal-600"
           />
         </div>
@@ -161,7 +196,7 @@ export function AsoFilters({
           size="sm"
           className="h-8 bg-teal-700 px-3 text-[13px] hover:bg-teal-800"
         >
-          Filtrar
+          Buscar
         </Button>
       </form>
 

@@ -426,6 +426,8 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
   }
 
   const matrixRows: MatrixRow[] = [];
+  let matrixUnitCount = 0;
+
   if (!regionId && user.scopeLevel === "EMSERH") {
     matrixRows.push({
       key: "EMSERH",
@@ -446,7 +448,23 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
         cadastralAlert: label === "Regional não informada",
       });
     }
+  } else if (unitId) {
+    // Unidade selecionada: só a linha da unidade (visão detalhada)
+    const subset = yearPlans.filter((p) => p.unitId === unitId);
+    const label =
+      unitRows.find((u) => u.id === unitId)?.name ||
+      subset[0]?.unitName ||
+      "Unidade";
+    matrixRows.push({
+      key: unitId,
+      label: formatUnitDisplayName(label),
+      regionId: regionId || null,
+      unitId,
+      cells: buildCells(subset, regionId || null, unitId),
+    });
+    matrixUnitCount = 1;
   } else {
+    // Regional sem unidade: só o consolidado da regional (sem listar dezenas de unidades)
     const regLabel = scopeLabel(
       regionRows.find((r) => r.id === regionId)?.name ||
         yearPlans.find((p) => p.regionId === regionId)?.regionName ||
@@ -461,21 +479,7 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
       cells: buildCells(yearPlans, regionId || null, null),
       cadastralAlert: regLabel === "Regional não informada",
     });
-    const unitIds = [...new Set(yearPlans.map((p) => p.unitId).filter(Boolean))] as string[];
-    for (const uid of unitIds) {
-      const subset = yearPlans.filter((p) => p.unitId === uid);
-      const label =
-        unitRows.find((u) => u.id === uid)?.name ||
-        subset[0]?.unitName ||
-        "Unidade";
-      matrixRows.push({
-        key: uid,
-        label: formatUnitDisplayName(label),
-        regionId: regionId || null,
-        unitId: uid,
-        cells: buildCells(subset, regionId || null, uid),
-      });
-    }
+    matrixUnitCount = unitRows.length;
   }
 
   // Série anual para gráfico (escopo atual)
@@ -618,6 +622,7 @@ export async function getAsoPanelData(user: SessionUser, params: AsoPanelParams)
     metrics,
     weightedCheck,
     matrixRows,
+    matrixUnitCount,
     chartSeries,
     distribution: {
       realizadoConfirmado: metrics.confirmadosAlterdata,
