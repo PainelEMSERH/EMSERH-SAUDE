@@ -7,7 +7,15 @@ import { buildDashboardUrl } from "@/lib/dashboard/params";
 import { formatUnitDisplayName } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
-type Opt = { id: string; name: string; code?: string | null; regionId?: string | null };
+type Opt = {
+  id: string;
+  name: string;
+  code?: string | null;
+  regionId?: string | null;
+};
+
+const selectClass =
+  "block h-9 rounded-lg border border-border bg-white px-2.5 text-[13px] text-foreground outline-none transition-colors focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 disabled:opacity-70";
 
 export function DashboardFiltersBar({
   years,
@@ -54,8 +62,8 @@ export function DashboardFiltersBar({
   return (
     <form
       className={cn(
-        "app-surface mb-4 flex flex-wrap items-end gap-3 p-3.5",
-        pending && "opacity-70",
+        "app-surface flex flex-wrap items-end gap-3 px-4 py-3",
+        pending && "pointer-events-none opacity-60",
       )}
       onSubmit={(e) => {
         e.preventDefault();
@@ -63,7 +71,9 @@ export function DashboardFiltersBar({
         go({
           year: String(fd.get("year") || current.year),
           month: String(fd.get("month") || current.month),
-          regionId: hideRegion ? current.regionId : String(fd.get("regionId") || ""),
+          regionId: hideRegion
+            ? current.regionId
+            : String(fd.get("regionId") || ""),
           unitId: String(fd.get("unitId") || ""),
         });
       }}
@@ -73,7 +83,7 @@ export function DashboardFiltersBar({
         <select
           name="year"
           defaultValue={current.year}
-          className="block h-9 min-w-[88px] rounded-lg border border-border bg-white px-2 text-[13px] text-foreground"
+          className={cn(selectClass, "min-w-[88px]")}
           onChange={(e) => e.currentTarget.form?.requestSubmit()}
         >
           {years.map((y) => (
@@ -89,7 +99,7 @@ export function DashboardFiltersBar({
         <select
           name="month"
           defaultValue={current.month}
-          className="block h-9 min-w-[120px] rounded-lg border border-border bg-white px-2 text-[13px] text-foreground"
+          className={cn(selectClass, "min-w-[128px]")}
           onChange={(e) => e.currentTarget.form?.requestSubmit()}
         >
           {MONTH_NAMES.map((name, idx) => (
@@ -107,11 +117,13 @@ export function DashboardFiltersBar({
             name="regionId"
             defaultValue={current.regionId || ""}
             disabled={lockRegion}
-            className="block h-9 min-w-[160px] rounded-lg border border-border bg-white px-2 text-[13px] text-foreground disabled:opacity-70"
+            className={cn(selectClass, "min-w-[168px]")}
             onChange={(e) => {
               const form = e.currentTarget.form;
               if (!form) return;
-              const unit = form.elements.namedItem("unitId") as HTMLSelectElement | null;
+              const unit = form.elements.namedItem(
+                "unitId",
+              ) as HTMLSelectElement | null;
               if (unit) unit.value = "";
               form.requestSubmit();
             }}
@@ -132,7 +144,7 @@ export function DashboardFiltersBar({
           name="unitId"
           defaultValue={current.unitId || ""}
           disabled={lockUnit || (!current.regionId && !lockUnit)}
-          className="block h-9 min-w-[200px] rounded-lg border border-border bg-white px-2 text-[13px] text-foreground disabled:opacity-70"
+          className={cn(selectClass, "min-w-[220px]")}
           onChange={(e) => e.currentTarget.form?.requestSubmit()}
         >
           <option value="">Todas</option>

@@ -1,10 +1,10 @@
 import Link from "next/link";
 import {
-  Activity,
   AlertTriangle,
   Baby,
   ClipboardCheck,
   HeartPulse,
+  LayoutDashboard,
   RefreshCw,
   ShieldAlert,
   Syringe,
@@ -12,9 +12,13 @@ import {
 } from "lucide-react";
 import { DashboardEvolutionChart } from "@/components/dashboard/evolution-chart";
 import { DashboardFiltersBar } from "@/components/dashboard/filters-bar";
-import { DashKpi, DashPanel } from "@/components/dashboard/primitives";
+import {
+  DashKpi,
+  DashPanel,
+  DashRow,
+  DashStat,
+} from "@/components/dashboard/primitives";
 import { StatusBadge } from "@/components/feedback/status-badge";
-import { PageHeader } from "@/components/feedback/setup-banner";
 import { buttonVariants } from "@/components/ui/button";
 import type { DashboardBundle } from "@/db/queries/dashboard-bundle";
 import { buildDashboardUrl } from "@/lib/dashboard/params";
@@ -51,40 +55,63 @@ export function DashboardView({
       ? "Desempenho por unidade"
       : "Desempenho por regional";
 
+  const asoTone =
+    aso?.aderenciaPercent == null
+      ? "default"
+      : aso.metaDefined &&
+          aso.metaPercent != null &&
+          aso.aderenciaPercent < aso.metaPercent - 10
+        ? "danger"
+        : aso.metaDefined &&
+            aso.metaPercent != null &&
+            aso.aderenciaPercent < aso.metaPercent
+          ? "warn"
+          : "ok";
+
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Dashboard"
-        description="Visão consolidada da saúde ocupacional, pendências e indicadores da EMSERH."
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-lg border border-border bg-slate-50 px-2.5 py-1.5 text-[12px] font-medium text-slate-600">
-              {data.contextLabel}
-            </span>
-            <span className="text-[11px] text-slate-400">
-              Atualizado {formatDateTimeBR(data.generatedAt)}
-            </span>
-            {data.canExport ? (
-              <Link
-                href={`/api/dashboard/export?${new URLSearchParams({
-                  year: String(data.filters.year),
-                  month: String(data.filters.month),
-                  ...(data.filters.regionId
-                    ? { regionId: data.filters.regionId }
-                    : {}),
-                  ...(data.filters.unitId ? { unitId: data.filters.unitId } : {}),
-                }).toString()}`}
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "sm" }),
-                  "h-8 text-[12px]",
-                )}
-              >
-                Exportar resumo
-              </Link>
-            ) : null}
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700">
+            <LayoutDashboard className="size-5" strokeWidth={1.75} aria-hidden />
           </div>
-        }
-      />
+          <div className="min-w-0">
+            <h2 className="text-[1.375rem] font-semibold tracking-tight text-slate-900">
+              Dashboard
+            </h2>
+            <p className="mt-0.5 text-[13px] leading-relaxed text-slate-500">
+              Visão operacional da saúde ocupacional no escopo selecionado.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center rounded-md border border-border bg-white px-2.5 py-1 text-[12px] font-medium text-slate-700 shadow-sm">
+                {data.contextLabel}
+              </span>
+              <span className="text-[11px] text-slate-400">
+                Atualizado {formatDateTimeBR(data.generatedAt)}
+              </span>
+            </div>
+          </div>
+        </div>
+        {data.canExport ? (
+          <Link
+            href={`/api/dashboard/export?${new URLSearchParams({
+              year: String(data.filters.year),
+              month: String(data.filters.month),
+              ...(data.filters.regionId
+                ? { regionId: data.filters.regionId }
+                : {}),
+              ...(data.filters.unitId ? { unitId: data.filters.unitId } : {}),
+            }).toString()}`}
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "h-9 text-[12.5px]",
+            )}
+          >
+            Exportar resumo
+          </Link>
+        ) : null}
+      </div>
 
       <DashboardFiltersBar
         years={data.years}
@@ -104,44 +131,36 @@ export function DashboardView({
       {/* KPIs */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <DashKpi
-          label="Colaboradores no escopo"
+          label="Colaboradores"
           value={String(data.headcount.total)}
           hint={`${data.headcount.ativos} ativos · ${data.headcount.afastados} afastados · ${data.headcount.ferias} férias`}
           href="/colaboradores"
           icon={Users}
         />
         <DashKpi
-          label="Aderência dos ASOs"
+          label="Aderência ASO"
           value={aso?.aderenciaLabel ?? "—"}
           hint={
             aso
               ? `${aso.realizados}/${aso.previstosElegiveis} elegíveis${
                   aso.metaDefined && aso.metaPercent != null
                     ? ` · meta ${aso.metaPercent}%`
-                    : " · meta não cadastrada"
+                    : ""
                 }`
-              : "Sem permissão ou sem planejamento"
+              : "Sem planejamento nesta competência"
           }
           href={aso?.href}
           icon={ClipboardCheck}
-          tone={
-            aso?.aderenciaPercent == null
-              ? "default"
-              : aso.metaDefined &&
-                  aso.metaPercent != null &&
-                  aso.aderenciaPercent < aso.metaPercent - 10
-                ? "danger"
-                : aso.metaDefined &&
-                    aso.metaPercent != null &&
-                    aso.aderenciaPercent < aso.metaPercent
-                  ? "warn"
-                  : "ok"
-          }
+          tone={asoTone}
         />
         <DashKpi
           label="Afastamentos ativos"
           value={String(data.leave.ativos)}
-          hint={`${data.leave.retornos7d} retornos em 7 dias · ${data.leave.asoRetornoPendentes} ASO retorno pendente`}
+          hint={
+            data.leave.asoRetornoPendentes > 0
+              ? `${data.leave.asoRetornoPendentes} com ASO de retorno pendente`
+              : `${data.leave.retornos7d} retornos nos próximos 7 dias`
+          }
           href="/afastamentos?status=ATIVO"
           icon={HeartPulse}
           tone={data.leave.asoRetornoPendentes > 0 ? "warn" : "default"}
@@ -149,7 +168,7 @@ export function DashboardView({
         <DashKpi
           label="Pendências críticas"
           value={String(data.critical)}
-          hint="ASOs vencidos + Alterdata pendente + retornos atrasados + sem regional"
+          hint="Vencidos, Alterdata pendente, retornos atrasados e cadastro sem regional"
           href={aso?.href}
           icon={AlertTriangle}
           tone={data.critical > 0 ? "danger" : "ok"}
@@ -160,40 +179,42 @@ export function DashboardView({
       {data.priorities.length ? (
         <DashPanel
           title="Prioridades"
-          description="Situações que exigem ação no escopo selecionado."
+          description="O que precisa de atenção agora no filtro atual."
         >
-          <ul className="grid gap-2 lg:grid-cols-2">
+          <ul className="grid gap-2 md:grid-cols-2">
             {data.priorities.map((p) => (
               <li key={p.id}>
                 <Link
                   href={p.href}
-                  className="flex items-start justify-between gap-3 rounded-lg border border-border-subtle bg-slate-50/80 px-3 py-2.5 transition-colors hover:bg-emerald-50/50"
+                  className={cn(
+                    "group flex items-center gap-3 rounded-xl border px-3.5 py-3 transition-colors",
+                    p.tone === "danger"
+                      ? "border-red-100 bg-red-50/50 hover:bg-red-50"
+                      : p.tone === "warn"
+                        ? "border-amber-100 bg-amber-50/40 hover:bg-amber-50"
+                        : "border-border-subtle bg-slate-50/70 hover:bg-emerald-50/60",
+                  )}
                 >
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-[13px] font-semibold text-slate-900">
-                        {p.title}
-                      </p>
-                      <StatusBadge
-                        label={String(p.count)}
-                        tone={
-                          p.tone === "danger"
-                            ? "danger"
-                            : p.tone === "warn"
-                              ? "warn"
-                              : "info"
-                        }
-                      />
-                    </div>
-                    <p className="mt-0.5 text-[12px] text-slate-500">
+                  <StatusBadge
+                    label={String(p.count)}
+                    tone={
+                      p.tone === "danger"
+                        ? "danger"
+                        : p.tone === "warn"
+                          ? "warn"
+                          : "info"
+                    }
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-semibold text-slate-900">
+                      {p.title}
+                    </p>
+                    <p className="mt-0.5 truncate text-[12px] text-slate-500">
                       {p.description}
                     </p>
-                    <p className="mt-1 text-[10px] font-semibold tracking-wide text-slate-400 uppercase">
-                      {p.module}
-                    </p>
                   </div>
-                  <span className="shrink-0 text-[12px] font-medium text-emerald-700">
-                    Ver
+                  <span className="shrink-0 text-[12px] font-medium text-emerald-700 opacity-80 group-hover:opacity-100">
+                    Abrir
                   </span>
                 </Link>
               </li>
@@ -202,59 +223,76 @@ export function DashboardView({
         </DashPanel>
       ) : null}
 
-      {/* ASO + Leaves */}
-      <div className="grid gap-3 lg:grid-cols-3">
+      {/* ASO + Afastamentos */}
+      <div className="grid gap-3 lg:grid-cols-5">
         <DashPanel
-          className="lg:col-span-2"
-          title="Gestão de ASOs"
-          description="Mesmos números da tela Gestão de ASOs para o filtro atual."
+          className="lg:col-span-3"
+          title="ASOs na competência"
+          description="Mesmos indicadores da Gestão de ASOs."
           action={
             aso ? (
               <Link
                 href={aso.href}
                 className="text-[12px] font-semibold text-emerald-700 hover:underline"
               >
-                Abrir ASOs
+                Abrir módulo
               </Link>
             ) : null
           }
         >
           {aso ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {[
-                  ["Elegíveis", aso.previstosElegiveis],
-                  ["Realizados", aso.realizados],
-                  ["Confirmados Alt.", aso.confirmadosAlterdata],
-                  ["Pend. Alterdata", aso.pendentesAlterdata],
-                  ["Não realizados", aso.naoRealizados],
-                  ["Vencidos", aso.vencidos],
-                  ["Justificados", aso.justificados],
-                  ["Previstos brutos", aso.previstosBrutos],
-                ].map(([label, value]) => (
-                  <div
-                    key={String(label)}
-                    className="rounded-lg border border-border-subtle bg-slate-50/80 px-2.5 py-2"
-                  >
-                    <p className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">
-                      {label}
+              <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/40 px-4 py-3">
+                <div>
+                  <p className="text-[11px] font-semibold tracking-[0.05em] text-emerald-800/70 uppercase">
+                    Aderência
+                  </p>
+                  <p className="mt-1 text-[32px] leading-none font-semibold tracking-tight tabular-nums text-emerald-900">
+                    {aso.aderenciaLabel}
+                  </p>
+                </div>
+                <div className="text-right text-[12px] text-emerald-900/70">
+                  <p>
+                    {aso.realizados} realizados · {aso.previstosElegiveis}{" "}
+                    elegíveis
+                  </p>
+                  {aso.metaDefined && aso.metaPercent != null ? (
+                    <p className="mt-0.5">
+                      Meta {aso.metaPercent}%
+                      {aso.faltamParaMeta != null && aso.faltamParaMeta > 0
+                        ? ` · faltam ${aso.faltamParaMeta}`
+                        : " · atingida"}
                     </p>
-                    <p className="mt-1 text-[18px] font-semibold tabular-nums text-slate-900">
-                      {value}
-                    </p>
-                  </div>
-                ))}
+                  ) : (
+                    <p className="mt-0.5">Meta não cadastrada</p>
+                  )}
+                </div>
               </div>
-              {aso.faltamParaMeta != null && aso.metaDefined ? (
-                <p className="text-[12px] text-slate-500">
-                  Faltam <strong>{aso.faltamParaMeta}</strong> para a meta de{" "}
-                  {aso.metaPercent}%.
-                </p>
-              ) : (
-                <p className="text-[12px] text-slate-500">
-                  Meta da competência não cadastrada — nenhum valor inventado.
-                </p>
-              )}
+
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <DashStat label="Realizados" value={aso.realizados} tone="ok" />
+                <DashStat
+                  label="Não realizados"
+                  value={aso.naoRealizados}
+                  tone={aso.naoRealizados > 0 ? "warn" : "default"}
+                />
+                <DashStat
+                  label="Vencidos"
+                  value={aso.vencidos}
+                  tone={aso.vencidos > 0 ? "danger" : "default"}
+                />
+                <DashStat
+                  label="Confirmados Alt."
+                  value={aso.confirmadosAlterdata}
+                  tone="ok"
+                />
+                <DashStat
+                  label="Pend. Alterdata"
+                  value={aso.pendentesAlterdata}
+                  tone={aso.pendentesAlterdata > 0 ? "warn" : "default"}
+                />
+                <DashStat label="Justificados" value={aso.justificados} />
+              </div>
             </div>
           ) : (
             <p className="text-[13px] text-slate-500">
@@ -264,8 +302,9 @@ export function DashboardView({
         </DashPanel>
 
         <DashPanel
-          title="Afastamentos e retornos"
-          description="Situação operacional no escopo."
+          className="lg:col-span-2"
+          title="Afastamentos"
+          description="Situação operacional."
           action={
             <Link
               href="/afastamentos?status=ATIVO"
@@ -275,40 +314,35 @@ export function DashboardView({
             </Link>
           }
         >
-          <dl className="space-y-2 text-[13px]">
-            <div className="flex justify-between gap-2">
-              <dt className="text-slate-500">Ativos</dt>
-              <dd className="font-semibold tabular-nums">{data.leave.ativos}</dd>
-            </div>
-            <div className="flex justify-between gap-2">
-              <dt className="text-slate-500">Sem previsão de retorno</dt>
-              <dd className="font-semibold tabular-nums">
-                {data.leave.semPrevisao}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-2">
-              <dt className="text-slate-500">Retornos em 7 dias</dt>
-              <dd className="font-semibold tabular-nums">
-                {data.leave.retornos7d}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-2">
-              <dt className="text-slate-500">ASO retorno pendente</dt>
-              <dd className="font-semibold tabular-nums text-red-700">
-                {data.leave.asoRetornoPendentes}
-              </dd>
-            </div>
+          <dl className="divide-y divide-border-subtle">
+            <DashRow label="Ativos" value={data.leave.ativos} />
+            <DashRow
+              label="Sem previsão de retorno"
+              value={data.leave.semPrevisao}
+            />
+            <DashRow
+              label="Retornos em 7 dias"
+              value={data.leave.retornos7d}
+            />
+            <DashRow
+              label="ASO retorno pendente"
+              value={data.leave.asoRetornoPendentes}
+              tone={data.leave.asoRetornoPendentes > 0 ? "danger" : "default"}
+            />
           </dl>
+
           {data.leave.proximos.length ? (
             <div className="mt-4 border-t border-border-subtle pt-3">
-              <p className="mb-2 text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
+              <p className="mb-2 text-[10px] font-semibold tracking-[0.05em] text-slate-400 uppercase">
                 Próximos retornos
               </p>
-              <ul className="space-y-2">
-                {data.leave.proximos.map((r) => (
-                  <li key={r.id} className="text-[12px]">
-                    <p className="font-medium text-slate-800">{r.name}</p>
-                    <p className="text-slate-500">
+              <ul className="space-y-2.5">
+                {data.leave.proximos.slice(0, 4).map((r) => (
+                  <li key={r.id} className="min-w-0">
+                    <p className="truncate text-[12.5px] font-medium text-slate-800">
+                      {r.name}
+                    </p>
+                    <p className="truncate text-[11px] text-slate-500">
                       {r.endDate ?? "—"}
                       {r.unitName ? ` · ${r.unitName}` : ""}
                       {r.needsReturnAso ? " · ASO retorno" : ""}
@@ -321,18 +355,26 @@ export function DashboardView({
         </DashPanel>
       </div>
 
+      {/* Evolução */}
+      <DashPanel
+        title="Evolução da aderência"
+        description="Janeiro a dezembro no escopo. Meses futuros aparecem em cinza."
+      >
+        <DashboardEvolutionChart points={data.evolution} />
+      </DashPanel>
+
       {/* Comparativo */}
       {compareRows.length ? (
         <DashPanel
           title={compareTitle}
-          description="Aderência ponderada pelos quantitativos — sem média simples de percentuais."
+          description="Aderência ponderada pelos quantitativos — sem média simples."
         >
           <div className="overflow-x-auto">
             <table className="app-data-table">
               <thead>
                 <tr>
                   <th className="text-left">Escopo</th>
-                  <th className="text-center">Aderência</th>
+                  <th className="text-left">Aderência</th>
                   <th className="text-center">Realizados</th>
                   <th className="text-center">Elegíveis</th>
                   <th className="text-center">Vencidos</th>
@@ -345,6 +387,7 @@ export function DashboardView({
                     regionId: row.regionId ?? "",
                     unitId: row.unitId ?? "",
                   });
+                  const pct = row.aderenciaPercent;
                   return (
                     <tr key={row.key}>
                       <td>
@@ -358,11 +401,32 @@ export function DashboardView({
                           {row.label}
                         </Link>
                       </td>
-                      <td className="text-center tabular-nums">
-                        {formatAdherencePercent(row.aderenciaPercent, {
-                          realizados: row.realizados,
-                          elegiveis: row.elegiveis,
-                        })}
+                      <td>
+                        <div className="flex min-w-[140px] items-center gap-2">
+                          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className={cn(
+                                "h-full rounded-full",
+                                pct == null
+                                  ? "bg-slate-200"
+                                  : pct < 70
+                                    ? "bg-red-500"
+                                    : pct < 90
+                                      ? "bg-amber-500"
+                                      : "bg-emerald-500",
+                              )}
+                              style={{
+                                width: `${Math.max(0, Math.min(100, pct ?? 0))}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="w-12 shrink-0 text-right text-[12px] tabular-nums text-slate-700">
+                            {formatAdherencePercent(row.aderenciaPercent, {
+                              realizados: row.realizados,
+                              elegiveis: row.elegiveis,
+                            })}
+                          </span>
+                        </div>
                       </td>
                       <td className="text-center tabular-nums">
                         {row.realizados}
@@ -385,116 +449,51 @@ export function DashboardView({
         </DashPanel>
       ) : null}
 
-      {/* Evolução + atalhos */}
-      <div className="grid gap-3 lg:grid-cols-3">
-        <DashPanel
-          className="lg:col-span-2"
-          title="Evolução da aderência de ASOs"
-          description="Janeiro a dezembro no escopo atual. Meses futuros não entram como zero."
-        >
-          <DashboardEvolutionChart points={data.evolution} />
-        </DashPanel>
-
-        <DashPanel title="Atalhos operacionais">
-          <ul className="space-y-1.5">
-            {[
-              data.permissions.asos && {
-                href: aso?.href ?? "/asos",
-                label: "Gestão de ASOs",
-                icon: ClipboardCheck,
-              },
-              data.permissions.leaves && {
-                href: "/afastamentos",
-                label: "Afastamentos",
-                icon: HeartPulse,
-              },
-              data.permissions.vaccination && {
-                href: "/vacinacao",
-                label: "Vacinação",
-                icon: Syringe,
-              },
-              data.permissions.biological && {
-                href: "/material-biologico",
-                label: "Material biológico",
-                icon: ShieldAlert,
-              },
-              data.permissions.reports && {
-                href: "/relatorios",
-                label: "Relatórios",
-                icon: Activity,
-              },
-            ]
-              .filter(Boolean)
-              .map((item) => {
-                const it = item as {
-                  href: string;
-                  label: string;
-                  icon: typeof Activity;
-                };
-                const Icon = it.icon;
-                return (
-                  <li key={it.href}>
-                    <Link
-                      href={it.href}
-                      className="flex items-center gap-2 rounded-lg px-2 py-2 text-[13px] font-medium text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800"
-                    >
-                      <Icon className="size-4 text-slate-400" />
-                      {it.label}
-                    </Link>
-                  </li>
-                );
-              })}
-          </ul>
-          <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
-            Agenda e Atendimentos não estão disponíveis na navegação atual —
-            nenhum indicador fictício é exibido.
-          </p>
-        </DashPanel>
-      </div>
-
-      {/* Módulos secundários */}
-      <div className="grid gap-3 md:grid-cols-3">
+      {/* Módulos */}
+      <div
+        className={cn(
+          "grid gap-3",
+          [
+            data.vaccination,
+            data.biological,
+            data.pregnancy,
+          ].filter(Boolean).length >= 3
+            ? "md:grid-cols-3"
+            : "md:grid-cols-2",
+        )}
+      >
         {data.vaccination ? (
           <DashPanel
             title="Vacinação"
             action={
               <Link
                 href={data.vaccination.href}
-                className="text-[12px] font-semibold text-emerald-700 hover:underline"
+                className="inline-flex items-center gap-1 text-[12px] font-semibold text-emerald-700 hover:underline"
               >
+                <Syringe className="size-3.5" />
                 Abrir
               </Link>
             }
           >
-            <dl className="space-y-2 text-[13px]">
-              <div className="flex justify-between">
-                <dt className="text-slate-500">Com registro</dt>
-                <dd className="font-semibold tabular-nums">
-                  {data.vaccination.metrics.total}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-slate-500">Kit completo</dt>
-                <dd className="font-semibold tabular-nums text-emerald-800">
-                  {data.vaccination.metrics.kitComplete}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-slate-500">Incompletos</dt>
-                <dd className="font-semibold tabular-nums">
-                  {data.vaccination.metrics.incomplete}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-slate-500">Atenção / parcial</dt>
-                <dd className="font-semibold tabular-nums text-amber-800">
-                  {data.vaccination.metrics.attention}
-                </dd>
-              </div>
+            <dl className="divide-y divide-border-subtle">
+              <DashRow label="Com registro" value={data.vaccination.metrics.total} />
+              <DashRow
+                label="Kit completo"
+                value={data.vaccination.metrics.kitComplete}
+                tone="ok"
+              />
+              <DashRow
+                label="Incompletos"
+                value={data.vaccination.metrics.incomplete}
+              />
+              <DashRow
+                label="Atenção / parcial"
+                value={data.vaccination.metrics.attention}
+                tone={
+                  data.vaccination.metrics.attention > 0 ? "warn" : "default"
+                }
+              />
             </dl>
-            <p className="mt-3 text-[11px] text-slate-400">
-              Cobertura % não calculada — só quantitativos do módulo.
-            </p>
           </DashPanel>
         ) : null}
 
@@ -504,37 +503,40 @@ export function DashboardView({
             action={
               <Link
                 href={data.biological.href}
-                className="text-[12px] font-semibold text-emerald-700 hover:underline"
+                className="inline-flex items-center gap-1 text-[12px] font-semibold text-emerald-700 hover:underline"
               >
+                <ShieldAlert className="size-3.5" />
                 Abrir
               </Link>
             }
           >
-            <dl className="space-y-2 text-[13px]">
-              <div className="flex justify-between">
-                <dt className="text-slate-500">Ocorrências</dt>
-                <dd className="font-semibold tabular-nums">
-                  {data.biological.metrics.total}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-slate-500">Em acompanhamento</dt>
-                <dd className="font-semibold tabular-nums">
-                  {data.biological.metrics.emAcompanhamento}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-slate-500">Follow-ups pendentes</dt>
-                <dd className="font-semibold tabular-nums text-amber-800">
-                  {data.biological.metrics.followupsPendentes}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-slate-500">Follow-ups atrasados</dt>
-                <dd className="font-semibold tabular-nums text-red-700">
-                  {data.biological.metrics.followupsAtrasados}
-                </dd>
-              </div>
+            <dl className="divide-y divide-border-subtle">
+              <DashRow
+                label="Ocorrências"
+                value={data.biological.metrics.total}
+              />
+              <DashRow
+                label="Em acompanhamento"
+                value={data.biological.metrics.emAcompanhamento}
+              />
+              <DashRow
+                label="Follow-ups pendentes"
+                value={data.biological.metrics.followupsPendentes}
+                tone={
+                  data.biological.metrics.followupsPendentes > 0
+                    ? "warn"
+                    : "default"
+                }
+              />
+              <DashRow
+                label="Follow-ups atrasados"
+                value={data.biological.metrics.followupsAtrasados}
+                tone={
+                  data.biological.metrics.followupsAtrasados > 0
+                    ? "danger"
+                    : "default"
+                }
+              />
             </dl>
           </DashPanel>
         ) : null}
@@ -545,67 +547,50 @@ export function DashboardView({
             action={
               <Link
                 href={data.pregnancy.href}
-                className="text-[12px] font-semibold text-emerald-700 hover:underline"
+                className="inline-flex items-center gap-1 text-[12px] font-semibold text-emerald-700 hover:underline"
               >
+                <Baby className="size-3.5" />
                 Abrir
               </Link>
             }
           >
-            <dl className="space-y-2 text-[13px]">
-              <div className="flex justify-between">
-                <dt className="text-slate-500">Em acompanhamento</dt>
-                <dd className="font-semibold tabular-nums">
-                  {data.pregnancy.emAcompanhamento}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-slate-500">Insalubre s/ realocação</dt>
-                <dd className="font-semibold tabular-nums text-red-700">
-                  {data.pregnancy.insalubreSemRealocacao}
-                </dd>
-              </div>
+            <dl className="divide-y divide-border-subtle">
+              <DashRow
+                label="Em acompanhamento"
+                value={data.pregnancy.emAcompanhamento}
+                tone={
+                  data.pregnancy.emAcompanhamento > 0 ? "warn" : "default"
+                }
+              />
+              <DashRow
+                label="Insalubre sem realocação"
+                value={data.pregnancy.insalubreSemRealocacao}
+                tone={
+                  data.pregnancy.insalubreSemRealocacao > 0
+                    ? "danger"
+                    : "default"
+                }
+              />
             </dl>
-            <p className="mt-3 text-[11px] text-slate-400">
-              Sem dados clínicos ou diagnósticos neste painel.
-            </p>
           </DashPanel>
-        ) : (
-          <DashPanel title="Gestantes">
-            <p className="flex items-center gap-2 text-[13px] text-slate-500">
-              <Baby className="size-4" />
-              Sem permissão para este módulo.
-            </p>
-          </DashPanel>
-        )}
+        ) : null}
       </div>
 
       {/* Qualidade + sync */}
       <div className="grid gap-3 lg:grid-cols-2">
-        <DashPanel title="Qualidade dos dados">
-          <ul className="space-y-2 text-[13px]">
-            <li className="flex justify-between gap-2">
-              <span className="text-slate-500">Sem regional</span>
-              <span className="font-semibold tabular-nums">
-                {data.quality.semRegional}
-              </span>
-            </li>
-            <li className="flex justify-between gap-2">
-              <span className="text-slate-500">Sem unidade</span>
-              <span className="font-semibold tabular-nums">
-                {data.quality.semUnidade}
-              </span>
-            </li>
-            <li className="flex justify-between gap-2">
-              <span className="text-slate-500">Ativos sem próximo ASO</span>
-              <span className="font-semibold tabular-nums">
-                {data.quality.semProximoAso}
-              </span>
-            </li>
-          </ul>
+        <DashPanel title="Qualidade cadastral">
+          <dl className="divide-y divide-border-subtle">
+            <DashRow label="Sem regional" value={data.quality.semRegional} />
+            <DashRow label="Sem unidade" value={data.quality.semUnidade} />
+            <DashRow
+              label="Ativos sem próximo ASO"
+              value={data.quality.semProximoAso}
+            />
+          </dl>
         </DashPanel>
 
         <DashPanel
-          title="Atualização das bases"
+          title="Espelho Alterdata"
           action={
             <Link
               href="/administracao"
@@ -617,39 +602,35 @@ export function DashboardView({
           }
         >
           {data.lastSync ? (
-            <dl className="space-y-2 text-[13px]">
-              <div className="flex justify-between gap-2">
-                <dt className="text-slate-500">Espelho Alterdata</dt>
-                <dd className="font-medium">
-                  {isSyncPossiblyStale(
+            <dl className="divide-y divide-border-subtle">
+              <DashRow
+                label="Status"
+                value={
+                  isSyncPossiblyStale(
                     data.lastSync.createdAt,
                     data.lastSync.status,
                   )
                     ? "Possivelmente interrompida"
-                    : humanizeImportBatchStatus(data.lastSync.status)}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-2">
-                <dt className="text-slate-500">Última atualização</dt>
-                <dd className="tabular-nums text-slate-700">
-                  {data.lastSync.updatedAt
+                    : humanizeImportBatchStatus(data.lastSync.status)
+                }
+              />
+              <DashRow
+                label="Última atualização"
+                value={
+                  data.lastSync.updatedAt
                     ? formatDateTimeBR(data.lastSync.updatedAt)
-                    : "—"}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-2">
-                <dt className="text-slate-500">Importados / atualizados</dt>
-                <dd className="tabular-nums">
-                  {data.lastSync.importedRows ?? 0} /{" "}
-                  {data.lastSync.updatedRows ?? 0}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-2">
-                <dt className="text-slate-500">Com erro</dt>
-                <dd className="tabular-nums text-red-700">
-                  {data.lastSync.errorRows ?? 0}
-                </dd>
-              </div>
+                    : "—"
+                }
+              />
+              <DashRow
+                label="Importados / atualizados"
+                value={`${data.lastSync.importedRows ?? 0} / ${data.lastSync.updatedRows ?? 0}`}
+              />
+              <DashRow
+                label="Com erro"
+                value={data.lastSync.errorRows ?? 0}
+                tone={(data.lastSync.errorRows ?? 0) > 0 ? "danger" : "default"}
+              />
             </dl>
           ) : (
             <p className="text-[13px] text-slate-500">
