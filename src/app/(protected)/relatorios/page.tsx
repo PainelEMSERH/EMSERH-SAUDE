@@ -20,6 +20,8 @@ export default async function RelatoriosPage() {
             <p className="text-[12px] text-muted-foreground">
               Excel pronto pra usar: cabeçalho verde EMSERH, Calibri 12, uma aba
               por relatório. Escopo do usuário e auditoria no download.
+              Limite de 10.000 linhas por arquivo — se atingir o teto, o nome do
+              arquivo indica exportação parcial.
             </p>
           </div>
         </div>

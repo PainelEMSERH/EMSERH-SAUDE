@@ -52,7 +52,13 @@ export async function writeAuditLog(input: AuditInput) {
       afterData: sanitize(input.afterData),
       metadata: input.metadata ?? null,
     });
-  } catch {
-    // Auditoria nunca deve derrubar o fluxo principal.
+  } catch (err) {
+    // Auditoria nunca deve derrubar o fluxo principal — mas não engolir em silêncio.
+    console.error("[audit] falha ao gravar log", {
+      action: input.action,
+      entityType: input.entityType,
+      entityId: input.entityId ?? null,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }

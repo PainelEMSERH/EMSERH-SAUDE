@@ -106,6 +106,7 @@ async function loadSessionUser(userId: string): Promise<SessionUser | null> {
       scopeLevelForRole(user.role as UserRole),
     regionIds: regions.map((r) => r.regionId),
     unitIds: units.map((u) => u.unitId),
+    mustResetPassword: Boolean(user.mustResetPassword),
   };
 }
 

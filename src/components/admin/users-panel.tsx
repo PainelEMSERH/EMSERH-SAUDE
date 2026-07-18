@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import {
   createUserAction,
   resetUserPasswordAction,
   setUserActiveAction,
   updateUserRoleAction,
+  updateUserScopesAction,
   type AdminActionState,
 } from "@/actions/admin-users";
 import { StatusBadge } from "@/components/feedback/status-badge";
@@ -14,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { roleLabel } from "@/lib/admin/roles";
 import { formatDateTimeBR } from "@/lib/dates";
+import { scopeLevelForRole } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import type { AdminUserRow } from "@/db/queries/admin";
 import type { UserRole } from "@/types";
@@ -21,16 +23,27 @@ import type { UserRole } from "@/types";
 const initial: AdminActionState = {};
 
 type RoleOption = { value: UserRole; label: string };
+type RegionOption = { id: string; code: string; name: string };
+type UnitOption = {
+  id: string;
+  name: string;
+  regionId: string | null;
+  regionCode: string | null;
+};
 
 export function AdminUsersPanel({
   users,
   roleOptions,
+  regions,
+  units,
   canCreate,
   canManage,
   currentUserId,
 }: {
   users: AdminUserRow[];
   roleOptions: RoleOption[];
+  regions: RegionOption[];
+  units: UnitOption[];
   canCreate: boolean;
   canManage: boolean;
   currentUserId: string;
@@ -40,11 +53,16 @@ export function AdminUsersPanel({
     initial,
   );
   const [flash, setFlash] = useState<string | null>(null);
+  const [createRole, setCreateRole] = useState<UserRole>(
+    roleOptions[0]?.value ?? "OPERADOR_UNIDADE",
+  );
 
   useEffect(() => {
     if (createState.ok && createState.message) setFlash(createState.message);
     if (createState.error) setFlash(null);
   }, [createState]);
+
+  const createScope = scopeLevelForRole(createRole);
 
   return (
     <div className="space-y-5">
@@ -55,10 +73,13 @@ export function AdminUsersPanel({
               Novo usuário
             </h3>
             <p className="mt-0.5 text-[12px] text-slate-500">
-              Cria acesso ao sistema com perfil e senha inicial.
+              Cria acesso com perfil, senha inicial e escopo regional/unidade.
             </p>
           </div>
-          <form action={createAction} className="grid gap-3 px-5 py-4 sm:grid-cols-2 lg:grid-cols-4">
+          <form
+            action={createAction}
+            className="grid gap-3 px-5 py-4 sm:grid-cols-2 lg:grid-cols-4"
+          >
             <div className="space-y-1.5 sm:col-span-1">
               <Label htmlFor="user-name" className="text-[12px]">
                 Nome
@@ -98,7 +119,8 @@ export function AdminUsersPanel({
                 id="user-role"
                 name="role"
                 required
-                defaultValue="OPERADOR_UNIDADE"
+                value={createRole}
+                onChange={(e) => setCreateRole(e.target.value as UserRole)}
                 className="h-9 w-full rounded-lg border border-border bg-white px-2.5 text-[13px]"
               >
                 {roleOptions.map((r) => (
@@ -108,6 +130,23 @@ export function AdminUsersPanel({
                 ))}
               </select>
             </div>
+
+            {createScope === "REGION" || createScope === "UNIT" ? (
+              <ScopePickers
+                className="sm:col-span-2 lg:col-span-4"
+                regions={regions}
+                units={units}
+                scopeLevel={createScope}
+                selectedRegionIds={[]}
+                selectedUnitIds={[]}
+              />
+            ) : (
+              <p className="sm:col-span-2 lg:col-span-4 text-[12px] text-slate-500">
+                Perfil com visão institucional (EMSERH) — sem vínculo de
+                regional/unidade.
+              </p>
+            )}
+
             <div className="flex items-end sm:col-span-2 lg:col-span-4">
               <Button
                 type="submit"
@@ -138,8 +177,8 @@ export function AdminUsersPanel({
               Usuários do sistema
             </h3>
             <p className="mt-0.5 text-[12px] text-slate-500">
-              {users.length} conta{users.length === 1 ? "" : "s"} · controle de
-              perfil e status
+              {users.length} conta{users.length === 1 ? "" : "s"} · perfil,
+              escopo e status
             </p>
           </div>
         </div>
@@ -149,6 +188,7 @@ export function AdminUsersPanel({
               <tr>
                 <th className="text-left">Usuário</th>
                 <th className="text-left">Perfil</th>
+                <th className="text-left">Escopo</th>
                 <th className="text-center">Status</th>
                 <th className="text-center">Último acesso</th>
                 <th className="text-right">Ações</th>
@@ -163,6 +203,11 @@ export function AdminUsersPanel({
                       <div className="min-w-0">
                         <p className="app-table-emphasis truncate">{u.name}</p>
                         <p className="app-table-meta truncate">{u.email}</p>
+                        {u.mustResetPassword ? (
+                          <p className="mt-0.5 text-[11px] text-amber-700">
+                            Troca de senha pendente
+                          </p>
+                        ) : null}
                       </div>
                     </td>
                     <td>
@@ -177,6 +222,14 @@ export function AdminUsersPanel({
                           {roleLabel(u.role)}
                         </span>
                       )}
+                    </td>
+                    <td className="max-w-[220px]">
+                      <ScopeCell
+                        user={u}
+                        regions={regions}
+                        units={units}
+                        canEdit={canCreate && !isSelf}
+                      />
                     </td>
                     <td className="text-center">
                       <StatusBadge
@@ -211,6 +264,168 @@ export function AdminUsersPanel({
         </div>
       </section>
     </div>
+  );
+}
+
+function ScopePickers({
+  regions,
+  units,
+  scopeLevel,
+  selectedRegionIds,
+  selectedUnitIds,
+  className,
+}: {
+  regions: RegionOption[];
+  units: UnitOption[];
+  scopeLevel: "REGION" | "UNIT";
+  selectedRegionIds: string[];
+  selectedUnitIds: string[];
+  className?: string;
+}) {
+  const [regionIds, setRegionIds] = useState(selectedRegionIds);
+  const filteredUnits = useMemo(() => {
+    if (scopeLevel === "UNIT" && regionIds.length) {
+      return units.filter(
+        (u) => u.regionId && regionIds.includes(u.regionId),
+      );
+    }
+    return units;
+  }, [units, regionIds, scopeLevel]);
+
+  return (
+    <div className={cn("grid gap-3 sm:grid-cols-2", className)}>
+      <div className="space-y-1.5">
+        <Label className="text-[12px]">Regionais</Label>
+        <select
+          multiple
+          name="regionIds"
+          value={regionIds}
+          onChange={(e) =>
+            setRegionIds(
+              Array.from(e.target.selectedOptions).map((o) => o.value),
+            )
+          }
+          className="min-h-[88px] w-full rounded-lg border border-border bg-white px-2 py-1.5 text-[12px]"
+        >
+          {regions.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.code} — {r.name}
+            </option>
+          ))}
+        </select>
+        <p className="text-[11px] text-slate-400">
+          Ctrl/Cmd + clique para selecionar várias.
+        </p>
+      </div>
+      {scopeLevel === "UNIT" ? (
+        <div className="space-y-1.5">
+          <Label className="text-[12px]">Unidades</Label>
+          <select
+            multiple
+            name="unitIds"
+            defaultValue={selectedUnitIds}
+            className="min-h-[88px] w-full rounded-lg border border-border bg-white px-2 py-1.5 text-[12px]"
+          >
+            {filteredUnits.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.regionCode ? `${u.regionCode} · ` : ""}
+                {u.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ScopeCell({
+  user,
+  regions,
+  units,
+  canEdit,
+}: {
+  user: AdminUserRow;
+  regions: RegionOption[];
+  units: UnitOption[];
+  canEdit: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [state, action, pending] = useActionState(
+    updateUserScopesAction,
+    initial,
+  );
+  const scope = scopeLevelForRole(user.role as UserRole);
+
+  useEffect(() => {
+    if (state.ok) setOpen(false);
+  }, [state]);
+
+  if (scope === "EMSERH") {
+    return <span className="text-[12px] text-slate-500">Institucional</span>;
+  }
+
+  const summary =
+    scope === "REGION"
+      ? user.regionNames.join(", ") || "Sem regional"
+      : user.unitNames.join(", ") ||
+        user.regionNames.join(", ") ||
+        "Sem unidade";
+
+  if (!canEdit) {
+    return (
+      <span className="line-clamp-2 text-[12px] text-slate-600" title={summary}>
+        {summary}
+      </span>
+    );
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="line-clamp-2 text-left text-[12px] text-primary hover:underline"
+        title={summary}
+      >
+        {summary}
+      </button>
+    );
+  }
+
+  return (
+    <form action={action} className="space-y-2 rounded-md border border-border p-2">
+      <input type="hidden" name="userId" value={user.id} />
+      <ScopePickers
+        regions={regions}
+        units={units}
+        scopeLevel={scope}
+        selectedRegionIds={user.regionIds}
+        selectedUnitIds={user.unitIds}
+      />
+      {state.error ? (
+        <p className="text-[11px] text-red-700">{state.error}</p>
+      ) : null}
+      <div className="flex gap-1.5">
+        <Button
+          type="submit"
+          size="sm"
+          disabled={pending}
+          className="h-7 bg-primary px-2 text-[11px] hover:bg-primary-hover"
+        >
+          Salvar
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2 text-[11px]"
+          onClick={() => setOpen(false)}
+        >
+          Cancelar
+        </Button>
+      </div>
+    </form>
   );
 }
 

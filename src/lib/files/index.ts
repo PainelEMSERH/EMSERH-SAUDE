@@ -67,3 +67,7 @@ export async function storePrivateAttachment(input: {
 
   return row;
 }
+
+export function attachmentDownloadUrl(attachmentId: string) {
+  return `/api/files/${attachmentId}`;
+}

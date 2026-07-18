@@ -34,7 +34,12 @@ export async function GET(
     action: "EXPORT",
     entityType: "report",
     entityId: type,
-    metadata: { rows: dataset.rows.length, format: "xlsx" },
+    metadata: {
+      rows: dataset.rows.length,
+      format: "xlsx",
+      truncated: dataset.truncated,
+      limit: dataset.limit,
+    },
   });
 
   const buffer = await buildStyledWorkbook([
@@ -45,5 +50,14 @@ export async function GET(
     },
   ]);
 
-  return excelDownloadResponse(buffer, def.filename);
+  const filename = dataset.truncated
+    ? def.filename.replace(/\.xlsx$/i, `_parcial-${dataset.limit}.xlsx`)
+    : def.filename;
+
+  const response = excelDownloadResponse(buffer, filename);
+  if (dataset.truncated) {
+    response.headers.set("X-Report-Truncated", "true");
+    response.headers.set("X-Report-Limit", String(dataset.limit));
+  }
+  return response;
 }

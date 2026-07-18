@@ -46,6 +46,7 @@ export type SessionUser = {
   scopeLevel: ScopeLevel;
   regionIds: string[];
   unitIds: string[];
+  mustResetPassword: boolean;
 };
 
 export type AsoType =

@@ -39,7 +39,21 @@ function boolPt(v: boolean | null | undefined): string {
 export type ReportDataset = {
   columns: ExcelColumn[];
   rows: Record<string, unknown>[];
+  truncated: boolean;
+  limit: number;
 };
+
+function packReport(
+  columns: ExcelColumn[],
+  rows: Record<string, unknown>[],
+): ReportDataset {
+  return {
+    columns,
+    rows,
+    truncated: rows.length >= LIMIT,
+    limit: LIMIT,
+  };
+}
 
 export async function buildReportDataset(
   user: SessionUser,
@@ -73,8 +87,8 @@ export async function buildReportDataset(
       .orderBy(employees.fullName)
       .limit(LIMIT);
 
-    return {
-      columns: [
+    return packReport(
+      [
         { key: "matricula", header: "Matrícula", width: 12 },
         { key: "nome", header: "Nome", width: 36 },
         { key: "situacao", header: "Situação", width: 14 },
@@ -89,7 +103,7 @@ export async function buildReportDataset(
         { key: "email", header: "E-mail", width: 28 },
         { key: "telefone", header: "Telefone", width: 16 },
       ],
-      rows: rows.map((r) => ({
+      rows.map((r) => ({
         matricula: r.matricula,
         nome: r.nome,
         situacao: humanizeLabel(r.situacao),
@@ -104,7 +118,7 @@ export async function buildReportDataset(
         email: r.email ?? "",
         telefone: r.telefone ?? "",
       })),
-    };
+    );
   }
 
   if (type === "asos") {
@@ -143,8 +157,8 @@ export async function buildReportDataset(
       .orderBy(desc(asoRecords.nextAsoDate))
       .limit(LIMIT);
 
-    return {
-      columns: [
+    return packReport(
+      [
         { key: "matricula", header: "Matrícula", width: 12 },
         { key: "nome", header: "Nome", width: 32 },
         { key: "situacao", header: "Sit. funcional", width: 14 },
@@ -164,7 +178,7 @@ export async function buildReportDataset(
         { key: "origem", header: "Origem", width: 12 },
         { key: "observacao", header: "Observação", width: 28 },
       ],
-      rows: rows.map((r) => ({
+      rows.map((r) => ({
         matricula: r.matricula,
         nome: r.nome,
         situacao: humanizeLabel(r.situacao),
@@ -184,7 +198,7 @@ export async function buildReportDataset(
         origem: humanizeLabel(r.origem),
         observacao: r.observacao ?? "",
       })),
-    };
+    );
   }
 
   if (type === "leaves") {
@@ -219,8 +233,8 @@ export async function buildReportDataset(
       .orderBy(desc(leaveRecords.startDate))
       .limit(LIMIT);
 
-    return {
-      columns: [
+    return packReport(
+      [
         { key: "matricula", header: "Matrícula", width: 12 },
         { key: "nome", header: "Nome", width: 32 },
         { key: "unidade", header: "Unidade", width: 28 },
@@ -236,7 +250,7 @@ export async function buildReportDataset(
         { key: "motivoResumo", header: "Motivo resumido", width: 22 },
         { key: "observacao", header: "Observação", width: 28 },
       ],
-      rows: rows.map((r) => ({
+      rows.map((r) => ({
         matricula: r.matricula,
         nome: r.nome,
         unidade: formatUnitDisplayName(r.unidade, ""),
@@ -252,7 +266,7 @@ export async function buildReportDataset(
         motivoResumo: r.motivoResumo ?? "",
         observacao: r.observacao ?? "",
       })),
-    };
+    );
   }
 
   if (type === "vaccinations") {
@@ -284,8 +298,8 @@ export async function buildReportDataset(
       .orderBy(desc(employeeVaccinations.administeredAt))
       .limit(LIMIT);
 
-    return {
-      columns: [
+    return packReport(
+      [
         { key: "matricula", header: "Matrícula", width: 12 },
         { key: "nome", header: "Nome", width: 32 },
         { key: "unidade", header: "Unidade", width: 28 },
@@ -297,7 +311,7 @@ export async function buildReportDataset(
         { key: "status", header: "Status / situação", width: 28 },
         { key: "observacao", header: "Observação", width: 28 },
       ],
-      rows: rows.map((r) => ({
+      rows.map((r) => ({
         matricula: r.matricula,
         nome: r.nome,
         unidade: formatUnitDisplayName(r.unidade, ""),
@@ -309,7 +323,7 @@ export async function buildReportDataset(
         status: r.status ?? "",
         observacao: r.observacao ?? "",
       })),
-    };
+    );
   }
 
   if (type === "pregnancies") {
@@ -345,8 +359,8 @@ export async function buildReportDataset(
       .orderBy(desc(pregnancyCases.createdAt))
       .limit(LIMIT);
 
-    return {
-      columns: [
+    return packReport(
+      [
         { key: "matricula", header: "Matrícula", width: 12 },
         { key: "nome", header: "Nome", width: 32 },
         { key: "unidade", header: "Unidade", width: 28 },
@@ -363,7 +377,7 @@ export async function buildReportDataset(
         { key: "retorno", header: "Retorno", width: 12 },
         { key: "observacao", header: "Observação", width: 28 },
       ],
-      rows: rows.map((r) => {
+      rows.map((r) => {
         const haz = hazardousLabel({
           hazardousActivity: r.insalubre,
           relocationDate: r.dataRealocacao
@@ -388,7 +402,7 @@ export async function buildReportDataset(
           observacao: r.observacao ?? "",
         };
       }),
-    };
+    );
   }
 
   if (type === "biological") {
@@ -456,8 +470,8 @@ export async function buildReportDataset(
       }
     }
 
-    return {
-      columns: [
+    return packReport(
+      [
         { key: "matricula", header: "Matrícula", width: 12 },
         { key: "nome", header: "Nome", width: 32 },
         { key: "unidade", header: "Unidade", width: 28 },
@@ -475,7 +489,7 @@ export async function buildReportDataset(
         { key: "conclusao", header: "Conclusão", width: 24 },
         { key: "descricao", header: "Descrição", width: 32 },
       ],
-      rows: raw.map((r) => {
+      raw.map((r) => {
         const fu = fuByAccident.get(r.id) ?? { d30: "", d60: "", d90: "" };
         const when =
           r.ocorridoEm instanceof Date
@@ -500,7 +514,7 @@ export async function buildReportDataset(
           descricao: r.descricao ?? "",
         };
       }),
-    };
+    );
   }
 
   throw new Error(`Relatório inválido: ${type}`);

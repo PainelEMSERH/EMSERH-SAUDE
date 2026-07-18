@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.2.2 — 2026-07-18
+
+### Security / acesso
+- Troca de senha obrigatória (`mustResetPassword`) com página `/trocar-senha`
+- Escopo regional/unidade na criação e edição de usuários (admin)
+- Download autenticado de anexos em `GET /api/files/[id]` com escopo
+
+### Integridade operacional
+- Acidente biológico: follow-ups 30/60/90 em insert único + rollback se falhar
+- Afastamentos: prorrogação (`leave_extensions`) e registro de retorno (`return_to_work_records`)
+- Vacinação: recusa → `vaccine_refusals`; Anti-HBs → `immunity_tests` (sem colapsar dose 0→1)
+- Gestantes: histórico de status e trilha de realocação
+- Import XLSX: `parseBooleanPtBr` no PEP; doses/situações de vacina corretas
+
+### Observabilidade
+- `/api/health` faz ping no Neon (503 se indisponível)
+- Auditoria deixa de engolir erros em silêncio (`console.error`)
+- Relatórios sinalizam truncamento (10k) no nome do arquivo e headers
+
+### Nota
+- Cálculo de indicadores/metas de ASO **não** foi alterado
+
 ## 0.2.1 — 2026-07-16
 
 ### Security (P0)

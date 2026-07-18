@@ -12,6 +12,7 @@ import { getLastMirrorSync } from "@/db/queries/aso-panel";
 import {
   ensureOrgDefaults,
   listRegions,
+  listUnits,
 } from "@/db/queries/employees";
 import { assignableRoles, ROLE_OPTIONS } from "@/lib/admin/roles";
 import { requireSession, userCan } from "@/lib/auth/guard";
@@ -58,6 +59,7 @@ export default async function AdministracaoPage() {
     activeCount,
     audit24h,
     regions,
+    unitsList,
     asoLastSync,
   ] = await Promise.all([
     canAdmin ? listAdminUsers() : Promise.resolve([]),
@@ -65,7 +67,8 @@ export default async function AdministracaoPage() {
     canAudit ? listRecentLoginAttempts(40) : Promise.resolve([]),
     canAdmin ? countActiveUsers() : Promise.resolve(0),
     canAudit ? countAuditLast24h() : Promise.resolve(0),
-    canManageOrg ? listRegions() : Promise.resolve([]),
+    canAdmin || canManageOrg ? listRegions() : Promise.resolve([]),
+    canAdmin ? listUnits() : Promise.resolve([]),
     getLastMirrorSync(),
   ]);
 
@@ -123,6 +126,12 @@ export default async function AdministracaoPage() {
           id: r.id,
           code: r.code,
           name: r.name,
+        }))}
+        units={unitsList.map((u) => ({
+          id: u.id,
+          name: u.name,
+          regionId: u.regionId,
+          regionCode: u.regionCode,
         }))}
         asoLastSync={asoLastSync}
         asoYear={new Date().getFullYear()}

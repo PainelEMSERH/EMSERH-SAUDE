@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAuthConfigured, isDatabaseConfigured } from "@/lib/env";
@@ -28,6 +29,21 @@ export default async function ProtectedLayout({
 
   if (!user) {
     redirect("/login");
+  }
+
+  const pathname = (await headers()).get("x-pathname") ?? "";
+  const onPasswordReset = pathname.startsWith("/trocar-senha");
+
+  if (user.mustResetPassword && !onPasswordReset) {
+    redirect("/trocar-senha");
+  }
+
+  if (user.mustResetPassword && onPasswordReset) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="mx-auto max-w-3xl px-4 py-10">{children}</div>
+      </div>
+    );
   }
 
   return (

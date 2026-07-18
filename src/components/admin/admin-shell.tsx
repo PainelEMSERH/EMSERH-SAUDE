@@ -24,6 +24,13 @@ import type { UserRole } from "@/types";
 type TabId = "access" | "audit" | "import" | "org";
 
 type RoleOption = { value: UserRole; label: string };
+type RegionOption = { id: string; code: string; name: string };
+type UnitOption = {
+  id: string;
+  name: string;
+  regionId: string | null;
+  regionCode: string | null;
+};
 
 export function AdminShell({
   tabs,
@@ -38,6 +45,7 @@ export function AdminShell({
   sheetConfigured,
   canManageOrg,
   regions,
+  units,
   asoLastSync,
   asoYear,
   canManageAsoPlanning,
@@ -54,7 +62,8 @@ export function AdminShell({
   canSync: boolean;
   sheetConfigured: boolean;
   canManageOrg: boolean;
-  regions: { id: string; code: string; name: string }[];
+  regions: RegionOption[];
+  units: UnitOption[];
   asoLastSync: LastSyncInfo;
   asoYear: number;
   canManageAsoPlanning: boolean;
@@ -100,6 +109,8 @@ export function AdminShell({
         <AdminUsersPanel
           users={users}
           roleOptions={roleOptions}
+          regions={regions}
+          units={units}
           canCreate={canCreateUsers}
           canManage={canManageUsers}
           currentUserId={currentUserId}

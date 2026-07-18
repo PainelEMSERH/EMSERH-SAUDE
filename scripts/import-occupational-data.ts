@@ -22,6 +22,11 @@ import {
   vaccines,
 } from "../src/db/schemas";
 import { addMonths } from "date-fns";
+import { parseBooleanPtBr } from "../src/lib/parse/boolean-pt";
+import {
+  classifySituation,
+  doseNumberFromSituation,
+} from "../src/lib/vaccination/constants";
 
 function arg(name: string) {
   const hit = process.argv.find((a) => a.startsWith(`--${name}=`));
@@ -255,12 +260,14 @@ async function main() {
         for (const [code, , ...aliases] of catalog) {
           const value = cell(row, ...aliases);
           if (!value) continue;
+          const doseNumber = doseNumberFromSituation(value);
+          const kind = classifySituation(code, value);
           await db.insert(employeeVaccinations).values({
             employeeId,
             vaccineId: byCode[code],
-            doseNumber: 1,
-            notes: value,
-            status: "IMPORTADO",
+            doseNumber: kind === "refusal" ? 0 : Math.max(doseNumber, 1),
+            notes: `${code}: ${value}`,
+            status: value,
             sourceSheet: "Vacinas",
             sourceRow: i + 2,
           });
@@ -344,7 +351,7 @@ async function main() {
             occurredAt,
             exposureType: cell(row, "TIPO DE ACIDENTE") || null,
             description: cell(row, "DESCRIÇÃO DA OCORRÊNCIA") || null,
-            pepStarted: Boolean(cell(row, "PEP")),
+            pepStarted: parseBooleanPtBr(cell(row, "PEP")),
             catNumber: cell(row, "NÚMERO DA CAT") || null,
             status: "EM_ACOMPANHAMENTO",
             sourceSheet: "Material Biológico",
@@ -352,16 +359,17 @@ async function main() {
           })
           .returning({ id: biologicalAccidents.id });
 
-        for (const dayOffset of [30, 60, 90]) {
+        const followupRows = [30, 60, 90].map((dayOffset) => {
           const due = addMonths(occurredAt, 0);
           due.setDate(due.getDate() + dayOffset);
-          await db.insert(biologicalAccidentFollowups).values({
+          return {
             accidentId: created.id,
             dayOffset,
             dueDate: due.toISOString().slice(0, 10),
-            status: "PENDENTE",
-          });
-        }
+            status: "PENDENTE" as const,
+          };
+        });
+        await db.insert(biologicalAccidentFollowups).values(followupRows);
         stats.bio += 1;
       } catch {
         stats.errors += 1;

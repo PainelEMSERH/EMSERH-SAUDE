@@ -1,6 +1,14 @@
-import { and, desc, eq, gte, ilike, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { auditLogs, loginAttempts, users } from "@/db/schemas";
+import {
+  auditLogs,
+  loginAttempts,
+  regions,
+  units,
+  userRegionScopes,
+  users,
+  userUnitScopes,
+} from "@/db/schemas";
 
 export type AdminUserRow = {
   id: string;
@@ -12,6 +20,10 @@ export type AdminUserRow = {
   lastLoginAt: Date | null;
   createdAt: Date | null;
   mustResetPassword: boolean;
+  regionIds: string[];
+  unitIds: string[];
+  regionNames: string[];
+  unitNames: string[];
 };
 
 export async function listAdminUsers(params?: {
@@ -34,7 +46,7 @@ export async function listAdminUsers(params?: {
   if (params?.active === "active") filters.push(eq(users.isActive, true));
   if (params?.active === "inactive") filters.push(eq(users.isActive, false));
 
-  return db
+  const rows = await db
     .select({
       id: users.id,
       email: users.email,
@@ -49,6 +61,56 @@ export async function listAdminUsers(params?: {
     .from(users)
     .where(and(...filters))
     .orderBy(users.name);
+
+  if (!rows.length) return [];
+
+  const ids = rows.map((r) => r.id);
+  const regionScopeRows = await db
+    .select({
+      userId: userRegionScopes.userId,
+      regionId: userRegionScopes.regionId,
+      regionName: regions.name,
+    })
+    .from(userRegionScopes)
+    .leftJoin(regions, eq(userRegionScopes.regionId, regions.id))
+    .where(inArray(userRegionScopes.userId, ids));
+
+  const unitScopeRows = await db
+    .select({
+      userId: userUnitScopes.userId,
+      unitId: userUnitScopes.unitId,
+      unitName: units.name,
+    })
+    .from(userUnitScopes)
+    .leftJoin(units, eq(userUnitScopes.unitId, units.id))
+    .where(inArray(userUnitScopes.userId, ids));
+
+  const regionsByUser = new Map<string, { ids: string[]; names: string[] }>();
+  for (const r of regionScopeRows) {
+    const cur = regionsByUser.get(r.userId) ?? { ids: [], names: [] };
+    cur.ids.push(r.regionId);
+    if (r.regionName) cur.names.push(r.regionName);
+    regionsByUser.set(r.userId, cur);
+  }
+  const unitsByUser = new Map<string, { ids: string[]; names: string[] }>();
+  for (const u of unitScopeRows) {
+    const cur = unitsByUser.get(u.userId) ?? { ids: [], names: [] };
+    cur.ids.push(u.unitId);
+    if (u.unitName) cur.names.push(u.unitName);
+    unitsByUser.set(u.userId, cur);
+  }
+
+  return rows.map((r) => {
+    const reg = regionsByUser.get(r.id) ?? { ids: [], names: [] };
+    const unt = unitsByUser.get(r.id) ?? { ids: [], names: [] };
+    return {
+      ...r,
+      regionIds: reg.ids,
+      unitIds: unt.ids,
+      regionNames: reg.names,
+      unitNames: unt.names,
+    };
+  });
 }
 
 export type AuditLogRow = {

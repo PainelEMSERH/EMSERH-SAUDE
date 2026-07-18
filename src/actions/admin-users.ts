@@ -1,10 +1,16 @@
 "use server";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getDb } from "@/db";
-import { users } from "@/db/schemas";
+import {
+  regions,
+  units,
+  userRegionScopes,
+  users,
+  userUnitScopes,
+} from "@/db/schemas";
 import { assignableRoles } from "@/lib/admin/roles";
 import { writeAuditLog } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth/guard";
@@ -41,6 +47,96 @@ function canMutateTarget(
   return assignableRoles(actorRole).length > 0;
 }
 
+function collectIds(formData: FormData, key: string): string[] {
+  return formData
+    .getAll(key)
+    .map((v) => String(v).trim())
+    .filter(Boolean);
+}
+
+async function replaceUserScopes(input: {
+  userId: string;
+  role: UserRole;
+  regionIds: string[];
+  unitIds: string[];
+}) {
+  const db = getDb();
+  const scopeLevel = scopeLevelForRole(input.role);
+
+  await db
+    .delete(userRegionScopes)
+    .where(eq(userRegionScopes.userId, input.userId));
+  await db
+    .delete(userUnitScopes)
+    .where(eq(userUnitScopes.userId, input.userId));
+
+  if (scopeLevel === "EMSERH") {
+    return { regionIds: [] as string[], unitIds: [] as string[] };
+  }
+
+  let regionIds = [...new Set(input.regionIds)];
+  let unitIds = [...new Set(input.unitIds)];
+
+  if (regionIds.length) {
+    const valid = await db
+      .select({ id: regions.id })
+      .from(regions)
+      .where(
+        and(
+          inArray(regions.id, regionIds),
+          isNull(regions.deletedAt),
+          eq(regions.isActive, true),
+        ),
+      );
+    regionIds = valid.map((r) => r.id);
+  }
+
+  if (unitIds.length) {
+    const valid = await db
+      .select({ id: units.id, regionId: units.regionId })
+      .from(units)
+      .where(
+        and(
+          inArray(units.id, unitIds),
+          isNull(units.deletedAt),
+          eq(units.isActive, true),
+        ),
+      );
+    unitIds = valid.map((u) => u.id);
+    for (const u of valid) {
+      if (u.regionId && !regionIds.includes(u.regionId)) {
+        regionIds.push(u.regionId);
+      }
+    }
+  }
+
+  if (scopeLevel === "REGION" && regionIds.length === 0) {
+    throw new Error("Selecione ao menos uma regional para este perfil.");
+  }
+  if (scopeLevel === "UNIT" && unitIds.length === 0) {
+    throw new Error("Selecione ao menos uma unidade para este perfil.");
+  }
+
+  if (regionIds.length) {
+    await db.insert(userRegionScopes).values(
+      regionIds.map((regionId) => ({
+        userId: input.userId,
+        regionId,
+      })),
+    );
+  }
+  if (unitIds.length) {
+    await db.insert(userUnitScopes).values(
+      unitIds.map((unitId) => ({
+        userId: input.userId,
+        unitId,
+      })),
+    );
+  }
+
+  return { regionIds, unitIds };
+}
+
 export async function createUserAction(
   _prev: AdminActionState,
   formData: FormData,
@@ -75,6 +171,9 @@ export async function createUserAction(
       return { error: "Você não pode atribuir este perfil." };
     }
 
+    const regionIds = collectIds(formData, "regionIds");
+    const unitIds = collectIds(formData, "unitIds");
+
     const db = getDb();
     const [existing] = await db
       .select({ id: users.id })
@@ -101,12 +200,29 @@ export async function createUserAction(
       })
       .returning({ id: users.id, email: users.email, role: users.role });
 
+    try {
+      await replaceUserScopes({
+        userId: created.id,
+        role,
+        regionIds,
+        unitIds,
+      });
+    } catch (scopeError) {
+      await db.delete(users).where(eq(users.id, created.id));
+      throw scopeError;
+    }
+
     await writeAuditLog({
       user: actor,
       action: "CREATE_USER",
       entityType: "user",
       entityId: created.id,
-      afterData: { email: created.email, role: created.role },
+      afterData: {
+        email: created.email,
+        role: created.role,
+        regionIds,
+        unitIds,
+      },
     });
 
     revalidatePath("/administracao");
@@ -167,6 +283,15 @@ export async function updateUserRoleAction(
       })
       .where(eq(users.id, target.id));
 
+    if (scopeLevelForRole(parsed.data.role) === "EMSERH") {
+      await replaceUserScopes({
+        userId: target.id,
+        role: parsed.data.role,
+        regionIds: [],
+        unitIds: [],
+      });
+    }
+
     await writeAuditLog({
       user: actor,
       action: "UPDATE_USER_ROLE",
@@ -181,6 +306,59 @@ export async function updateUserRoleAction(
   } catch (e) {
     return {
       error: e instanceof Error ? e.message : "Falha ao atualizar perfil.",
+    };
+  }
+}
+
+export async function updateUserScopesAction(
+  _prev: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
+  try {
+    const actor = await requirePermission("admin", "update");
+    const parsed = z
+      .object({ userId: z.string().uuid() })
+      .safeParse({ userId: formData.get("userId") });
+    if (!parsed.success) return { error: "Usuário inválido." };
+    if (parsed.data.userId === actor.id) {
+      return { error: "Peça a outro administrador para alterar seu escopo." };
+    }
+
+    const db = getDb();
+    const [target] = await db
+      .select()
+      .from(users)
+      .where(
+        and(eq(users.id, parsed.data.userId), isNull(users.deletedAt)),
+      )
+      .limit(1);
+    if (!target) return { error: "Usuário não encontrado." };
+    if (!canMutateTarget(actor.role, target.role)) {
+      return { error: "Você não pode alterar este usuário." };
+    }
+
+    const regionIds = collectIds(formData, "regionIds");
+    const unitIds = collectIds(formData, "unitIds");
+    const scopes = await replaceUserScopes({
+      userId: target.id,
+      role: target.role as UserRole,
+      regionIds,
+      unitIds,
+    });
+
+    await writeAuditLog({
+      user: actor,
+      action: "UPDATE_USER_SCOPES",
+      entityType: "user",
+      entityId: target.id,
+      afterData: scopes,
+    });
+
+    revalidatePath("/administracao");
+    return { ok: true, message: "Escopo atualizado." };
+  } catch (e) {
+    return {
+      error: e instanceof Error ? e.message : "Falha ao atualizar escopo.",
     };
   }
 }

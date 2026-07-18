@@ -10,16 +10,25 @@ import {
   biologicalAccidentFollowups,
   biologicalAccidents,
   employeeVaccinations,
+  immunityTests,
+  leaveExtensions,
   leaveRecords,
   physicians,
   pregnancyCases,
+  pregnancyRelocations,
+  pregnancyStatusHistory,
+  returnToWorkRecords,
+  vaccineRefusals,
   vaccines,
 } from "@/db/schemas";
 import { writeAuditLog } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth/guard";
 import { addRealMonths, calcImc, calcLeaveDays, computeDeadlineStatus } from "@/lib/dates";
 import { leaveRequiresReturnAso } from "@/lib/leaves/constants";
-import { doseNumberFromSituation } from "@/lib/vaccination/constants";
+import {
+  classifySituation,
+  doseNumberFromSituation,
+} from "@/lib/vaccination/constants";
 import { requireEmployeeInUserScope } from "@/lib/scope";
 import type { SessionUser } from "@/types";
 
@@ -301,6 +310,7 @@ export async function closeLeaveAction(
         employeeId: leaveRecords.employeeId,
         startDate: leaveRecords.startDate,
         status: leaveRecords.status,
+        requiresReturnAso: leaveRecords.requiresReturnAso,
       })
       .from(leaveRecords)
       .where(eq(leaveRecords.id, data.leaveId))
@@ -313,6 +323,7 @@ export async function closeLeaveAction(
       data.endDate ||
       data.actualReturnDate ||
       new Date().toISOString().slice(0, 10);
+    const actualReturnDate = data.actualReturnDate || endDate;
     const daysCount = calcLeaveDays(
       new Date(String(existing.startDate).slice(0, 10)),
       new Date(endDate),
@@ -324,18 +335,31 @@ export async function closeLeaveAction(
         status: "ENCERRADO",
         endDate,
         daysCount,
-        actualReturnDate: data.actualReturnDate || endDate,
+        actualReturnDate,
         updatedBy: user.id,
         updatedAt: new Date(),
       })
       .where(eq(leaveRecords.id, data.leaveId));
+
+    await db.insert(returnToWorkRecords).values({
+      employeeId: existing.employeeId,
+      leaveRecordId: existing.id,
+      returnDate: actualReturnDate,
+      asoRequired: existing.requiresReturnAso,
+      status: existing.requiresReturnAso ? "PENDENTE" : "CONCLUIDO",
+      createdBy: user.id,
+      updatedBy: user.id,
+    });
 
     await writeAuditLog({
       user,
       action: "UPDATE",
       entityType: "leave_record",
       entityId: data.leaveId,
-      metadata: { closed: true },
+      metadata: {
+        closed: true,
+        asoRequired: existing.requiresReturnAso,
+      },
     });
     revalidatePath("/afastamentos");
     revalidatePath("/dashboard");
@@ -343,6 +367,95 @@ export async function closeLeaveAction(
   } catch (e) {
     return {
       error: e instanceof Error ? e.message : "Falha ao encerrar afastamento.",
+    };
+  }
+}
+
+export async function extendLeaveAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const user = await requirePermission("leaves", "update");
+    const schema = z.object({
+      leaveId: z.string().uuid(),
+      newEndDate: z.string().min(1),
+      reason: z.string().optional(),
+    });
+    const data = schema.parse({
+      leaveId: formData.get("leaveId"),
+      newEndDate: formData.get("newEndDate"),
+      reason: formData.get("reason") || undefined,
+    });
+
+    const db = getDb();
+    const [existing] = await db
+      .select({
+        id: leaveRecords.id,
+        employeeId: leaveRecords.employeeId,
+        startDate: leaveRecords.startDate,
+        endDate: leaveRecords.endDate,
+        status: leaveRecords.status,
+      })
+      .from(leaveRecords)
+      .where(eq(leaveRecords.id, data.leaveId))
+      .limit(1);
+
+    if (!existing) return { error: "Afastamento não encontrado." };
+    if (existing.status === "ENCERRADO") {
+      return { error: "Afastamento já encerrado." };
+    }
+    await requireEmployeeInUserScope(user, { employeeId: existing.employeeId });
+
+    const previousEndDate =
+      existing.endDate ||
+      String(existing.startDate).slice(0, 10);
+
+    if (data.newEndDate < previousEndDate) {
+      return { error: "A nova data fim deve ser igual ou posterior à atual." };
+    }
+
+    const daysCount = calcLeaveDays(
+      new Date(String(existing.startDate).slice(0, 10)),
+      new Date(data.newEndDate),
+    );
+
+    await db.insert(leaveExtensions).values({
+      leaveRecordId: existing.id,
+      previousEndDate,
+      newEndDate: data.newEndDate,
+      reason: data.reason || null,
+      createdBy: user.id,
+      updatedBy: user.id,
+    });
+
+    await db
+      .update(leaveRecords)
+      .set({
+        endDate: data.newEndDate,
+        expectedReturnDate: data.newEndDate,
+        daysCount,
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      })
+      .where(eq(leaveRecords.id, existing.id));
+
+    await writeAuditLog({
+      user,
+      action: "UPDATE",
+      entityType: "leave_extension",
+      entityId: existing.id,
+      metadata: {
+        previousEndDate,
+        newEndDate: data.newEndDate,
+      },
+    });
+    revalidatePath("/afastamentos");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (e) {
+    return {
+      error: e instanceof Error ? e.message : "Falha ao prorrogar afastamento.",
     };
   }
 }
@@ -397,10 +510,94 @@ export async function createVaccinationAction(
     }
 
     const doseNumber = doseNumberFromSituation(data.situation);
+    const kind = classifySituation(data.vaccineCode, data.situation);
     const noteParts = [
       `${data.vaccineCode}: ${data.situation}`,
       data.notes?.trim() || null,
     ].filter(Boolean);
+    const eventDate =
+      data.administeredAt || new Date().toISOString().slice(0, 10);
+
+    if (kind === "refusal") {
+      const [created] = await db
+        .insert(vaccineRefusals)
+        .values({
+          employeeId,
+          vaccineId: vaccine.id,
+          refusedAt: eventDate,
+          reason: data.notes?.trim() || data.situation,
+          createdBy: user.id,
+          updatedBy: user.id,
+        })
+        .returning({ id: vaccineRefusals.id });
+
+      // Mantém espelho na vacinação para o kit/resumo continuar funcionando
+      await db.insert(employeeVaccinations).values({
+        employeeId,
+        vaccineId: vaccine.id,
+        doseNumber: 0,
+        administeredAt: null,
+        lotNumber: null,
+        notes: noteParts.join(" | "),
+        status: data.situation,
+        createdBy: user.id,
+        updatedBy: user.id,
+      });
+
+      await writeAuditLog({
+        user,
+        action: "CREATE",
+        entityType: "vaccine_refusal",
+        entityId: created.id,
+        metadata: { vaccineCode: data.vaccineCode },
+      });
+      revalidatePath("/vacinacao");
+      revalidatePath("/dashboard");
+      return { ok: true };
+    }
+
+    const isAntiHbs = data.situation.toLowerCase().includes("ant hbs");
+    if (isAntiHbs) {
+      const result = data.situation.toLowerCase().includes("nao reagente")
+        ? "NAO_REAGENTE"
+        : "REAGENTE";
+      const [created] = await db
+        .insert(immunityTests)
+        .values({
+          employeeId,
+          testType: "ANTI_HBS",
+          testedAt: eventDate,
+          result,
+          interpretation: data.situation,
+          notes: data.notes?.trim() || null,
+          createdBy: user.id,
+          updatedBy: user.id,
+        })
+        .returning({ id: immunityTests.id });
+
+      await db.insert(employeeVaccinations).values({
+        employeeId,
+        vaccineId: vaccine.id,
+        doseNumber: Math.max(doseNumber, 1),
+        administeredAt: data.administeredAt || null,
+        lotNumber: data.lotNumber || null,
+        notes: noteParts.join(" | "),
+        status: data.situation,
+        createdBy: user.id,
+        updatedBy: user.id,
+      });
+
+      await writeAuditLog({
+        user,
+        action: "CREATE",
+        entityType: "immunity_test",
+        entityId: created.id,
+        metadata: { vaccineCode: data.vaccineCode, result },
+      });
+      revalidatePath("/vacinacao");
+      revalidatePath("/dashboard");
+      return { ok: true };
+    }
 
     const [created] = await db
       .insert(employeeVaccinations)
@@ -485,6 +682,26 @@ export async function createPregnancyAction(
       })
       .returning({ id: pregnancyCases.id });
 
+    await db.insert(pregnancyStatusHistory).values({
+      pregnancyCaseId: created.id,
+      status: data.status,
+      notes: data.notes || null,
+      createdBy: user.id,
+      updatedBy: user.id,
+    });
+
+    if (data.destinationSector?.trim() && data.relocationDate) {
+      await db.insert(pregnancyRelocations).values({
+        pregnancyCaseId: created.id,
+        fromSector: data.originSector || null,
+        toSector: data.destinationSector.trim(),
+        relocatedAt: data.relocationDate,
+        notes: data.notes || null,
+        createdBy: user.id,
+        updatedBy: user.id,
+      });
+    }
+
     await writeAuditLog({
       user,
       action: "CREATE",
@@ -532,6 +749,10 @@ export async function updatePregnancyAction(
         id: pregnancyCases.id,
         employeeId: pregnancyCases.employeeId,
         hazardousActivity: pregnancyCases.hazardousActivity,
+        status: pregnancyCases.status,
+        originSector: pregnancyCases.originSector,
+        destinationSector: pregnancyCases.destinationSector,
+        relocationDate: pregnancyCases.relocationDate,
       })
       .from(pregnancyCases)
       .where(eq(pregnancyCases.id, data.pregnancyId))
@@ -540,14 +761,49 @@ export async function updatePregnancyAction(
     if (!existing) return { error: "Caso não encontrado." };
     await requireEmployeeInUserScope(user, { employeeId: existing.employeeId });
 
+    const nextDestination =
+      data.destinationSector?.trim() || existing.destinationSector || null;
+    const nextRelocationDate =
+      data.relocationDate || existing.relocationDate || null;
+
+    if (existing.status !== data.status) {
+      await db.insert(pregnancyStatusHistory).values({
+        pregnancyCaseId: existing.id,
+        status: data.status,
+        notes: data.notes || null,
+        createdBy: user.id,
+        updatedBy: user.id,
+      });
+    }
+
+    const relocationChanged =
+      Boolean(data.destinationSector?.trim()) &&
+      (data.destinationSector?.trim() !== (existing.destinationSector ?? "") ||
+        (data.relocationDate &&
+          data.relocationDate !== existing.relocationDate));
+
+    if (relocationChanged && nextDestination) {
+      await db.insert(pregnancyRelocations).values({
+        pregnancyCaseId: existing.id,
+        fromSector:
+          existing.destinationSector || existing.originSector || null,
+        toSector: nextDestination,
+        relocatedAt:
+          nextRelocationDate || new Date().toISOString().slice(0, 10),
+        notes: data.notes || null,
+        createdBy: user.id,
+        updatedBy: user.id,
+      });
+    }
+
     await db
       .update(pregnancyCases)
       .set({
         status: data.status,
-        destinationSector: data.destinationSector || null,
-        relocationDate: data.relocationDate || null,
+        destinationSector: nextDestination,
+        relocationDate: nextRelocationDate,
         relocationNeeded: Boolean(
-          existing.hazardousActivity || data.relocationDate,
+          existing.hazardousActivity || nextRelocationDate,
         ),
         leaveStartDate: data.leaveStartDate || null,
         maternityLeave: data.status === "LICENCA",
@@ -624,17 +880,26 @@ export async function createBiologicalAccidentAction(
       })
       .returning({ id: biologicalAccidents.id });
 
-    for (const dayOffset of [30, 60, 90]) {
-      const due = new Date(occurredAt);
-      due.setDate(due.getDate() + dayOffset);
-      await db.insert(biologicalAccidentFollowups).values({
-        accidentId: created.id,
-        dayOffset,
-        dueDate: due.toISOString().slice(0, 10),
-        status: "PENDENTE",
-        createdBy: user.id,
-        updatedBy: user.id,
+    try {
+      const followupRows = [30, 60, 90].map((dayOffset) => {
+        const due = new Date(occurredAt);
+        due.setDate(due.getDate() + dayOffset);
+        return {
+          accidentId: created.id,
+          dayOffset,
+          dueDate: due.toISOString().slice(0, 10),
+          status: "PENDENTE" as const,
+          createdBy: user.id,
+          updatedBy: user.id,
+        };
       });
+      // Um único INSERT evita órfãos parciais (30/60/90)
+      await db.insert(biologicalAccidentFollowups).values(followupRows);
+    } catch (followupError) {
+      await db
+        .delete(biologicalAccidents)
+        .where(eq(biologicalAccidents.id, created.id));
+      throw followupError;
     }
 
     await writeAuditLog({

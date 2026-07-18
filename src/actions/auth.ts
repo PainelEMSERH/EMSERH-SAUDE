@@ -10,6 +10,8 @@ import { writeAuditLog } from "@/lib/audit";
 import {
   countRecentFailures,
   createSessionToken,
+  getCurrentUser,
+  hashPassword,
   recordLoginAttempt,
   revokeCurrentSession,
   setSessionCookie,
@@ -119,12 +121,95 @@ export async function loginAction(
       scopeLevel: user.scopeLevel as never,
       regionIds: [],
       unitIds: [],
+      mustResetPassword: Boolean(user.mustResetPassword),
     },
     action: "LOGIN",
     entityType: "user",
     entityId: user.id,
     ipAddress: ip,
     userAgent: ua,
+  });
+
+  if (user.mustResetPassword) {
+    redirect("/trocar-senha");
+  }
+
+  redirect("/dashboard");
+}
+
+export async function changePasswordAction(
+  _prev: LoginState,
+  formData: FormData,
+): Promise<LoginState> {
+  if (!isDatabaseConfigured() || !isAuthConfigured()) {
+    return { error: "Ambiente não configurado." };
+  }
+
+  const schema = z.object({
+    currentPassword: z.string().min(8),
+    newPassword: z.string().min(8).max(128),
+    confirmPassword: z.string().min(8).max(128),
+  });
+
+  const parsed = schema.safeParse({
+    currentPassword: formData.get("currentPassword"),
+    newPassword: formData.get("newPassword"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+
+  if (!parsed.success) {
+    return { error: "Informe senha atual e nova senha (≥8 caracteres)." };
+  }
+
+  if (parsed.data.newPassword !== parsed.data.confirmPassword) {
+    return { error: "A confirmação da nova senha não confere." };
+  }
+
+  if (parsed.data.currentPassword === parsed.data.newPassword) {
+    return { error: "A nova senha deve ser diferente da atual." };
+  }
+
+  const sessionUser = await getCurrentUser();
+  if (!sessionUser) {
+    return { error: "Sessão expirada. Faça login novamente." };
+  }
+
+  const db = getDb();
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, sessionUser.id))
+    .limit(1);
+
+  if (!user || !user.isActive || user.deletedAt) {
+    return { error: "Usuário inválido." };
+  }
+
+  const valid = await verifyPassword(
+    parsed.data.currentPassword,
+    user.passwordHash,
+  );
+  if (!valid) {
+    return { error: "Senha atual incorreta." };
+  }
+
+  const passwordHash = await hashPassword(parsed.data.newPassword);
+
+  await db
+    .update(users)
+    .set({
+      passwordHash,
+      mustResetPassword: false,
+      updatedAt: new Date(),
+      updatedBy: user.id,
+    })
+    .where(eq(users.id, user.id));
+
+  await writeAuditLog({
+    user: sessionUser,
+    action: "CHANGE_PASSWORD",
+    entityType: "user",
+    entityId: user.id,
   });
 
   redirect("/dashboard");

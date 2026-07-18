@@ -188,3 +188,23 @@ As observações do chat **fazem sentido na maioria dos pontos de segurança (O2
 | Sheet ID só via env | **Corrigido** |
 
 Pendentes (fora de P0): fluxos clínicos completos, XLSX idempotente, parser PEP/vacinas, indicadores 43, admin de usuários, rota de arquivos, etc.
+
+---
+
+## Atualização 2026-07-18 (melhorias P1–P2, sem alterar cálculo ASO)
+
+| Item | Status |
+|------|--------|
+| Escopo regional/unidade na UI de usuários | **Corrigido** |
+| `mustResetPassword` + `/trocar-senha` | **Corrigido** |
+| Download autenticado `/api/files/[id]` | **Corrigido** |
+| Bio follow-ups atômicos (batch + rollback) | **Corrigido** |
+| Prorrogação + retorno formal de afastamentos | **Corrigido** |
+| Vacinação: recusa / Anti-HBs em tabelas próprias | **Corrigido** |
+| Gestantes: histórico + realocações | **Corrigido** |
+| Health com ping DB | **Corrigido** |
+| Relatórios com aviso de truncamento | **Corrigido** |
+| Import: PEP boolean + doses vacina | **Corrigido** |
+| Cálculo ASO (aderência / painel) | **Não alterado** (pedido explícito) |
+
+Ainda abertos (menor urgência): idempotência completa do XLSX (upsert por chave natural), catálogo dos 43 indicadores com regras validadas, agenda dedicada (módulo desativado — ASO agenda planos).

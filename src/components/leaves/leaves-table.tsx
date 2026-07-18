@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { ChevronRight, ExternalLink } from "lucide-react";
-import { closeLeaveAction } from "@/actions/occupational";
+import { closeLeaveAction, extendLeaveAction } from "@/actions/occupational";
 import { StatusBadge } from "@/components/feedback/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -85,6 +85,74 @@ function DetailRow({
         {empty ? "—" : value}
       </dd>
     </div>
+  );
+}
+
+function ExtendLeaveForm({
+  leaveId,
+  defaultEnd,
+  onDone,
+}: {
+  leaveId: string;
+  defaultEnd: string | null;
+  onDone?: () => void;
+}) {
+  const router = useRouter();
+  const [state, action, pending] = useActionState(extendLeaveAction, {});
+
+  useEffect(() => {
+    if (state.ok) {
+      onDone?.();
+      router.refresh();
+    }
+  }, [state, router, onDone]);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const minDate = defaultEnd ?? today;
+
+  return (
+    <form
+      action={action}
+      className="space-y-2 rounded-lg border border-sky-200 bg-sky-50/60 p-3"
+    >
+      <input type="hidden" name="leaveId" value={leaveId} />
+      <p className="text-[12px] font-medium text-sky-950">Prorrogar afastamento</p>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="text-[11px] text-sky-900/80">
+          Nova data fim
+          <input
+            type="date"
+            name="newEndDate"
+            required
+            min={minDate}
+            defaultValue={minDate}
+            className="mt-1 h-8 w-full rounded-md border border-sky-200 bg-card px-2 text-[13px]"
+          />
+        </label>
+        <label className="text-[11px] text-sky-900/80">
+          Motivo
+          <input
+            type="text"
+            name="reason"
+            placeholder="Opcional"
+            className="mt-1 h-8 w-full rounded-md border border-sky-200 bg-card px-2 text-[13px]"
+          />
+        </label>
+      </div>
+      {state.error ? (
+        <p className="text-[11px] text-red-700">{state.error}</p>
+      ) : null}
+      <button
+        type="submit"
+        disabled={pending}
+        className={cn(
+          buttonVariants({ size: "sm" }),
+          "h-8 w-full bg-sky-800 text-[12px] hover:bg-sky-900",
+        )}
+      >
+        {pending ? "Salvando…" : "Registrar prorrogação"}
+      </button>
+    </form>
   );
 }
 
@@ -385,11 +453,18 @@ export function LeavesTable({
                 </DetailSection>
 
                 {canUpdate && selected.displayStatus === "ATIVO" ? (
-                  <CloseLeaveForm
-                    leaveId={selected.id}
-                    defaultEnd={selected.endDate}
-                    onClosed={() => setSelected(null)}
-                  />
+                  <div className="space-y-2">
+                    <ExtendLeaveForm
+                      leaveId={selected.id}
+                      defaultEnd={selected.endDate}
+                      onDone={() => setSelected(null)}
+                    />
+                    <CloseLeaveForm
+                      leaveId={selected.id}
+                      defaultEnd={selected.endDate}
+                      onClosed={() => setSelected(null)}
+                    />
+                  </div>
                 ) : null}
               </div>
 

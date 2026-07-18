@@ -15,6 +15,7 @@ function user(partial: Partial<SessionUser> & Pick<SessionUser, "scopeLevel">): 
     role: "ADMIN_CENTRAL",
     regionIds: [],
     unitIds: [],
+    mustResetPassword: false,
     ...partial,
   };
 }
