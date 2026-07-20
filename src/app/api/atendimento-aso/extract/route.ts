@@ -111,7 +111,7 @@ export async function POST(req: Request) {
       /* tabela ainda não migrada */
     }
 
-    let stored: { url: string; storedName: string };
+    let stored: Awaited<ReturnType<typeof storeClinicAsoFile>>;
     try {
       stored = await storeClinicAsoFile(file.name, bytes);
     } catch (e) {
@@ -191,6 +191,8 @@ export async function POST(req: Request) {
       asoFileName: file.name,
       asoFileHash,
       asoBlobUrl: stored.url,
+      storageBackend: stored.backend,
+      storageEphemeral: Boolean(stored.ephemeral),
       duplicate,
       extraction: {
         provider: extraction.provider,

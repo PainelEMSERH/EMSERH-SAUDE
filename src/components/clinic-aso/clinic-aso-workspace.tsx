@@ -243,6 +243,10 @@ export function ClinicAsoWorkspace({
         setWarning(
           `Leitura parcial: ${String(data.ocrError)}. Digite a matrícula e busque no Alterdata.`,
         );
+      } else if (data.storageEphemeral) {
+        setWarning(
+          "Arquivo salvo só temporariamente na nuvem. Configure BLOB_READ_WRITE_TOKEN (ou Google Drive) no Vercel para guardar o PDF de forma definitiva.",
+        );
       } else if (data.lowText) {
         setWarning(
           "Pouco texto no PDF (pode ser scan só de imagem). Se a matrícula não veio, digite e clique em Buscar Alterdata — o resto do colaborador preenche sozinho.",
