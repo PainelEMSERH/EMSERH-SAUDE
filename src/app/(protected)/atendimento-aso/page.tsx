@@ -39,8 +39,8 @@ export default async function AtendimentoAsoPage() {
             Atendimento ASO
           </h1>
           <p className="text-sm text-muted-foreground">
-            Leitura de PDF, cadastro clínico e exportação da Agenda Médica —
-            usando o Alterdata já sincronizado neste sistema.
+            Escaneie o ASO, arraste o PDF aqui — o sistema lê, completa com o
+            Alterdata e monta a linha da Agenda Médica.
           </p>
         </div>
       </div>

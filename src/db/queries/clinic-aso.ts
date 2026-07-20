@@ -9,6 +9,7 @@ import {
 } from "@/db/schemas";
 import { can } from "@/lib/permissions";
 import { resolveCpfDisplayResult } from "@/lib/employees/cpf-display";
+import { hashCpf, normalizeCpf } from "@/lib/encryption";
 import type { SessionUser } from "@/types";
 
 export type ClinicEmployeeLookup = {
@@ -58,7 +59,26 @@ export async function lookupEmployeeByRegistration(
 
   const row = rows[0];
   if (!row) return null;
+  return mapEmployeeLookup(row, user);
+}
 
+function mapEmployeeLookup(
+  row: {
+    id: string;
+    registration: string;
+    fullName: string;
+    cpfEncrypted: string | null;
+    cpfHash: string | null;
+    city: string | null;
+    birthDate: string | null;
+    sex: string | null;
+    unitId: string | null;
+    regionId: string | null;
+    unitName: string | null;
+    jobRoleName: string | null;
+  },
+  user: SessionUser,
+): ClinicEmployeeLookup {
   const cpfResult = resolveCpfDisplayResult(
     row.cpfEncrypted,
     row.cpfHash,
@@ -87,6 +107,42 @@ export async function lookupEmployeeByRegistration(
     unitId: row.unitId,
     regionId: row.regionId,
   };
+}
+
+const employeeSelect = {
+  id: employees.id,
+  registration: employees.registration,
+  fullName: employees.fullName,
+  cpfEncrypted: employees.cpfEncrypted,
+  cpfHash: employees.cpfHash,
+  city: employees.city,
+  birthDate: employees.birthDate,
+  sex: employees.sex,
+  unitId: employees.unitId,
+  regionId: employees.regionId,
+  unitName: units.name,
+  jobRoleName: jobRoles.name,
+};
+
+export async function lookupEmployeeByCpf(
+  user: SessionUser,
+  cpf: string,
+): Promise<ClinicEmployeeLookup | null> {
+  const digits = normalizeCpf(cpf);
+  if (digits.length !== 11) return null;
+  const db = getDb();
+  const rows = await db
+    .select(employeeSelect)
+    .from(employees)
+    .leftJoin(units, eq(employees.unitId, units.id))
+    .leftJoin(jobRoles, eq(employees.jobRoleId, jobRoles.id))
+    .where(
+      and(eq(employees.cpfHash, hashCpf(digits)), isNull(employees.deletedAt)),
+    )
+    .limit(1);
+  const row = rows[0];
+  if (!row) return null;
+  return mapEmployeeLookup(row, user);
 }
 
 export async function listClinicPhysicians() {

@@ -72,22 +72,27 @@ export function parseClinicAsoFieldsFromText(
   if (!text.trim()) return fields;
 
   fields.cpf = extractByLabels(text, [
-    /CPF[:\s]*([\d.\-]+)/i,
-    /C\.?P\.?F\.?[:\s]*([\d.\-]+)/i,
+    /CPF[:\s]*([\d.\-\/]+)/i,
+    /C\.?P\.?F\.?[:\s]*([\d.\-\/]+)/i,
+    /(?:^|\n)\s*([\d]{3}\.[\d]{3}\.[\d]{3}-[\d]{2})\b/,
   ]);
   fields.matricula = extractByLabels(text, [
-    /Matr[ií]cula[:\s]*([0-9]+)/i,
+    /Matr[ií]cula[:\s#]*([0-9]+)/i,
+    /Cd\.?\s*Chamada[:\s]*([0-9]+)/i,
     /CdChamada[:\s]*([0-9]+)/i,
+    /Registro[:\s]*([0-9]+)/i,
+    /Chapa[:\s]*([0-9]+)/i,
   ]);
   const name = extractByLabels(text, [
-    /Nome\s+do\s+(?:Funcion[aá]rio|Colaborador)[:\s]*([A-ZÀ-Ú\s]{5,})/i,
-    /Nome[:\s]*([A-ZÀ-Ú\s]{5,})/i,
+    /Nome\s+do\s+(?:Funcion[aá]rio|Colaborador|Trabalhador)[:\s]*([A-ZÀ-Ú\s.'-]{5,})/i,
+    /Colaborador[:\s]*([A-ZÀ-Ú\s.'-]{5,})/i,
+    /Nome[:\s]*([A-ZÀ-Ú\s.'-]{5,})/i,
   ]);
   fields.employeeName = name ? name.toUpperCase() : null;
 
   const dateRaw = extractByLabels(text, [
+    /Data\s+do\s+(?:exame|ASO|atendimento)[:\s]*(\d{2}\/\d{2}\/\d{4})/i,
     /Data[:\s]*(\d{2}\/\d{2}\/\d{4})/i,
-    /Data\s+do\s+exame[:\s]*(\d{2}\/\d{2}\/\d{4})/i,
     /(\d{2}\/\d{2}\/\d{4})/,
   ]);
   fields.date = dateRaw ? toIsoDate(dateRaw) : null;
