@@ -4,6 +4,7 @@ import { getDb } from "@/db";
 import { clinicAsoAttendances } from "@/db/schemas";
 import {
   lookupEmployeeByCpf,
+  lookupEmployeeByName,
   lookupEmployeeByRegistration,
   listClinicPhysicians,
 } from "@/db/queries/clinic-aso";
@@ -162,7 +163,7 @@ export async function POST(req: Request) {
     let employee: Awaited<
       ReturnType<typeof lookupEmployeeByRegistration>
     > = null;
-    let employeeSource: "matricula" | "cpf" | null = null;
+    let employeeSource: "matricula" | "cpf" | "nome" | null = null;
 
     try {
       if (fields.matricula && fields.matricula !== "00000") {
@@ -177,6 +178,14 @@ export async function POST(req: Request) {
         if (employee) {
           employeeSource = "cpf";
           fields.matricula = employee.registration;
+        }
+      }
+      if (!employee && fields.employeeName) {
+        employee = await lookupEmployeeByName(user, fields.employeeName);
+        if (employee) {
+          employeeSource = "nome";
+          fields.matricula = employee.registration;
+          fields.employeeName = employee.fullName;
         }
       }
     } catch (e) {

@@ -37,7 +37,7 @@ function matchAttendance(text: string): ClinicAttendanceType | null {
     [/demissional/i, "Demissional"],
     [/retorno\s+ao\s+trabalho/i, "Retorno ao Trabalho"],
     [/mudan[cç]a\s+de\s+fun[cç][aã]o/i, "Mudança de Função"],
-    [/peri[oó]dico/i, "Periódico"],
+    [/peri[oó_\s-]?dico/i, "Periódico"],
     [/consulta/i, "Consulta"],
   ];
   for (const [re, v] of map) {
@@ -172,6 +172,85 @@ export function parseClinicAsoFieldsFromText(
   return fields;
 }
 
+/**
+ * Extrai pistas do nome do arquivo, ex.:
+ * "ASO PERIÓDICO - ARLENE RAIANNY MELO OLIVEIRA 20.05.2026.pdf"
+ */
+export function parseClinicAsoFieldsFromFileName(
+  fileName: string,
+): ClinicAsoFormFields {
+  const fields: ClinicAsoFormFields = { ...EMPTY_CLINIC_ASO_FIELDS };
+  const base = fileName
+    .replace(/\.[^.]+$/i, "")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!base) return fields;
+
+  fields.attendanceType = matchAttendance(base);
+
+  const dateMatch = base.match(/(\d{2}[./-]\d{2}[./-]\d{4})\s*$/);
+  if (dateMatch?.[1]) {
+    fields.date = toIsoDate(dateMatch[1].replace(/[.-]/g, "/"));
+  }
+
+  // "ASO TIPO - NOME DATA" ou "TIPO - NOME DATA"
+  const dashed = base.match(
+    /^(?:ASO\s+)?(.+?)\s*[-–—]\s*(.+?)(?:\s+\d{2}[./-]\d{2}[./-]\d{4})?\s*$/i,
+  );
+  if (dashed) {
+    const left = dashed[1].trim();
+    const right = dashed[2].trim();
+    if (!fields.attendanceType) fields.attendanceType = matchAttendance(left);
+    const nameCandidate = right
+      .replace(/\d{2}[./-]\d{2}[./-]\d{4}/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (/^[A-Za-zÀ-ú\s'.-]{5,}$/.test(nameCandidate)) {
+      fields.employeeName = nameCandidate.toUpperCase();
+    }
+  } else if (!fields.employeeName) {
+    // Sem hífen: tenta tirar prefixo ASO + tipo e data
+    let rest = base.replace(/^ASO\s+/i, "");
+    for (const t of CLINIC_ATTENDANCE_TYPES) {
+      const re = new RegExp(`^${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+`, "i");
+      if (re.test(rest)) {
+        fields.attendanceType = t;
+        rest = rest.replace(re, "");
+        break;
+      }
+    }
+    rest = rest
+      .replace(/\d{2}[./-]\d{2}[./-]\d{4}/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (/^[A-Za-zÀ-ú\s'.-]{5,}$/.test(rest)) {
+      fields.employeeName = rest.toUpperCase();
+    }
+  }
+
+  fields.attendanceType = pickEnum(
+    fields.attendanceType,
+    CLINIC_ATTENDANCE_TYPES,
+  );
+  return fields;
+}
+
+export function mergeClinicAsoFields(
+  ...sources: ClinicAsoFormFields[]
+): ClinicAsoFormFields {
+  const out: ClinicAsoFormFields = { ...EMPTY_CLINIC_ASO_FIELDS };
+  for (const src of sources) {
+    for (const key of Object.keys(
+      EMPTY_CLINIC_ASO_FIELDS,
+    ) as Array<keyof ClinicAsoFormFields>) {
+      const v = src[key];
+      if (v != null && v !== "") out[key] = v as never;
+    }
+  }
+  return out;
+}
+
 async function extractPdfText(
   bytes: Buffer,
 ): Promise<{ text: string; pageCount: number }> {
@@ -194,6 +273,8 @@ export async function extractClinicAsoOcr(input: {
     input.mimeType.includes("pdf") ||
     input.fileName.toLowerCase().endsWith(".pdf");
 
+  const fromName = parseClinicAsoFieldsFromFileName(input.fileName);
+
   let rawText = "";
   let pageCount = 1;
   if (isPdf) {
@@ -213,7 +294,10 @@ export async function extractClinicAsoOcr(input: {
       provider,
       rawText,
       pageCount,
-      fields: parseClinicAsoFieldsFromText(rawText),
+      fields: mergeClinicAsoFields(
+        fromName,
+        parseClinicAsoFieldsFromText(rawText),
+      ),
     };
   }
 
@@ -226,7 +310,7 @@ export async function extractClinicAsoOcr(input: {
         provider,
         rawText: "",
         pageCount,
-        fields: { ...EMPTY_CLINIC_ASO_FIELDS },
+        fields: fromName,
       };
     }
     const model = clinicEnv("OCR_MODEL", "gpt-4o-mini");
@@ -259,13 +343,18 @@ export async function extractClinicAsoOcr(input: {
     const content = data.choices?.[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(content) as Partial<ClinicAsoFormFields>;
     const base = parseClinicAsoFieldsFromText(rawText);
-    const fields: ClinicAsoFormFields = { ...EMPTY_CLINIC_ASO_FIELDS };
+    const fromLlm: ClinicAsoFormFields = { ...EMPTY_CLINIC_ASO_FIELDS };
     for (const key of Object.keys(
       EMPTY_CLINIC_ASO_FIELDS,
     ) as Array<keyof ClinicAsoFormFields>) {
-      fields[key] = (parsed[key] ?? base[key] ?? null) as never;
+      fromLlm[key] = (parsed[key] ?? null) as never;
     }
-    return { provider, rawText: content, pageCount, fields };
+    return {
+      provider,
+      rawText: content,
+      pageCount,
+      fields: mergeClinicAsoFields(fromName, base, fromLlm),
+    };
   }
 
   throw new Error(`OCR_PROVIDER não suportado: ${provider}`);

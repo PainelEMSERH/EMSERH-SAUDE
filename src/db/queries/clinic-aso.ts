@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, isNull } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   clinicAsoAttendances,
@@ -10,6 +10,7 @@ import {
 import { can } from "@/lib/permissions";
 import { resolveCpfDisplayResult } from "@/lib/employees/cpf-display";
 import { hashCpf, normalizeCpf } from "@/lib/encryption";
+import { normalizeText } from "@/lib/validation";
 import type { SessionUser } from "@/types";
 
 export type ClinicEmployeeLookup = {
@@ -32,26 +33,13 @@ export async function lookupEmployeeByRegistration(
 ): Promise<ClinicEmployeeLookup | null> {
   const db = getDb();
   const rows = await db
-    .select({
-      id: employees.id,
-      registration: employees.registration,
-      fullName: employees.fullName,
-      cpfEncrypted: employees.cpfEncrypted,
-      cpfHash: employees.cpfHash,
-      city: employees.city,
-      birthDate: employees.birthDate,
-      sex: employees.sex,
-      unitId: employees.unitId,
-      regionId: employees.regionId,
-      unitName: units.name,
-      jobRoleName: jobRoles.name,
-    })
+    .select(employeeSelect)
     .from(employees)
     .leftJoin(units, eq(employees.unitId, units.id))
     .leftJoin(jobRoles, eq(employees.jobRoleId, jobRoles.id))
     .where(
       and(
-        eq(employees.registration, registration),
+        eq(employees.registration, registration.trim()),
         isNull(employees.deletedAt),
       ),
     )
@@ -143,6 +131,71 @@ export async function lookupEmployeeByCpf(
   const row = rows[0];
   if (!row) return null;
   return mapEmployeeLookup(row, user);
+}
+
+/** Busca colaborador pelo nome (arquivo ASO / OCR). Prefere match exato normalizado. */
+export async function lookupEmployeeByName(
+  user: SessionUser,
+  name: string,
+): Promise<ClinicEmployeeLookup | null> {
+  const cleaned = name.replace(/\s+/g, " ").trim();
+  if (cleaned.length < 5) return null;
+  const norm = normalizeText(cleaned);
+  const db = getDb();
+
+  const exact = await db
+    .select(employeeSelect)
+    .from(employees)
+    .leftJoin(units, eq(employees.unitId, units.id))
+    .leftJoin(jobRoles, eq(employees.jobRoleId, jobRoles.id))
+    .where(
+      and(eq(employees.normalizedName, norm), isNull(employees.deletedAt)),
+    )
+    .limit(2);
+
+  if (exact.length >= 1) return mapEmployeeLookup(exact[0], user);
+
+  const fuzzy = await db
+    .select(employeeSelect)
+    .from(employees)
+    .leftJoin(units, eq(employees.unitId, units.id))
+    .leftJoin(jobRoles, eq(employees.jobRoleId, jobRoles.id))
+    .where(
+      and(
+        isNull(employees.deletedAt),
+        ilike(employees.normalizedName, `%${norm}%`),
+      ),
+    )
+    .orderBy(asc(employees.fullName))
+    .limit(8);
+
+  if (fuzzy.length === 1) return mapEmployeeLookup(fuzzy[0], user);
+
+  const parts = norm.split(" ").filter((p) => p.length > 1);
+  if (parts.length >= 2) {
+    const tail = parts.slice(-2).join(" ");
+    const byTail = fuzzy.filter((r) =>
+      normalizeText(r.fullName).includes(tail),
+    );
+    if (byTail.length === 1) return mapEmployeeLookup(byTail[0], user);
+
+    const headTail = `${parts[0]}%${parts[parts.length - 1]}`;
+    const byEnds = await db
+      .select(employeeSelect)
+      .from(employees)
+      .leftJoin(units, eq(employees.unitId, units.id))
+      .leftJoin(jobRoles, eq(employees.jobRoleId, jobRoles.id))
+      .where(
+        and(
+          isNull(employees.deletedAt),
+          ilike(employees.normalizedName, headTail),
+        ),
+      )
+      .limit(3);
+    if (byEnds.length === 1) return mapEmployeeLookup(byEnds[0], user);
+  }
+
+  return null;
 }
 
 export async function listClinicPhysicians() {

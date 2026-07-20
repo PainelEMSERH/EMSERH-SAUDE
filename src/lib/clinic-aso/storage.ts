@@ -1,8 +1,7 @@
 import { put } from "@vercel/blob";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
-import { clinicEnv, isClinicDriveConfigured } from "@/lib/clinic-aso/env";
-import { uploadClinicAsoToDrive } from "@/lib/clinic-aso/drive";
+import { clinicEnv } from "@/lib/clinic-aso/env";
 
 function isServerlessRuntime(): boolean {
   return Boolean(
@@ -15,7 +14,6 @@ function isServerlessRuntime(): boolean {
 function localAsoDir(): string {
   const configured = clinicEnv("ASO_STORAGE_DIR");
   if (configured) return configured;
-  // No Vercel o filesystem do app é read-only; /tmp é gravável (efêmero).
   if (isServerlessRuntime()) return path.join("/tmp", "asos");
   return path.join(process.cwd(), "data", "asos");
 }
@@ -23,7 +21,7 @@ function localAsoDir(): string {
 export type ClinicAsoStoreResult = {
   url: string;
   storedName: string;
-  backend: "blob" | "drive" | "local";
+  backend: "blob" | "local";
   ephemeral?: boolean;
 };
 
@@ -37,6 +35,13 @@ export async function storeClinicAsoFile(
 
   const token =
     clinicEnv("BLOB_READ_WRITE_TOKEN") || process.env.BLOB_READ_WRITE_TOKEN;
+
+  if (!token && isServerlessRuntime()) {
+    throw new Error(
+      "BLOB_READ_WRITE_TOKEN não configurado no Vercel. Sem isso o PDF não pode ser guardado na nuvem.",
+    );
+  }
+
   if (token) {
     const blob = await put(`clinic-aso/${storedName}`, bytes, {
       access: "public",
@@ -46,24 +51,6 @@ export async function storeClinicAsoFile(
     return { url: blob.url, storedName, backend: "blob" };
   }
 
-  if (isClinicDriveConfigured()) {
-    try {
-      const drive = await uploadClinicAsoToDrive({
-        fileName: safe || storedName,
-        mimeType: contentType,
-        bytes,
-      });
-      return {
-        url: drive.webViewLink,
-        storedName: drive.fileId,
-        backend: "drive",
-      };
-    } catch (e) {
-      console.error("[clinic-aso/storage] drive fallback", e);
-      // segue para disco local /tmp
-    }
-  }
-
   const dir = localAsoDir();
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(dir, storedName), bytes);
@@ -71,7 +58,7 @@ export async function storeClinicAsoFile(
     url: `/api/atendimento-aso/file?name=${encodeURIComponent(storedName)}`,
     storedName,
     backend: "local",
-    ephemeral: isServerlessRuntime(),
+    ephemeral: false,
   };
 }
 

@@ -127,6 +127,7 @@ export function ClinicAsoWorkspace({
   const [dragOver, setDragOver] = useState(false);
   const [alterdataOk, setAlterdataOk] = useState(false);
   const [lastSavedId, setLastSavedId] = useState<string | null>(null);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
 
@@ -158,6 +159,12 @@ export function ClinicAsoWorkspace({
     setWarning(null);
     setAlterdataOk(false);
     setLastSavedId(null);
+    if (localPreviewUrl) {
+      URL.revokeObjectURL(localPreviewUrl);
+      setLocalPreviewUrl(null);
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setLocalPreviewUrl(objectUrl);
     try {
       const fd = new FormData();
       fd.append("file", file);
@@ -194,7 +201,7 @@ export function ClinicAsoWorkspace({
         ...emptyForm,
         asoFileName: (data.asoFileName as string) || file.name,
         asoFileHash: (data.asoFileHash as string) || "",
-        asoBlobUrl: (data.asoBlobUrl as string) || null,
+        asoBlobUrl: (data.asoBlobUrl as string) || objectUrl,
         extractionRaw: data.extraction,
         employeeName: fields.employeeName || "",
         cpf: fields.cpf || "",
@@ -245,17 +252,30 @@ export function ClinicAsoWorkspace({
         );
       } else if (data.storageEphemeral) {
         setWarning(
-          "Arquivo salvo só temporariamente na nuvem. Configure BLOB_READ_WRITE_TOKEN (ou Google Drive) no Vercel para guardar o PDF de forma definitiva.",
+          "Arquivo salvo só temporariamente. O preview local continua disponível nesta tela.",
         );
-      } else if (data.lowText) {
+      } else if (data.lowText && !data.employee) {
         setWarning(
-          "Pouco texto no PDF (pode ser scan só de imagem). Se a matrícula não veio, digite e clique em Buscar Alterdata — o resto do colaborador preenche sozinho.",
+          "PDF com pouco texto (scan). Usamos o nome do arquivo quando possível. Se faltar matrícula, digite e busque no Alterdata.",
+        );
+      } else if (data.lowText && data.employee) {
+        setWarning(
+          "PDF com pouco texto — colaborador encontrado no Alterdata pelo nome do arquivo. Confira médico e situação.",
         );
       }
 
+      const source =
+        data.employeeSource === "nome"
+          ? "pelo nome do arquivo"
+          : data.employeeSource === "cpf"
+            ? "pelo CPF"
+            : data.employeeSource === "matricula"
+              ? "pela matrícula"
+              : null;
+
       setOcrInfo(
         data.employee
-          ? `ASO lido (${(data.pageCount as number) || 1} pág.) + colaborador do Alterdata preenchido.`
+          ? `ASO lido (${(data.pageCount as number) || 1} pág.) + Alterdata preenchido${source ? ` ${source}` : ""}.`
           : `ASO lido (${(data.pageCount as number) || 1} pág.). Confirme matrícula e médico, depois salve.`,
       );
       setTab("cadastro");
@@ -448,10 +468,10 @@ export function ClinicAsoWorkspace({
             {warning ? (
               <p className="text-amber-700 dark:text-amber-400">{warning}</p>
             ) : null}
-            {form.asoBlobUrl ? (
+            {localPreviewUrl || form.asoBlobUrl ? (
               <a
                 className="underline text-xs"
-                href={form.asoBlobUrl}
+                href={localPreviewUrl || form.asoBlobUrl || undefined}
                 target="_blank"
                 rel="noreferrer"
               >
