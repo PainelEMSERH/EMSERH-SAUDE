@@ -164,19 +164,37 @@ export function ClinicAsoWorkspace({
       const res = await fetch("/api/atendimento-aso/extract", {
         method: "POST",
         body: fd,
+        credentials: "same-origin",
       });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "Falha ao ler o ASO");
+
+      const raw = await res.text();
+      let data: Record<string, unknown> = {};
+      try {
+        data = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+      } catch {
+        toast.error(
+          res.status === 401 || res.redirected
+            ? "Sessão expirada. Atualize a página e entre de novo."
+            : `Falha no servidor (${res.status}). Tente outro PDF ou recarregue.`,
+        );
         return;
       }
 
-      const fields = data.fields as ClinicAsoFormFields;
+      if (!res.ok) {
+        toast.error(
+          typeof data.error === "string"
+            ? data.error
+            : `Falha ao ler o ASO (${res.status})`,
+        );
+        return;
+      }
+
+      const fields = (data.fields ?? {}) as ClinicAsoFormFields;
       let next: typeof emptyForm = {
         ...emptyForm,
-        asoFileName: data.asoFileName as string,
-        asoFileHash: data.asoFileHash as string,
-        asoBlobUrl: data.asoBlobUrl as string,
+        asoFileName: (data.asoFileName as string) || file.name,
+        asoFileHash: (data.asoFileHash as string) || "",
+        asoBlobUrl: (data.asoBlobUrl as string) || null,
         extractionRaw: data.extraction,
         employeeName: fields.employeeName || "",
         cpf: fields.cpf || "",
@@ -221,6 +239,10 @@ export function ClinicAsoWorkspace({
 
       if (data.duplicate) {
         setWarning("Este PDF já foi cadastrado antes (duplicidade).");
+      } else if (data.ocrError) {
+        setWarning(
+          `Leitura parcial: ${String(data.ocrError)}. Digite a matrícula e busque no Alterdata.`,
+        );
       } else if (data.lowText) {
         setWarning(
           "Pouco texto no PDF (pode ser scan só de imagem). Se a matrícula não veio, digite e clique em Buscar Alterdata — o resto do colaborador preenche sozinho.",
@@ -229,8 +251,8 @@ export function ClinicAsoWorkspace({
 
       setOcrInfo(
         data.employee
-          ? `ASO lido (${data.pageCount || 1} pág.) + colaborador do Alterdata preenchido.`
-          : `ASO lido (${data.pageCount || 1} pág.). Confirme matrícula e médico, depois salve.`,
+          ? `ASO lido (${(data.pageCount as number) || 1} pág.) + colaborador do Alterdata preenchido.`
+          : `ASO lido (${(data.pageCount as number) || 1} pág.). Confirme matrícula e médico, depois salve.`,
       );
       setTab("cadastro");
       toast.success(
@@ -238,8 +260,13 @@ export function ClinicAsoWorkspace({
           ? "ASO lido e Alterdata preenchido."
           : "ASO processado — revise o cadastro.",
       );
-    } catch {
-      toast.error("Erro ao processar o arquivo.");
+    } catch (e) {
+      console.error("[clinic-aso] upload", e);
+      toast.error(
+        e instanceof Error
+          ? e.message
+          : "Erro ao processar o arquivo. Verifique a conexão e tente de novo.",
+      );
     } finally {
       setReading(false);
       if (fileRef.current) fileRef.current.value = "";

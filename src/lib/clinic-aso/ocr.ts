@@ -197,9 +197,15 @@ export async function extractClinicAsoOcr(input: {
   let rawText = "";
   let pageCount = 1;
   if (isPdf) {
-    const extracted = await extractPdfText(input.bytes);
-    rawText = extracted.text;
-    pageCount = extracted.pageCount || 1;
+    try {
+      const extracted = await extractPdfText(input.bytes);
+      rawText = extracted.text;
+      pageCount = extracted.pageCount || 1;
+    } catch (e) {
+      console.error("[clinic-aso/ocr] extractPdfText", e);
+      rawText = "";
+      pageCount = 1;
+    }
   }
 
   if (provider === "none" || provider === "mock") {
