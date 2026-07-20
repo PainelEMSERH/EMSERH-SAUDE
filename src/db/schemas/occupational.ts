@@ -4,11 +4,14 @@ import {
   doublePrecision,
   index,
   integer,
+  jsonb,
+  numeric,
   pgSchema,
   text,
   timestamp,
   uniqueIndex,
   uuid,
+  varchar,
 } from "drizzle-orm/pg-core";
 import { employees, physicians, regions, units } from "./core";
 import { auditActors, idColumn, softDelete, timestamps } from "./common";
@@ -793,4 +796,66 @@ export const caringSpaceSatisfaction = occupationalSchema.table(
     ...softDelete,
     ...auditActors,
   },
+);
+
+/**
+ * Atendimentos clínicos de ASO (módulo Atendimento ASO).
+ * Isolado do planejamento mensal em aso_records / aso_monthly_plans.
+ */
+export const clinicAsoAttendances = occupationalSchema.table(
+  "clinic_aso_attendances",
+  {
+    id: idColumn,
+    attendanceDate: date("attendance_date").notNull(),
+    registration: varchar("registration", { length: 32 }).notNull(),
+    employeeId: uuid("employee_id").references(() => employees.id),
+    employeeName: text("employee_name").notNull(),
+    department: text("department").default("").notNull(),
+    jobTitle: text("job_title").default("").notNull(),
+    cpf: varchar("cpf", { length: 11 }).default("").notNull(),
+    sus: varchar("sus", { length: 20 }).default("").notNull(),
+    attendanceType: varchar("attendance_type", { length: 60 }).notNull(),
+    situation: varchar("situation", { length: 20 }).notNull(),
+    conduct: text("conduct").default("").notNull(),
+    physicianCode: varchar("physician_code", { length: 32 }).notNull(),
+    physicianName: varchar("physician_name", { length: 160 }).notNull(),
+    notes: text("notes").default("").notNull(),
+    physicalActivity: varchar("physical_activity", { length: 10 }).notNull(),
+    lifestyle: varchar("lifestyle", { length: 40 }).notNull(),
+    sex: varchar("sex", { length: 20 }).notNull(),
+    weight: numeric("weight", { precision: 8, scale: 2 }),
+    height: numeric("height", { precision: 8, scale: 2 }),
+    bmi: numeric("bmi", { precision: 8, scale: 2 }),
+    bmiResult: varchar("bmi_result", { length: 60 }).default("").notNull(),
+    profile: text("profile").default("").notNull(),
+    city: varchar("city", { length: 120 }).default("").notNull(),
+    birthDate: date("birth_date"),
+    age: integer("age"),
+    asoFileName: varchar("aso_file_name", { length: 260 }),
+    asoFileHash: varchar("aso_file_hash", { length: 128 }),
+    asoBlobUrl: text("aso_blob_url"),
+    driveFileId: varchar("drive_file_id", { length: 128 }),
+    driveUrl: text("drive_url"),
+    emailStatus: varchar("email_status", { length: 20 })
+      .default("PENDING")
+      .notNull(),
+    emailError: text("email_error"),
+    emailSentAt: timestamp("email_sent_at", { withTimezone: true }),
+    extractionStatus: varchar("extraction_status", { length: 20 })
+      .default("NONE")
+      .notNull(),
+    extractionRaw: jsonb("extraction_raw"),
+    unitId: uuid("unit_id").references(() => units.id),
+    regionId: uuid("region_id").references(() => regions.id),
+    physicianId: uuid("physician_id").references(() => physicians.id),
+    ...timestamps,
+    ...softDelete,
+    ...auditActors,
+  },
+  (t) => [
+    uniqueIndex("clinic_aso_hash_uidx").on(t.asoFileHash),
+    index("clinic_aso_date_idx").on(t.attendanceDate),
+    index("clinic_aso_registration_idx").on(t.registration),
+    index("clinic_aso_employee_idx").on(t.employeeId),
+  ],
 );

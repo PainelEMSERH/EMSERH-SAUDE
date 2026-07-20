@@ -93,7 +93,7 @@ export const ROLE_PERMISSIONS: PermissionMatrix = {
     vaccination: ["view", "create", "update"],
     pregnancy: ["view", "create", "update"],
     biological: ["view", "create", "update"],
-    attendances: ["view", "create", "update"],
+    attendances: ["view", "create", "update", "export"],
     reports: READ,
     files: ["view", "create"],
   },
@@ -103,7 +103,7 @@ export const ROLE_PERMISSIONS: PermissionMatrix = {
     asos: CLINICAL_OPS,
     agenda: CLINICAL_OPS,
     leaves: ["view", "create", "update", "view_clinical"],
-    attendances: CLINICAL_OPS,
+    attendances: [...CLINICAL_OPS, "export"],
     files: ["view", "create", "view_clinical"],
   },
   ENFERMAGEM_TRABALHO: {
@@ -115,7 +115,7 @@ export const ROLE_PERMISSIONS: PermissionMatrix = {
     vaccination: CLINICAL_OPS,
     pregnancy: CLINICAL_OPS,
     biological: CLINICAL_OPS,
-    attendances: ["view", "create", "update"],
+    attendances: ["view", "create", "update", "export"],
     files: ["view", "create"],
   },
   GESTOR_CONSULTA: {

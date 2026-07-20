@@ -1,6 +1,7 @@
 import {
   Baby,
   ClipboardList,
+  ClipboardPlus,
   HeartPulse,
   LayoutDashboard,
   Settings,
@@ -58,6 +59,12 @@ export const NAV_SECTIONS: NavSection[] = [
         href: "/asos",
         icon: ClipboardList,
         module: "asos",
+      },
+      {
+        title: "Atendimento ASO",
+        href: "/atendimento-aso",
+        icon: ClipboardPlus,
+        module: "attendances",
       },
       {
         title: "Afastamentos",
